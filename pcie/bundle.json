@@ -1,0 +1,44 @@
+{
+    "name": "@ohos/drivers_peripheral_pcie",
+    "description": "pcie host driver",
+    "version": "1.0",
+    "license": "Apache License 2.0",
+    "publishAs": "code-segment",
+    "segment": {
+        "destPath": "drivers/peripheral/pcie"
+    },
+    "dirs": {},
+    "scripts": {},
+    "component": {
+        "name": "drivers_peripheral_pcie",
+        "subsystem": "hdf",
+        "features": [],
+        "adapted_system_type": [
+            "standard",
+            "small"
+        ],
+        "rom": "80KB",
+        "ram": "240KB",
+        "deps": {
+            "components": [
+                "access_token",
+                "ipc",
+                "hdf_core",
+                "hilog",
+                "samgr",
+                "cJSON",
+                "c_utils",
+                "drivers_interface_pcie",
+                "init",
+                "hitrace"
+            ],
+            "third_party": []
+        },
+        "build": {
+            "sub_component": [
+                "//drivers/peripheral/pcie:pcie_entry"
+            ],
+            "inner_kits": []
+        }
+    }
+}
