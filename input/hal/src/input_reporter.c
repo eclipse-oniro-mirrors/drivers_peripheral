@@ -35,11 +35,24 @@ static void ProcessNullPackage(InputDevManager *manager, struct HdfIoService *se
 {
     DeviceInfoNode *pos = NULL;
     DeviceInfoNode *next = NULL;
+    InputEventCb *cb = NULL;
+    uint32_t devIndex = 0;
+
+    pthread_mutex_lock(&manager->mutex);
     DLIST_FOR_EACH_ENTRY_SAFE(pos, next, &manager->devList, DeviceInfoNode, node) {
         if (pos->service == service) {
-            pos->eventCb->EventPkgCallback((const InputEventPackage **)pkgs, count, pos->payload.devIndex);
+            if (pos->eventCb == NULL || pos->eventCb->EventPkgCallback == NULL) {
+                HDF_LOGE("%s: param is null", __func__);
+                continue;
+            }
+            cb = pos->eventCb;
+            devIndex = pos->payload.devIndex;
+            pthread_mutex_unlock(&manager->mutex);
+            cb->EventPkgCallback((const InputEventPackage **)pkgs, count, devIndex);
+            pthread_mutex_lock(&manager->mutex);
         }
     }
+    pthread_mutex_unlock(&manager->mutex);
 }
 
 static int32_t EventListenerCallback(struct HdfDevEventlistener *listener, struct HdfIoService *service,
@@ -49,6 +62,7 @@ static int32_t EventListenerCallback(struct HdfDevEventlistener *listener, struc
     (void)id;
     int32_t count = 0;
     uint32_t len = 0;
+    uint32_t nullPkgNum = 0;
     InputEventPackage *pkgs[MAX_EVENT_PKG_NUM] = {0};
     InputDevManager *manager = NULL;
 
@@ -69,8 +83,15 @@ static int32_t EventListenerCallback(struct HdfDevEventlistener *listener, struc
             break;
         }
         if (pkgs[count] == NULL) {
-            ProcessNullPackage(manager, service, pkgs, count);
-            count = 0;
+            nullPkgNum++;
+            if (nullPkgNum >= MAX_EVENT_PKG_NUM) {
+                HDF_LOGE("%s: too many null pkgs", __func__);
+                break;
+            }
+            if (count > 0) {
+                ProcessNullPackage(manager, service, pkgs, count);
+                count = 0;
+            }
             continue;
         }
         if (len < sizeof(InputEventPackage)) {
@@ -78,6 +99,9 @@ static int32_t EventListenerCallback(struct HdfDevEventlistener *listener, struc
             break;
         }
         count++;
+    }
+    if (count > 0) {
+        ProcessNullPackage(manager, service, pkgs, count);
     }
     return INPUT_SUCCESS;
 }

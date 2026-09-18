@@ -163,6 +163,12 @@ static int32_t RemoveDisconnectedInputDevice(uint32_t devIndex)
          * delivering the offline event. Recycling pos->service here races
          * with vnode teardown and can dereference a freed adapter.
          */
+        (void)HdfDeviceUnregisterEventListener(pos->service, pos->listener);
+        if (pos->listener != NULL) {
+            free(pos->listener);
+            pos->listener = NULL;
+            pos->eventCb = NULL;
+        }
         DListRemove(&pos->node);
         free(pos);
         manager->attachedDevNum--;
@@ -368,11 +374,11 @@ static int32_t InstanceManagerHdi(InputManager **manager)
     managerHdi->ScanInputDevice = ScanInputDevice;
     managerHdi->OpenInputDevice = OpenInputDevice;
     managerHdi->CloseInputDevice = CloseInputDevice;
+    managerHdi->GetInputDevice = GetInputDevice;
+    managerHdi->GetInputDeviceList = GetInputDeviceList;
 #ifdef DRIVERS_PERIPHERAL_INPUT_FEATURE_HOTPLUG_SAFE_REMOVE
     managerHdi->RemoveDisconnectedInputDevice = RemoveDisconnectedInputDevice;
 #endif
-    managerHdi->GetInputDevice = GetInputDevice;
-    managerHdi->GetInputDeviceList = GetInputDeviceList;
     *manager = managerHdi;
     return INPUT_SUCCESS;
 }
