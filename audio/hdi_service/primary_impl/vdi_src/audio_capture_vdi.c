@@ -583,19 +583,19 @@ int32_t AudioCaptureGetMmapPositionVdi(struct IAudioCapture *capture, uint64_t *
 
     struct AudioCaptureInfo *captureInfo = (struct AudioCaptureInfo *)(capture);
     uint32_t captureId = captureInfo->captureId;
-    if (capture >= AUDIO_VDI_STREAM_NUM_MAX) {
+    if (captureId >= AUDIO_VDI_STREAM_NUM_MAX) {
         AUDIO_FUNC_LOGE("invalid param");
         return HDF_ERR_INVALID_PARAM;
     }
     pthread_rwlock_rdlock(&g_rwVdiCaptureLock[captureId]);
     if (capture != &(g_audioCapturePrivVdi.captureInfos[captureId].capture)) {
-        pthread_rwlock_unlock(&g_rwVdicaptureLock[captureId]);
+        pthread_rwlock_unlock(&g_rwVdiCaptureLock[captureId]);
         AUDIO_FUNC_LOGE("invalid param");
         return HDF_ERR_INVALID_PARAM;
     }
 
     struct IAudioCaptureVdi *vdiCapture = captureInfo->vdiCapture;
-    if (vdiCapture == NULL || vadiCapture->GetMmapPosition == NULL) {
+    if (vdiCapture == NULL || vdiCapture->GetMmapPosition == NULL) {
         AUDIO_FUNC_LOGE("invalid param");
         pthread_rwlock_unlock(&g_rwVdiCaptureLock[captureId]);
         return HDF_ERR_INVALID_PARAM;

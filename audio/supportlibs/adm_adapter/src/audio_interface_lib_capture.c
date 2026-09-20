@@ -825,7 +825,7 @@ int32_t AudioOutputCaptureReadFrame(const struct DevHandle *handle, struct Audio
 
         if (!HdfSbufReadInt32(reply, &buffStatus)) {
             AUDIO_FUNC_LOGE("Failed to Get buffStatus!");
-            AUdioFreeHdfSBuf(&sBuf, NULL);
+            AudioFreeHdfSBuf(&sBuf, NULL);
             return HDF_FAILURE;
         }
 

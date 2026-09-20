@@ -111,7 +111,7 @@ int32_t MotionIfService::EnableMotion(int32_t motionType)
 int32_t MotionIfService::DisableMotion(int32_t motionType)
 {
     uint32_t callerPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
-    HDF_LOGI("%{public}s: callerPid =  %{public}u", __func__, callerPid);
+    HDF_LOGI("%{public}s: callerPid = %{public}u", __func__, callerPid);
     if (motionType <= HDF_MOTION_TYPE_SECTION) {
         HDF_LOGI("%{public}s: motionType is %{public}d", __func__, motionType);
     }
@@ -179,7 +179,7 @@ int32_t MotionIfService::Unregister(const sptr<IMotionCallback> &callbackObj)
 int32_t MotionIfService::SetMotionConfig(int32_t motionType, const std::vector<uint8_t>& data)
 {
     uint32_t callerPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
-    HDF_LOGI("%{public}s: callerPid = %{public}u, motionType is %{public}d, __func__, callerPid, motionType");
+    HDF_LOGI("%{public}s: callerPid = %{public}u, motionType is %{public}d", func, callerPid, motionType);
     if (motionVdiImpl_ == nullptr) {
         HDF_LOGE("%{public}s motionVdiImpl_ is nullptr", __func__);
         return HDF_FAILURE;

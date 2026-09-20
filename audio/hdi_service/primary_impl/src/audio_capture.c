@@ -236,7 +236,7 @@ int32_t AudioCaptureGetFrameSize(struct IAudioCapture *handle, uint64_t *size)
         return ret;
     }
 
-    *size = (uint64_t)FRAME_SIZE *channelCount *(formatBitCapture >> BITS_TO_FROMAT);
+    *size = (uint64_t)FRAME_SIZE * channelCount * (formatBitsCapture >> BITS_TO_FROMAT);
     AUDIO_FUNC_LOGI("Enter. FrameSize= %{public}llu", (unsigned long long)*size);
     return AUDIO_SUCCESS;
 }
