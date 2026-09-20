@@ -15,6 +15,7 @@
 
 #include "motion_if_service.h"
 #include <hdf_base.h>
+#include "hdf_remote_service.h"
 #include "hitrace_meter.h"
 
 #define HDF_LOG_TAG "uhdf_motion_service"
@@ -81,6 +82,8 @@ int32_t MotionIfService::Init()
 
 int32_t MotionIfService::EnableMotion(int32_t motionType)
 {
+    uint32_t callerPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
+    HDF_LOGI("%{public}s: callerPid = %{public}u", __func__, callerPid);
     if (motionType <= HDF_MOTION_TYPE_SECTION) {
         HDF_LOGI("%{public}s: motionType is %{public}d", __func__, motionType);
     }
@@ -107,6 +110,8 @@ int32_t MotionIfService::EnableMotion(int32_t motionType)
 
 int32_t MotionIfService::DisableMotion(int32_t motionType)
 {
+    uint32_t callerPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
+    HDF_LOGI("%{public}s: callerPid =  %{public}u", __func__, callerPid);
     if (motionType <= HDF_MOTION_TYPE_SECTION) {
         HDF_LOGI("%{public}s: motionType is %{public}d", __func__, motionType);
     }
@@ -133,7 +138,8 @@ int32_t MotionIfService::DisableMotion(int32_t motionType)
 
 int32_t MotionIfService::Register(const sptr<IMotionCallback> &callbackObj)
 {
-    HDF_LOGI("%{public}s", __func__);
+    uint32_t callerPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
+    HDF_LOGI("%{public}s: callerPid = %{public}u", __func__, callerPid);
     if (motionVdiImpl_ == nullptr) {
         HDF_LOGE("%{public}s motionVdiImpl_ is nullptr", __func__);
         return HDF_FAILURE;
@@ -152,7 +158,8 @@ int32_t MotionIfService::Register(const sptr<IMotionCallback> &callbackObj)
 
 int32_t MotionIfService::Unregister(const sptr<IMotionCallback> &callbackObj)
 {
-    HDF_LOGI("%{public}s", __func__);
+    uint32_t callerPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
+    HDF_LOGI("%{public}s: callerPid = %{public}u", __func__, callerPid);
     if (motionVdiImpl_ == nullptr) {
         HDF_LOGE("%{public}s motionVdiImpl_ is nullptr", __func__);
         return HDF_FAILURE;
@@ -171,7 +178,8 @@ int32_t MotionIfService::Unregister(const sptr<IMotionCallback> &callbackObj)
 
 int32_t MotionIfService::SetMotionConfig(int32_t motionType, const std::vector<uint8_t>& data)
 {
-    HDF_LOGI("%{public}s: motionType is %{public}d", __func__, motionType);
+    uint32_t callerPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
+    HDF_LOGI("%{public}s: callerPid = %{public}u, motionType is %{public}d, __func__, callerPid, motionType");
     if (motionVdiImpl_ == nullptr) {
         HDF_LOGE("%{public}s motionVdiImpl_ is nullptr", __func__);
         return HDF_FAILURE;

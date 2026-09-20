@@ -582,11 +582,27 @@ int32_t AudioCaptureGetMmapPositionVdi(struct IAudioCapture *capture, uint64_t *
     vdiTime.tvNSec = 0;
 
     struct AudioCaptureInfo *captureInfo = (struct AudioCaptureInfo *)(capture);
+    uint32_t captureId = captureInfo->captureId;
+    if (capture >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiCaptureLock[captureId]);
+    if (capture != &(g_audioCapturePrivVdi.captureInfos[captureId].capture)) {
+        pthread_rwlock_unlock(&g_rwVdicaptureLock[captureId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+
     struct IAudioCaptureVdi *vdiCapture = captureInfo->vdiCapture;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiCapture, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiCapture->GetMmapPosition, HDF_ERR_INVALID_PARAM);
+    if (vdiCapture == NULL || vadiCapture->GetMmapPosition == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiCaptureLock[captureId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiCapture->GetMmapPosition(vdiCapture, frames, &vdiTime);
+    pthread_rwlock_unlock(&g_rwVdiCaptureLock[captureId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio capture GetMmapPosition fail, ret=%{public}d", ret);
         return ret;

@@ -24,6 +24,7 @@
 #include "hdf_audio_server_render.h"
 #include "hdf_audio_server_manager.h"
 #include "hdf_device_object.h"
+#include "hdf_remote_service.h"
 #include "osal_mem.h"
 
 #define HDF_LOG_TAG HDF_AUDIO_HAL_STUB
@@ -72,10 +73,12 @@ int32_t HdiServiceRenderCaptureReadData(struct HdfSBuf *data, const char **adapt
         AUDIO_FUNC_LOGE("adapterName Is NULL ");
         return HDF_FAILURE;
     }
-    if (!HdfSbufReadUint32(data, pid)) {
+    uint32_t dummyPid = 0;
+    if (!HdfSbufReadUint32(data, &dummyPid)) {
         AUDIO_FUNC_LOGE("read buf fail ");
         return HDF_FAILURE;
     }
+    *pid = (uint32_t)HdfRemoteGetCallingPid();
     return HDF_SUCCESS;
 }
 
@@ -1754,6 +1757,8 @@ int32_t HdiServiceDispatch(struct HdfDeviceIoClient *client, int cmdId, struct H
         AUDIO_FUNC_LOGE("check interface token failed");
         return AUDIO_HAL_ERR_INVALID_PARAM;
     }
+    uint32_t callerPid = (uint32_t)HdfRemoteGetCallingPid();
+    AUDIO_FUNC_LOGD("HdiServiceDispatch callerPid = %{public}u, cmdId = %{public}d", callerPid, cmdId);
     if (cmdId > AUDIO_HDI_CAPTURE_DEV_DUMP || cmdId < 0) {
         AUDIO_FUNC_LOGE("ControlDispatch: invalid cmdId = %{public}d", cmdId);
         return AUDIO_HAL_ERR_INTERNAL;

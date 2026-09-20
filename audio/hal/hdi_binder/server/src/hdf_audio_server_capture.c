@@ -18,6 +18,7 @@
 #include "audio_uhdf_log.h"
 #include "hdf_audio_server_common.h"
 #include "hdf_audio_server_manager.h"
+#include "hdf_remote_service.h"
 
 #define HDF_LOG_TAG HDF_AUDIO_HAL_STUB
 #define INTERNEL_INPUT_STEAM_ID 1
@@ -128,10 +129,11 @@ int32_t HdiServiceCreatCapture(const struct HdfDeviceIoClient *client, struct Hd
     struct AudioSampleAttributes attrs;
     struct AudioCapture *capture = NULL;
     const char *adapterName = NULL;
-    uint32_t capturePid = 0;
+    uint32_t capturePid = (uint32_t)HdfRemoteGetCallingPid();
+    uint32_t dummyPid = 0;
     IF_TRUE_PRINT_LOG_RETURN_ERROR(((adapterName = HdfSbufReadString(data)) == NULL),
         "adapterNameCase Is NULL", AUDIO_HAL_ERR_INVALID_PARAM);
-    IF_TRUE_PRINT_LOG_RETURN_ERROR((!HdfSbufReadUint32(data, &capturePid)),
+    IF_TRUE_PRINT_LOG_RETURN_ERROR((!HdfSbufReadUint32(data, &dummyPid)),
         "read capturePid fail", AUDIO_HAL_ERR_INTERNAL);
     AUDIO_FUNC_LOGD("capturePid = %{public}u", capturePid);
     int32_t ret = GetInitCapturePara(data, &devDesc, &attrs);

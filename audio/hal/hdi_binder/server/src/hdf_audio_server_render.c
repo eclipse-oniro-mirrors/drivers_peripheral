@@ -17,6 +17,7 @@
 #include "hdf_audio_server_common.h"
 #include "hdf_audio_server_manager.h"
 #include "osal_mutex.h"
+#include "hdf_remote_service.h"
 
 #define HDF_LOG_TAG HDF_AUDIO_HAL_STUB
 #define IF_TRUE_PRINT_LOG_RETURN_ERROR(cond, log, err) \
@@ -130,10 +131,11 @@ int32_t HdiServiceCreatRender(const struct HdfDeviceIoClient *client,
     struct AudioSampleAttributes attrs;
     struct AudioRender *render = NULL;
     const char *adapterName = NULL;
-    uint32_t renderPid = 0;
+    uint32_t renderPid = (uint32_t)HdfRemoteGetCallingPid();
+    uint32_t dummyPid = 0;
     IF_TRUE_PRINT_LOG_RETURN_ERROR(((adapterName = HdfSbufReadString(data)) == NULL),
         "adapterNameCase Is NULL", AUDIO_HAL_ERR_INVALID_PARAM);
-    IF_TRUE_PRINT_LOG_RETURN_ERROR((!HdfSbufReadUint32(data, &renderPid)),
+    IF_TRUE_PRINT_LOG_RETURN_ERROR((!HdfSbufReadUint32(data, &dummyPid)),
         "read renderPid fail", AUDIO_HAL_ERR_INTERNAL);
     int32_t ret = GetInitRenderPara(data, &devDesc, &attrs);
     IF_TRUE_PRINT_LOG_RETURN_ERROR((ret < 0), "GetInitRenderPara fail", AUDIO_HAL_ERR_INTERNAL);
