@@ -129,6 +129,10 @@ void DliWatcher::WatcherThread()
         FD_ZERO(&readFds);
         {
             std::lock_guard<std::mutex> lock(wakeupPipeMutex_);
+            if (wakeupPipe_[0] < 0 || wakeupPipe_[0] > FD_SETSIZE) {
+                HDF_LOGW("fd[%{public}d]", wakeupPipe_[0]);
+                return;
+            }
             FD_SET(wakeupPipe_[0], &readFds);
             nfds = wakeupPipe_[0];
         }
@@ -177,6 +181,9 @@ void DliWatcher::WatcherThread()
 void DliWatcher::ThreadWakeup()
 {
     std::lock_guard<std::mutex> lock(wakeupPipeMutex_);
+    if (wakeupPipe_[1] < 0) {
+        return;
+    }
     uint8_t buff = 0;
     TEMP_FAILURE_RETRY(write(wakeupPipe_[1], &buff, sizeof(buff)));
 }

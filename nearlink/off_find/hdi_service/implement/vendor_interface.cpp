@@ -593,8 +593,13 @@ bool VendorInterface::EventReceivedHandler(const std::vector<uint8_t> &data)
 
 void VendorInterface::OnEventReceived(const std::vector<uint8_t> &data)
 {
-    Nearlink::DoInDliThread([this, acbData = data]() {
-        this->OnEventReceivedTask(acbData);
+    auto weakSelf = weak_from_this();
+    Nearlink::DoInDliThread([weakSelf, acbData = data]() {
+        auto self = weakSelf.lock();
+        if (self == nullptr) {
+            return;
+        }
+        self->OnEventReceivedTask(acbData);
     });
     return;
 }

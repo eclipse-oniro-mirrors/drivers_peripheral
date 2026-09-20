@@ -119,11 +119,15 @@ void DliWatcher::CheckFdReady(std::map<int, DliDataCallback>& fds, fd_set &readF
     }
 }
 
-void DliWatcher::InitReadFds(fd_set &readFds, int &nfds)
+bool DliWatcher::InitReadFds(fd_set &readFds, int &nfds)
 {
     FD_ZERO(&readFds);
     {
         std::lock_guard<std::mutex> lock(wakeupPipeMutex_);
+        if (wakeupPipe_[0] < 0 || wakeupPipe_[0] > FD_SETSIZE) {
+            HDF_LOGW("fd[%{public}d]", wakeupPipe_[0]);
+            return false;
+        }
         FD_SET(wakeupPipe_[0], &readFds);
         nfds = wakeupPipe_[0];
     }
@@ -134,6 +138,7 @@ void DliWatcher::InitReadFds(fd_set &readFds, int &nfds)
             nfds = std::max(fd.first, nfds);
         }
     }
+    return true;
 }
 
 void DliWatcher::HandleTimeout()
@@ -169,7 +174,9 @@ void DliWatcher::WatcherThread()
     timeval *timeout = nullptr;
 
     while (running_) {
-        InitReadFds(readFds, nfds);
+        if (!InitReadFds(readFds, nfds)) {
+            return;
+        }
         {
             std::lock_guard<std::mutex> lock(timeoutMutex_);
             if (timeoutTimer_.tv_sec == 0 && timeoutTimer_.tv_usec == 0) {
@@ -193,6 +200,9 @@ void DliWatcher::WatcherThread()
 void DliWatcher::ThreadWakeup()
 {
     std::lock_guard<std::mutex> lock(wakeupPipeMutex_);
+    if (wakeupPipe_[1] < 0) {
+        return;
+    }
     uint8_t buff = 0;
     ssize_t ret = TEMP_FAILURE_RETRY(write(wakeupPipe_[1], &buff, sizeof(buff)));
     if (ret == -1) {
