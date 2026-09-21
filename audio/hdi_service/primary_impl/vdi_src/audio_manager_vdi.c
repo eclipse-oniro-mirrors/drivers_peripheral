@@ -473,13 +473,13 @@ int32_t ReleaseAudioManagerVendorObject(struct IAudioManager *manager)
     uint32_t descIndex;
 
     if (manager == NULL) {
-        AUDIO_FUNC_LOGI("auido manager had released");
+        AUDIO_FUNC_LOGI("audio manager had released");
         return HDF_SUCCESS;
     }
     pthread_mutex_lock(&g_managerMutex);
     struct AudioManagerPrivVdi *priv = (struct AudioManagerPrivVdi *)manager;
     if (priv->released) {
-        AUDIO_FUNC_LOGI("auido manager had released");
+        AUDIO_FUNC_LOGI("audio manager had released");
         pthread_mutex_unlock(&g_managerMutex);
         return HDF_SUCCESS;
     }
