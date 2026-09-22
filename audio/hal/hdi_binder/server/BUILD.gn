@@ -39,6 +39,7 @@ if (drivers_peripheral_audio_feature_hdf_proxy_stub == true) {
     if (is_standard_system) {
       external_deps = [
         "hdf_core:libhdf_host",
+        "hdf_core:libhdf_ipc_adapter",
         "hdf_core:libhdf_utils",
         "hilog:libhilog",
       ]
@@ -91,6 +92,7 @@ if (drivers_peripheral_audio_feature_hdf_proxy_stub == true) {
     if (is_standard_system) {
       external_deps = [
         "hdf_core:libhdf_host",
+        "hdf_core:libhdf_ipc_adapter",
         "hdf_core:libhdf_utils",
         "hilog:libhilog",
       ]
