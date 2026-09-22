@@ -146,11 +146,7 @@ void DliWatcher::WatcherThread()
 
         {
             std::lock_guard<std::mutex> lock(timeoutMutex_);
-            if (timeoutTimer_.tv_sec == 0 && timeoutTimer_.tv_usec == 0) {
-                timeout = nullptr;
-            } else {
-                timeout = &timeoutTimer_;
-            }
+            timeout = (timeoutTimer_.tv_sec == 0 && timeoutTimer_.tv_usec == 0) ? nullptr : &timeoutTimer_;
         }
 
         int ret = select(nfds + 1, &readFds, nullptr, nullptr, timeout);
