@@ -146,12 +146,12 @@ private:
 
 Counter g_counter;
 std::mutex g_mtx;
-int32_t g_TimerId = INVALID_TIMER_ID;
+static int32_t g_timerId = INVALID_TIMER_ID;
 
 void AudioXCollieCallback(void *param)
 {
     std::lock_guard<std::mutex> lock(g_mtx);
-    g_TimerId = INVALID_TIMER_ID;
+    g_timerId = INVALID_TIMER_ID;
     if (g_counter.Get() != 0) {
         return;
     }
@@ -181,9 +181,9 @@ void IncreaseCounter()
 {
     std::lock_guard<std::mutex> lock(g_mtx);
     g_counter.TryIncrement();
-    if (g_TimerId > 0) {
-        CancelTimer(g_TimerId);
-        g_TimerId = INVALID_TIMER_ID;
+    if (g_timerId > 0) {
+        CancelTimer(g_timerId);
+        g_timerId = INVALID_TIMER_ID;
     }
 }
 
@@ -191,10 +191,10 @@ void DecreaseCounter()
 {
     std::lock_guard<std::mutex> lock(g_mtx);
     if (g_counter.TryDecrement() && (g_counter.Get() == 0)) {
-        if (g_TimerId > 0) {
-            CancelTimer(g_TimerId);
+        if (g_timerId > 0) {
+            CancelTimer(g_timerId);
         }
-        g_TimerId = SetCallbackTimer();
+        g_timerId = SetCallbackTimer();
     }
 }
  	 
@@ -204,9 +204,9 @@ void TrigerMemoryReclaim()
     if (g_counter.Get() > 0) {
         return;
     }
-    if (g_TimerId > 0) {
-        CancelTimer(g_TimerId);
+    if (g_timerId > 0) {
+        CancelTimer(g_timerId);
     }
-    g_TimerId = SetCallbackTimer();
+    g_timerId = SetCallbackTimer();
 }
 #endif
