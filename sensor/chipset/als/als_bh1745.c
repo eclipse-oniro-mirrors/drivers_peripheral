@@ -7,6 +7,7 @@
  */
 
 #include "als_bh1745.h"
+#include <stdint.h>
 #include <securec.h>
 #include "osal_mem.h"
 #include "osal_time.h"
@@ -112,6 +113,7 @@ static int32_t CalLux(struct SensorCfgData *CfgData, struct AlsReportData *repor
     uint8_t regValue;
     uint32_t index = 1;
     uint32_t luxTemp;
+    uint64_t luxResult;
     uint8_t itemNum;
     struct SensorRegCfgGroupNode *groupNode = NULL;
     int32_t timeIndex = EXTENDED_ALS_TIME_GROUP_INDEX_0;
@@ -128,6 +130,7 @@ static int32_t CalLux(struct SensorCfgData *CfgData, struct AlsReportData *repor
 
     luxTemp = g_red[index] * rgbcData[ALS_R] + g_green[index] * rgbcData[ALS_G];
     groupNode = CfgData->extendedRegCfgGroup[EXTENDED_ALS_TIME_GROUP];
+    CHECK_NULL_PTR_RETURN_VALUE(groupNode, HDF_FAILURE);
     itemNum = groupNode->itemNum;
     if (itemNum > EXTENDED_ALS_TIME_GROUP_INDEX_MAX) {
         HDF_LOGE("%s: ItemNum out of range ", __func__);
@@ -144,6 +147,7 @@ static int32_t CalLux(struct SensorCfgData *CfgData, struct AlsReportData *repor
 
     regValue = 0;
     groupNode = CfgData->extendedRegCfgGroup[EXTENDED_ALS_GAIN_GROUP];
+    CHECK_NULL_PTR_RETURN_VALUE(groupNode, HDF_FAILURE);
     itemNum = groupNode->itemNum;
 
     ret = ReadSensorRegCfgArray(&CfgData->busCfg, groupNode, gainIndex, &regValue, sizeof(regValue));
@@ -156,7 +160,8 @@ static int32_t CalLux(struct SensorCfgData *CfgData, struct AlsReportData *repor
     if (gain == SENSOR_GAIN_INCREASE || time == SENSOR_TIME_INCREASE) {
         return HDF_FAILURE;
     } else {
-        reportData->als = ((luxTemp / gain) * BH1745_GAIN_16X / time) * BH1745_TIME_160MSEC;
+        luxResult = ((uint64_t)(luxTemp / gain) * BH1745_GAIN_16X / time) * BH1745_TIME_160MSEC;
+        reportData->als = (luxResult > INT32_MAX) ? INT32_MAX : (int32_t)luxResult;
     }
 
     return HDF_SUCCESS;
