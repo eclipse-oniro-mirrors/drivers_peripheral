@@ -434,9 +434,7 @@ static int32_t DevSaveDriverInfo(snd_pcm_stream_t stream, int32_t device)
         ret = snprintf_s(deviceName, MAX_CARD_NAME_LEN, MAX_CARD_NAME_LEN - 1, "hw:%d", card);
         if (ret < 0) {
             AUDIO_FUNC_LOGE("snprintf_s failed");
-            if (handle != NULL) {
-                snd_ctl_close(handle);
-            }
+            snd_ctl_close(handle);
             return HDF_FAILURE;
         }
 
@@ -456,7 +454,6 @@ static int32_t DevSaveDriverInfo(snd_pcm_stream_t stream, int32_t device)
             AUDIO_FUNC_LOGE("snd_ctl_close error: %{public}s.", snd_strerror(ret));
             return HDF_FAILURE;
         }
-        handle = NULL;
 
         ret = snd_card_next(&card);
         if (ret < 0) {
