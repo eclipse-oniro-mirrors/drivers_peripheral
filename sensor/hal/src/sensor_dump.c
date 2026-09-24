@@ -71,12 +71,6 @@ int32_t SensorShowList(struct HdfSBuf *reply)
     }
 
     for (index = 0; index < sensorList->sensorSum; index++) {
-        int32_t sensorId = sensorList->sensorInfoEntry[index].sensorId;
-        if (sensorId < 0 || sensorId >= SENSOR_TYPE_MAX) {
-            HDF_LOGE("%{public}s: invalid sensorId %{public}d\n", __func__, sensorId);
-            continue;
-        }
-
         ret = memset_s(sensorInfoDate, STRING_LEN, 0, STRING_LEN);
         if (ret != DUMP_SUCCESS) {
             HDF_LOGE("%{public}s: memset sensorInfoList is failed\n", __func__);
@@ -95,8 +89,8 @@ int32_t SensorShowList(struct HdfSBuf *reply)
             maxDelay: %" PRId64 "\n\r \
             fifoMaxEventCount: %u \n\r",
             sensorList->sensorInfoEntry[index].sensorName,
-            sensorId,
-            sensorStatus[sensorId],
+            sensorList->sensorInfoEntry[index].sensorId,
+            sensorStatus[sensorList->sensorInfoEntry[index].sensorId],
             sensorList->sensorInfoEntry[index].maxRange,
             sensorList->sensorInfoEntry[index].accuracy,
             sensorList->sensorInfoEntry[index].power,
@@ -170,12 +164,8 @@ int32_t SensorShowData(struct HdfSBuf *reply)
 
     if (eventDumpList->count < MAX_DUMP_DATA_SIZE) {
         for (len = 0; len < eventDumpList->count; len++) {
-            int32_t sensorId = eventDumpList->listDumpArr[len].sensorId;
-            if (sensorId < 0 || sensorId >= SENSOR_LIST_SIZE) {
-                HDF_LOGE("%{public}s: invalid sensorId %{public}d\n", __func__, sensorId);
-                continue;
-            }
             float *data = (float *)(eventDumpList->listDumpArr[len].data);
+            int32_t sensorId = eventDumpList->listDumpArr[len].sensorId;
             int32_t listIndex = FindSensorIndexByTypeId(sensorId);
             if (listIndex < 0) {
                 HDF_LOGE("%{public}s: invalid sensorId %{public}d", __func__, sensorId);
@@ -188,12 +178,8 @@ int32_t SensorShowData(struct HdfSBuf *reply)
         int32_t pos = eventDumpList->pos;
         for (len = 0; len < eventDumpList->count; len++) {
             pos = pos + 1 > MAX_DUMP_DATA_SIZE ? 1 : pos + 1;
-            int32_t sensorId = eventDumpList->listDumpArr[pos - 1].sensorId;
-            if (sensorId < 0 || sensorId >= SENSOR_LIST_SIZE) {
-                HDF_LOGE("%{public}s: invalid sensorId %{public}d\n", __func__, sensorId);
-                continue;
-            }
             float *data = (float *)(eventDumpList->listDumpArr[pos - 1].data);
+            int32_t sensorId = eventDumpList->listDumpArr[pos - 1].sensorId;
             int32_t listIndex = FindSensorIndexByTypeId(sensorId);
             if (listIndex < 0) {
                 HDF_LOGE("%{public}s: invalid sensorId %{public}d", __func__, sensorId);
