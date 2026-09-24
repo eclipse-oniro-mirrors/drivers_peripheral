@@ -16,7 +16,6 @@
 #include "alsa_soundcard.h"
 #include <ctype.h>
 #include "cJSON.h"
-#include <pthread.h>
 
 #define HDF_LOG_TAG HDF_AUDIO_HAL_SND
 
@@ -25,8 +24,6 @@
 #define SUPPORT_CAPTURE_OR_RENDER  1
 #define SUPPORT_CAPTURE_AND_RENDER 2
 #define MALLOC_MAX 100
-
-static pthread_mutex_t g_sndCloseMutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Define structure description alsa_adapter.hson information  */
 struct AlsaAdapterCfgInfo {
@@ -838,7 +835,6 @@ void SndCloseHandle(struct AlsaSoundCard *cardIns)
         AUDIO_FUNC_LOGE("cardIns is NULL");
         return;
     }
-    (void)pthread_mutex_lock(&g_sndCloseMutex);
     if (cardIns->cardStatus > 0) {
         cardIns->cardStatus -= 1;
     }
@@ -860,7 +856,6 @@ void SndCloseHandle(struct AlsaSoundCard *cardIns)
         }
         (void)memset_s(cardIns, sizeof(struct AlsaSoundCard), 0, sizeof(struct AlsaSoundCard));
     }
-    (void)pthread_mutex_unlock(&g_sndCloseMutex);
 }
 
 static void AudioInitPortOut(struct AudioPort *audioPort)

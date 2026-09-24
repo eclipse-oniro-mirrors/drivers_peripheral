@@ -40,7 +40,6 @@ struct AudioManagerPrivVdi {
     uint32_t descsCount;
     struct AudioAdapterDescriptorVdi *vdiDescs;
     uint32_t vdiDescsCount;
-    bool released;
 };
 
 static void AudioManagerReleasePort(struct AudioPort **ports, uint32_t portsLen)
@@ -357,7 +356,6 @@ static struct IAudioAdapter* VendorLoadAdapter(struct IAudioManagerVdi *vdiManag
 
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio vdiManager call LoadAdapter fail, ret=%{public}d", ret);
-        AudioManagerReleaseVdiDesc(vdiDesc);
         return NULL;
     }
 
@@ -365,7 +363,6 @@ static struct IAudioAdapter* VendorLoadAdapter(struct IAudioManagerVdi *vdiManag
     if (adapter == NULL) {
         AUDIO_FUNC_LOGE("audio vdiManager create adapter fail");
         vdiManager->UnloadAdapter(vdiManager, vdiAdapter);
-        AudioManagerReleaseVdiDesc(vdiDesc);
         return NULL;
     }
     AudioManagerReleaseVdiDesc(vdiDesc);
@@ -473,17 +470,10 @@ int32_t ReleaseAudioManagerVendorObject(struct IAudioManager *manager)
     uint32_t descIndex;
 
     if (manager == NULL) {
-        AUDIO_FUNC_LOGI("audio manager had released");
         return HDF_SUCCESS;
     }
     pthread_mutex_lock(&g_managerMutex);
     struct AudioManagerPrivVdi *priv = (struct AudioManagerPrivVdi *)manager;
-    if (priv->released) {
-        AUDIO_FUNC_LOGI("audio manager had released");
-        pthread_mutex_unlock(&g_managerMutex);
-        return HDF_SUCCESS;
-    }
-    priv->released = true;
 
     for (descIndex = 0; descIndex < priv->descsCount; descIndex++) {
         AudioEnforceClearAdapterRefCntVdi(descIndex);
