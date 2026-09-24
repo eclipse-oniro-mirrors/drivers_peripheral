@@ -107,7 +107,6 @@ static int32_t DynamicRangCovert(struct SensorCfgData *CfgData, uint32_t *rgbcDa
 
 static int32_t CalLux(struct SensorCfgData *CfgData, struct AlsReportData *reportData, uint32_t *rgbcData)
 {
-    int32_t ret;
     uint32_t time;
     uint32_t gain;
     uint8_t regValue;
@@ -136,8 +135,7 @@ static int32_t CalLux(struct SensorCfgData *CfgData, struct AlsReportData *repor
         return HDF_FAILURE;
     }
 
-    ret = ReadSensorRegCfgArray(&CfgData->busCfg, groupNode, timeIndex, &regValue, sizeof(regValue));
-    if (ret != HDF_SUCCESS) {
+    if (ReadSensorRegCfgArray(&CfgData->busCfg, groupNode, timeIndex, &regValue, sizeof(regValue)) != HDF_SUCCESS) {
         HDF_LOGE("%s: Failed to read sensor register array ", __func__);
         return HDF_FAILURE;
     }
@@ -149,8 +147,7 @@ static int32_t CalLux(struct SensorCfgData *CfgData, struct AlsReportData *repor
     CHECK_NULL_PTR_RETURN_VALUE(groupNode, HDF_FAILURE);
     itemNum = groupNode->itemNum;
 
-    ret = ReadSensorRegCfgArray(&CfgData->busCfg, groupNode, gainIndex, &regValue, sizeof(regValue));
-    if (ret != HDF_SUCCESS) {
+    if (ReadSensorRegCfgArray(&CfgData->busCfg, groupNode, gainIndex, &regValue, sizeof(regValue)) != HDF_SUCCESS) {
         HDF_LOGE("%s: Failed to read sensor register array ", __func__);
         return HDF_FAILURE;
     }
