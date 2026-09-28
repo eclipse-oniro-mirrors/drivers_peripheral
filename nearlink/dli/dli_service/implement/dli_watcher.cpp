@@ -104,6 +104,8 @@ bool DliWatcher::Stop()
         std::lock_guard<std::mutex> lock(wakeupPipeMutex_);
         close(wakeupPipe_[0]);
         close(wakeupPipe_[1]);
+        wakeupPipe_[0] = -1;
+        wakeupPipe_[1] = -1;
     }
     HDF_LOGI("DliWatcher stop");
     return true;
@@ -124,7 +126,7 @@ bool DliWatcher::InitReadFds(fd_set &readFds, int &nfds)
     FD_ZERO(&readFds);
     {
         std::lock_guard<std::mutex> lock(wakeupPipeMutex_);
-        if (wakeupPipe_[0] < 0 || wakeupPipe_[0] > FD_SETSIZE) {
+        if (wakeupPipe_[0] < 0 || wakeupPipe_[0] >= FD_SETSIZE) {
             HDF_LOGW("fd[%{public}d]", wakeupPipe_[0]);
             return false;
         }
@@ -179,11 +181,7 @@ void DliWatcher::WatcherThread()
         }
         {
             std::lock_guard<std::mutex> lock(timeoutMutex_);
-            if (timeoutTimer_.tv_sec == 0 && timeoutTimer_.tv_usec == 0) {
-                timeout = nullptr;
-            } else {
-                timeout = &timeoutTimer_;
-            }
+            timeout = (timeoutTimer_.tv_sec == 0 && timeoutTimer_.tv_usec == 0) ? nullptr : &timeoutTimer_;
         }
         int ret = select(nfds + 1, &readFds, nullptr, nullptr, timeout);
         if (ret < 0) {

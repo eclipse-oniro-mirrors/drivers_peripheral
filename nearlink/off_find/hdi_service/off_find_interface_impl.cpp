@@ -40,6 +40,7 @@ OffFindInterfaceImpl::OffFindInterfaceImpl()
         [weakThis](const wptr<IRemoteObject> &object) {
             sptr<OffFindInterfaceImpl> impl = weakThis.promote();
             if (impl == nullptr) {
+                HDF_LOGW("OffFindInterfaceImpl already destroyed, skip remote death callback");
                 return;
             }
             impl->OnRemoteDied(object);
@@ -90,6 +91,7 @@ int32_t OffFindInterfaceImpl::EnableOffFind(
         HDF_LOGI("Enter EnableOffFind");
         sptr<OffFindInterfaceImpl> impl = weakThis.promote();
         if (impl == nullptr) {
+            HDF_LOGW("OffFindInterfaceImpl already destroyed, skip EnableOffFind task");
             return;
         }
         if (callbackObj == nullptr) {
@@ -100,6 +102,7 @@ int32_t OffFindInterfaceImpl::EnableOffFind(
             [weakThis]() {
                 sptr<OffFindInterfaceImpl> impl = weakThis.promote();
                 if (impl == nullptr) {
+                    HDF_LOGW("OffFindInterfaceImpl already destroyed, skip clear callback");
                     return;
                 }
                 HDF_LOGI("clear callbacks is success !");
