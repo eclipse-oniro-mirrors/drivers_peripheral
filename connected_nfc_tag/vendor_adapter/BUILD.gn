@@ -17,6 +17,13 @@ import("//build/ohos.gni")
 ohos_shared_library("nfc_tag_vendor_adapter") {
   include_dirs = [ "." ]
   branch_protector_ret = "pac_ret"
+
+  sanitize = {
+      cfi = true
+      cfi_cross_dso = true  # Cross-SO CFI Checks
+      debug = false
+  }
+  
   sources = [ "connected_nfc_tag_vendor_adapter.cpp" ]
 
   external_deps = [
