@@ -574,9 +574,7 @@ static int32_t DevSaveDriverInfo(snd_pcm_stream_t stream)
         ret = snprintf_s(deviceName, MAX_CARD_NAME_LEN, MAX_CARD_NAME_LEN - 1, "hw:%d", card);
         if (ret < 0) {
             AUDIO_FUNC_LOGE("snprintf_s failed");
-            if (handle != NULL) {
-                snd_ctl_close(handle);
-            }
+            snd_ctl_close(handle);
             return HDF_FAILURE;
         }
 
@@ -596,7 +594,6 @@ static int32_t DevSaveDriverInfo(snd_pcm_stream_t stream)
             AUDIO_FUNC_LOGE("snd_ctl_close error: %{public}s.", snd_strerror(ret));
             return HDF_FAILURE;
         }
-        handle = NULL;
 
         ret = snd_card_next(&card);
         if (ret < 0) {
@@ -1352,13 +1349,11 @@ int32_t SndElementWriteEnum(
     ret = SetElementInfo(alsaHandle, ctlElem, elem_info, elem_id);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("Set element %{public}s elem_info failed!\n", ctlElem->name);
-        (void)snd_ctl_close(alsaHandle);
         return HDF_FAILURE;
     }
 
     if (!snd_ctl_elem_info_is_writable(elem_info)) {
         AUDIO_FUNC_LOGE("Element write enable\n");
-        (void)snd_ctl_close(alsaHandle);
         return HDF_FAILURE;
     }
 
@@ -1368,18 +1363,15 @@ int32_t SndElementWriteEnum(
         snd_ctl_elem_value_set_enumerated(elem_value, 0, item);
     } else {
         AUDIO_FUNC_LOGE("Element value is not enum type!\n");
-        (void)snd_ctl_close(alsaHandle);
         return HDF_FAILURE;
     }
 
     ret = snd_ctl_elem_write(alsaHandle, elem_value);
     if (ret < 0) {
         AUDIO_FUNC_LOGE("snd_ctl_elem_write failed!\n");
-        (void)snd_ctl_close(alsaHandle);
         return HDF_FAILURE;
     }
 
-    (void)snd_ctl_close(alsaHandle);
     return HDF_SUCCESS;
 }
 
@@ -1528,7 +1520,6 @@ int32_t SndTraversalMixerElement(struct AlsaSoundCard *cardIns,
     if (ret < 0) {
         AUDIO_FUNC_LOGE("Control %{public}s local error: %{public}s\n",
             cardIns->ctrlName, snd_strerror(ret));
-        (void)snd_hctl_close(handle);
         return HDF_FAILURE;
     }
 
@@ -1539,7 +1530,6 @@ int32_t SndTraversalMixerElement(struct AlsaSoundCard *cardIns,
         if (ret < 0) {
             AUDIO_FUNC_LOGE("Control %{public}s snd_hctl_elem_info error: %{public}s\n",
                 cardIns->ctrlName, snd_strerror(ret));
-            (void)snd_hctl_close(handle);
             return HDF_FAILURE;
         }
         if (snd_ctl_elem_info_is_inactive(elem_info)) {

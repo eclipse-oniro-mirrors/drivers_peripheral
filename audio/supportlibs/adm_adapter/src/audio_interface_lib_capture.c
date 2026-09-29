@@ -680,7 +680,6 @@ int32_t AudioCtlCaptureGetVolThreshold(const struct DevHandle *handle,
     ret = AudioGetElemValue(reply, &volThreshold);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("AudioGetElemValue failed!");
-        AudioFreeHdfSBuf(&sBuf, &reply);
         return HDF_FAILURE;
     }
 
@@ -825,7 +824,6 @@ int32_t AudioOutputCaptureReadFrame(const struct DevHandle *handle, struct Audio
 
         if (!HdfSbufReadInt32(reply, &buffStatus)) {
             AUDIO_FUNC_LOGE("Failed to Get buffStatus!");
-            AudioFreeHdfSBuf(&sBuf, NULL);
             return HDF_FAILURE;
         }
 
