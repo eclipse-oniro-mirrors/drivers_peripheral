@@ -442,8 +442,9 @@ bool MetadataController::IsChangeFloatMetadata(
 bool MetadataController::IsChangeI32ArrayMetadata(
     const camera_metadata_item_t &baseEntry, const camera_metadata_item_t &newEntry)
 {
-    if (baseEntry.count != newEntry.count){
-        CAMERA_LOGW("I32Array count mismatch: base=%{public}u new=%{public}u, treat as chenged", baseEntry.cpunt, newEntry.count);
+    if (baseEntry.count != newEntry.count) {
+        CAMERA_LOGW("I32Array count mismatch: base=%{public}u new=%{public}u, treat as chenged",
+            baseEntry.cpunt, newEntry.count);
         return true;
     }
     uint32_t count = newEntry.count;
