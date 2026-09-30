@@ -467,7 +467,7 @@ bool MetadataController::IsChangeI32ArrayMetadata(
 {
     if (baseEntry.count != newEntry.count) {
         CAMERA_LOGW("I32Array count mismatch: base=%{public}u new=%{public}u, treat as chenged",
-            baseEntry.cpunt, newEntry.count);
+            baseEntry.count, newEntry.count);
         return true;
     }
     uint32_t count = newEntry.count;
