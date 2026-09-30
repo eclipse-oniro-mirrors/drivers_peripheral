@@ -141,6 +141,9 @@ void DliWatcher::WatcherThread()
         {
             std::lock_guard<std::mutex> lock(fdsMutex_);
             for (auto &&fd : fds_) {
+                if (fd.first < 0 || fd.first >= FD_SETSIZE) {
+                    continue;
+                }
                 FD_SET(fd.first, &readFds);
                 nfds = std::max(fd.first, nfds);
             }
