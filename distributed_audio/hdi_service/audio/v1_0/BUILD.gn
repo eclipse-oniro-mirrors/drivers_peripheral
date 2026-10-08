@@ -15,6 +15,7 @@ import("//build/ohos.gni")
 import("../../../distributedaudio.gni")
 
 ohos_shared_library("libaudio_manager_daudio_primary_service_2.0") {
+  branch_protector_ret = "pac_ret"
   sanitize = {
     boundary_sanitize = true
     cfi = true
