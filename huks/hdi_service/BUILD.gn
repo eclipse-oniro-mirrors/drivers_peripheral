@@ -33,6 +33,13 @@ ohos_shared_library("libhuks_hdi_service_1.2") {
   innerapi_tags = [ "passthrough" ]
   subsystem_name = "hdf"
   part_name = "drivers_peripheral_huks"
+
+  branch_protector_ret = "pac_ret"
+  sanitize = {
+    cfi = true
+    cfi_cross_dso = true
+    debug = false
+  }
 }
 
 group("huks_hdi_service") {
