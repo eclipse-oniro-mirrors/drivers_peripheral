@@ -121,6 +121,31 @@ void DliWatcher::CheckFdReady(std::map<int, DliDataCallback>& fds, fd_set &readF
     }
 }
 
+bool DliWatcher::InitReadFds(fd_set &readFds, int &nfds)
+{
+    FD_ZERO(&readFds);
+    {
+        std::lock_guard<std::mutex> lock(wakeupPipeMutex_);
+        if (wakeupPipe_[0] < 0 || wakeupPipe_[0] >= FD_SETSIZE) {
+            HDF_LOGW("fd[%{public}d]", wakeupPipe_[0]);
+            return false;
+        }
+        FD_SET(wakeupPipe_[0], &readFds);
+        nfds = wakeupPipe_[0];
+    }
+    {
+        std::lock_guard<std::mutex> lock(fdsMutex_);
+        for (auto &&fd : fds_) {
+            if (fd.first < 0 || fd.first >= FD_SETSIZE) {
+                continue;
+            }
+            FD_SET(fd.first, &readFds);
+            nfds = std::max(fd.first, nfds);
+        }
+    }
+    return true;
+}
+
 void DliWatcher::WatcherThread()
 {
     fd_set readFds;
@@ -128,22 +153,8 @@ void DliWatcher::WatcherThread()
     timeval *timeout = nullptr;
 
     while (running_) {
-        FD_ZERO(&readFds);
-        {
-            std::lock_guard<std::mutex> lock(wakeupPipeMutex_);
-            if (wakeupPipe_[0] < 0 || wakeupPipe_[0] >= FD_SETSIZE) {
-                HDF_LOGW("fd[%{public}d]", wakeupPipe_[0]);
-                return;
-            }
-            FD_SET(wakeupPipe_[0], &readFds);
-            nfds = wakeupPipe_[0];
-        }
-        {
-            std::lock_guard<std::mutex> lock(fdsMutex_);
-            for (auto &&fd : fds_) {
-                FD_SET(fd.first, &readFds);
-                nfds = std::max(fd.first, nfds);
-            }
+        if (!InitReadFds(readFds, nfds)) {
+            return;
         }
 
         {

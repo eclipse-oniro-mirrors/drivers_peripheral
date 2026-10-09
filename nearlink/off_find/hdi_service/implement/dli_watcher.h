@@ -44,6 +44,7 @@ public:
 
 private:
     void CheckFdReady(std::map<int, DliDataCallback>& fds, fd_set &readFds);
+    bool InitReadFds(fd_set &readFds, int &nfds);
     void WatcherThread();
     void ThreadWakeup();
 
