@@ -7,6 +7,7 @@
  */
 
 #include "als_bh1745.h"
+#include <limits.h>
 #include <securec.h>
 #include "osal_mem.h"
 #include "osal_time.h"
@@ -106,7 +107,6 @@ static int32_t DynamicRangCovert(struct SensorCfgData *CfgData, uint32_t *rgbcDa
 
 static int32_t CalLux(struct SensorCfgData *CfgData, struct AlsReportData *reportData, uint32_t *rgbcData)
 {
-    int32_t ret;
     uint32_t time;
     uint32_t gain;
     uint8_t regValue;
@@ -128,14 +128,14 @@ static int32_t CalLux(struct SensorCfgData *CfgData, struct AlsReportData *repor
 
     luxTemp = g_red[index] * rgbcData[ALS_R] + g_green[index] * rgbcData[ALS_G];
     groupNode = CfgData->extendedRegCfgGroup[EXTENDED_ALS_TIME_GROUP];
+    CHECK_NULL_PTR_RETURN_VALUE(groupNode, HDF_FAILURE);
     itemNum = groupNode->itemNum;
     if (itemNum > EXTENDED_ALS_TIME_GROUP_INDEX_MAX) {
         HDF_LOGE("%s: ItemNum out of range ", __func__);
         return HDF_FAILURE;
     }
 
-    ret = ReadSensorRegCfgArray(&CfgData->busCfg, groupNode, timeIndex, &regValue, sizeof(regValue));
-    if (ret != HDF_SUCCESS) {
+    if (ReadSensorRegCfgArray(&CfgData->busCfg, groupNode, timeIndex, &regValue, sizeof(regValue)) != HDF_SUCCESS) {
         HDF_LOGE("%s: Failed to read sensor register array ", __func__);
         return HDF_FAILURE;
     }
@@ -144,10 +144,10 @@ static int32_t CalLux(struct SensorCfgData *CfgData, struct AlsReportData *repor
 
     regValue = 0;
     groupNode = CfgData->extendedRegCfgGroup[EXTENDED_ALS_GAIN_GROUP];
+    CHECK_NULL_PTR_RETURN_VALUE(groupNode, HDF_FAILURE);
     itemNum = groupNode->itemNum;
 
-    ret = ReadSensorRegCfgArray(&CfgData->busCfg, groupNode, gainIndex, &regValue, sizeof(regValue));
-    if (ret != HDF_SUCCESS) {
+    if (ReadSensorRegCfgArray(&CfgData->busCfg, groupNode, gainIndex, &regValue, sizeof(regValue)) != HDF_SUCCESS) {
         HDF_LOGE("%s: Failed to read sensor register array ", __func__);
         return HDF_FAILURE;
     }
@@ -156,7 +156,8 @@ static int32_t CalLux(struct SensorCfgData *CfgData, struct AlsReportData *repor
     if (gain == SENSOR_GAIN_INCREASE || time == SENSOR_TIME_INCREASE) {
         return HDF_FAILURE;
     } else {
-        reportData->als = ((luxTemp / gain) * BH1745_GAIN_16X / time) * BH1745_TIME_160MSEC;
+        uint64_t luxResult = ((uint64_t)(luxTemp / gain) * BH1745_GAIN_16X / time) * BH1745_TIME_160MSEC;
+        reportData->als = (luxResult > UINT32_MAX) ? UINT32_MAX : (int32_t)luxResult;
     }
 
     return HDF_SUCCESS;

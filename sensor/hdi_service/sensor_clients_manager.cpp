@@ -562,16 +562,18 @@ void SensorClientsManager::DeleteService(int32_t sensorId, int32_t serviceId)
         std::unique_lock<std::mutex> lock(sensorUsedMutex_);
         auto it = sensorUsed_.find(sensorId);
         if (it != sensorUsed_.end()) {
-            sensorUsed_[sensorId].erase(serviceId);
-            if (sensorUsed_[sensorId].empty()) {
+            it->second.erase(serviceId);
+            if (it->second.empty()) {
                 sensorUsed_.erase(sensorId);
                 sensorConfig_.erase(sensorId);
                 HDF_LOGD("%{public}s: disabled sensor %{public}d", __func__, sensorId);
                 needDisableSensor = true;
+            } else {
+                for (auto sid : it->second) {
+                    HDF_LOGD("%{public}s: sensor %{public}d also is enabled by service %{public}d", __func__,
+                        sensorId, sid);
+                }
             }
-        }
-        for (auto sid : sensorUsed_[sensorId]) {
-            HDF_LOGD("%{public}s: sensor %{public}d also is enabled by service %{public}d", __func__, sensorId, sid);
         }
     }
     if (needDisableSensor) {
