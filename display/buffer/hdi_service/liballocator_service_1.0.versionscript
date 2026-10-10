@@ -13,11 +13,5 @@
  
 1.0 {
   global:
-    extern "C++" {
-    };
-    extern "C" {
-      AllocatorImplGetInstance;
-    };
-  local:
     *;
 };
