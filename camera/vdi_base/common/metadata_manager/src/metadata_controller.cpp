@@ -443,7 +443,7 @@ bool MetadataController::IsChangeI32ArrayMetadata(
     const camera_metadata_item_t &baseEntry, const camera_metadata_item_t &newEntry)
 {
     if (baseEntry.count != newEntry.count) {
-        CAMERA_LOGW("I32Array count mismatch: base=%{public}u new=%{public}u, treat as chenged",
+        CAMERA_LOGW("I32Array count mismatch: base=%{public}u new=%{public}u, treat as changed",
             baseEntry.count, newEntry.count);
         return true;
     }
