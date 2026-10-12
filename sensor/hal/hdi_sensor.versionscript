@@ -18,6 +18,7 @@
     extern "C" {
       NewSensorInterfaceInstance;
       FreeSensorInterfaceInstance;
+      SensorDevRegisterDump;
     };
   local:
     *;

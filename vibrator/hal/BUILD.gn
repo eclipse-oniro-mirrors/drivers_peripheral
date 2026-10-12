@@ -76,6 +76,11 @@ if (defined(ohos_lite)) {
       "-fno-strict-aliasing",
     ]
     install_images = [ chipset_base_dir ]
+
+    if (!use_clang_coverage) {
+      version_script = "hdi_vibrator.versionscript"
+    }
+
     subsystem_name = "hdf"
     part_name = "drivers_peripheral_vibrator"
     if (is_standard_system) {
