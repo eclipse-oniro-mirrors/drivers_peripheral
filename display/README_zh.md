@@ -11,7 +11,7 @@
 
 该仓下主要包含Display模块HDI（Hardware Driver Interface）接口定义及其实现，对上层图形服务提供显示驱动能力接口，HDI接口主要包括如下三大类：
 
--   DisplayLayer：负责显示图层的管理， 包括图层创建、显示属性设置、图层填充及刷新等操作；
+-   DisplayLayer：负责显示图层的管理， 包括图层创建、图层优先级设置、显示属性设置、图层填充及刷新等操作；
 -   DisplayGralloc：负责显示模块内存的管理，包括内存的申请和释放、内存映射等操作；
 -   DisplayGfx：提供硬件加速接口，包括硬件加速模块的初始化、位图搬移、规则图形的画线及填充等操作。
 
@@ -34,7 +34,7 @@
 
 ### 接口说明<a name="section1551164914237"></a>
 
-Display驱动提供给系统服务WMS可直接调用的驱动能力接口，按照功能分类三大类：显示图层子模块、显示内存子模块、硬件加速子模块，可以提供图层的创建和销毁、图层属性的设置，内存的申请和释放、映射和缓冲，矩形填充和位图搬移等能力。
+Display驱动提供给系统服务WMS可直接调用的驱动能力接口，按照功能分类三大类：显示图层子模块、显示内存子模块、硬件加速子模块，可以提供图层的创建和销毁、图层属性及优先级的设置，内存的申请和释放、映射和缓冲，矩形填充和位图搬移等能力。
 
 提供的部分接口说明如[表1 Display HDI接口列表](#table1513255710559)所示：
 
@@ -49,7 +49,7 @@ Display驱动提供给系统服务WMS可直接调用的驱动能力接口，按�
 </th>
 </tr>
 </thead>
-<tbody><tr id="row13132357165514"><td class="cellrowborder" rowspan="9" valign="top" width="12.121212121212123%" headers="mcps1.2.4.1.1 "><p id="p829618389386"><a name="p829618389386"></a><a name="p829618389386"></a></p>
+<tbody><tr id="row13132357165514"><td class="cellrowborder" rowspan="11" valign="top" width="12.121212121212123%" headers="mcps1.2.4.1.1 "><p id="p829618389386"><a name="p829618389386"></a><a name="p829618389386"></a></p>
 <p id="p35261387384"><a name="p35261387384"></a><a name="p35261387384"></a></p>
 <p id="p776383812388"><a name="p776383812388"></a><a name="p776383812388"></a></p>
 <p id="p11950123812382"><a name="p11950123812382"></a><a name="p11950123812382"></a></p>
@@ -101,6 +101,16 @@ Display驱动提供给系统服务WMS可直接调用的驱动能力接口，按�
 <tr id="row76872047153720"><td class="cellrowborder" valign="top" headers="mcps1.2.4.1.1 "><p id="p1368818472376"><a name="p1368818472376"></a><a name="p1368818472376"></a>int32_t (*GetLayerBuffer)(uint32_t devId, uint32_t layerId, LayerBuffer *buffer);</p>
 </td>
 <td class="cellrowborder" align="center" valign="top" headers="mcps1.2.4.1.2 "><p id="p144182582405"><a name="p144182582405"></a><a name="p144182582405"></a>获取图层buffer</p>
+</td>
+</tr>
+<tr id="row1626354624111"><td class="cellrowborder" valign="top" headers="mcps1.2.4.1.1 "><p id="p1626354624112"><a name="p1626354624112"></a><a name="p1626354624112"></a>int32_t (*GetLayerDeviceId)(uint32_t devId, uint32_t layerId, uint32_t *deviceId);</p>
+</td>
+<td class="cellrowborder" align="center" valign="top" headers="mcps1.2.4.1.2 "><p id="p1626354624113"><a name="p1626354624113"></a><a name="p1626354624113"></a>获取图层所属设备ID</p>
+</td>
+</tr>
+<tr id="row1626354624114"><td class="cellrowborder" valign="top" headers="mcps1.2.4.1.1 "><p id="p1626354624115"><a name="p1626354624115"></a><a name="p1626354624115"></a>int32_t (*SetLayerPriority)(uint32_t priority);</p>
+</td>
+<td class="cellrowborder" align="center" valign="top" headers="mcps1.2.4.1.2 "><p id="p1626354624116"><a name="p1626354624116"></a><a name="p1626354624116"></a>设置图层优先级</p>
 </td>
 </tr>
 <tr id="row1513316577554"><td class="cellrowborder" rowspan="7" valign="top" width="12.121212121212123%" headers="mcps1.2.4.1.1 "><p id="p14171441118"><a name="p14171441118"></a><a name="p14171441118"></a></p>

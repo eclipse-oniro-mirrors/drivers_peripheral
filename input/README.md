@@ -11,7 +11,7 @@
 
 This repository mainly defines and implements the following types of Hardware Driver Interfaces \(HDIs\) of the input module, allowing upper-layer input services to perform operations for the input devices:
 
--   **Input Manager**: manages input devices, including enabling and disabling input devices and obtaining the device list.
+-   **Input Manager**: manages input devices, including enabling and disabling input devices, obtaining the device list, and removing disconnected devices.
 -   **Input Reporter**: reports input events, including registering and unregistering data reporting callbacks.
 -   **Input Controller**: controls input devices, including obtaining the device information and device type, and setting power supply status.
 
@@ -35,7 +35,7 @@ The source code directory structure is as follows:
 
 ### Available APIs<a name="section1551164914237"></a>
 
-The input driver provides input services with driver capability APIs that can be directly called. The APIs involve the Input Manager module, Input Reporter module, and Input Controller module. For example, you can call the APIs to enable or disable an input device, register a listener callback, query the device information, and control the power status.
+The input driver provides input services with driver capability APIs that can be directly called. The APIs involve the Input Manager module, Input Reporter module, and Input Controller module. For example, you can call the APIs to enable or disable an input device, register a listener callback, query the device information, and control the power status. RemoveDisconnectedInputDevice is used to remove disconnected devices in hot-plug scenarios and is controlled by the build option drivers_peripheral_input_feature_hotplug_safe_remove.
 
 [Table 1](#table1513255710559)  describes major HDI APIs provided by the input module.
 
@@ -50,7 +50,7 @@ The input driver provides input services with driver capability APIs that can be
 </th>
 </tr>
 </thead>
-<tbody><tr id="row13132357165514"><td class="cellrowborder" rowspan="4" align="left" valign="top" width="12.031203120312032%" headers="mcps1.2.4.1.1 "><p id="p15674038913"><a name="p15674038913"></a><a name="p15674038913"></a></p>
+<tbody><tr id="row13132357165514"><td class="cellrowborder" rowspan="5" align="left" valign="top" width="12.031203120312032%" headers="mcps1.2.4.1.1 "><p id="p15674038913"><a name="p15674038913"></a><a name="p15674038913"></a></p>
 <p id="p825185015460"><a name="p825185015460"></a><a name="p825185015460"></a>input_manager.h</p>
 <p id="p2133757135510"><a name="p2133757135510"></a><a name="p2133757135510"></a></p>
 </td>
@@ -72,6 +72,11 @@ The input driver provides input services with driver capability APIs that can be
 <tr id="row171330575555"><td class="cellrowborder" valign="top" headers="mcps1.2.4.1.1 "><p id="p913315573557"><a name="p913315573557"></a><a name="p913315573557"></a>int32_t (*GetInputDeviceList)(uint32_t *devNum, DeviceInfo **devList, uint32_t size);</p>
 </td>
 <td class="cellrowborder" align="center" valign="top" headers="mcps1.2.4.1.2 "><p id="p1523319466539"><a name="p1523319466539"></a><a name="p1523319466539"></a>Gets information about all input devices in the device list.</p>
+</td>
+</tr>
+<tr id="row1626354624101"><td class="cellrowborder" valign="top" headers="mcps1.2.4.1.1 "><p id="p1626354624102"><a name="p1626354624102"></a><a name="p1626354624102"></a>int32_t (*RemoveDisconnectedInputDevice)(uint32_t devIndex);</p>
+</td>
+<td class="cellrowborder" align="center" valign="top" headers="mcps1.2.4.1.2 "><p id="p1626354624103"><a name="p1626354624103"></a><a name="p1626354624103"></a>Removes an input device that has been disconnected.</p>
 </td>
 </tr>
 <tr id="row1513316577554"><td class="cellrowborder" rowspan="3" align="left" valign="top" width="12.031203120312032%" headers="mcps1.2.4.1.1 "><p id="p14171441118"><a name="p14171441118"></a><a name="p14171441118"></a></p>
