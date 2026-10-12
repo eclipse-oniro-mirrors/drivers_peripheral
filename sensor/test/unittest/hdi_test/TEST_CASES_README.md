@@ -1020,7 +1020,7 @@ EXPECT_EQ(1, g_dataCallback->GetEventCount());
 
 **代码逐行说明**：使用 `test/common/` 中的 `SensorCallbackImplTest`，调用 `OnDataEvent`，验证返回 `HDF_FAILURE`。
 
-#### 4.2.8 其他测试
+#### 4.2.8 其它测试
 
 ##### SensorCallbackFullTest_GetLastSensorType_001
 
