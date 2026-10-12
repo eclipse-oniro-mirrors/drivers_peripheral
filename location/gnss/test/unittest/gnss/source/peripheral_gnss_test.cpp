@@ -47,6 +47,7 @@ namespace HDI {
 namespace Location {
 namespace Gnss {
 namespace V2_0 {
+const int32_t HDF_FUNC_NOT_SUPPORT = -3;
 
 void PeripheralGnssTest::SetUp()
 {
@@ -195,7 +196,7 @@ HWTEST_F(PeripheralGnssTest, SendNiUserResponseTest001, TestSize.Level1)
     if (gnssInterface != nullptr) {
         GnssNiResponseCmd userResponse = GnssNiResponseCmd::GNSS_NI_RESPONSE_CMD_ACCEPT;
         auto ret = gnssInstance_->SendNiUserResponse(200, userResponse);
-        EXPECT_EQ(-3, ret);
+        EXPECT_EQ(HDF_FUNC_NOT_SUPPORT, ret);
     }
 }
 
@@ -235,7 +236,7 @@ HWTEST_F(PeripheralGnssTest, EnableGnssMeasurementTest001, TestSize.Level1)
         GnssMeasurementUpdate(&gnssMeasurementInfo);
         GnssMeasurementUpdate(nullptr);
         HDF_LOGI("PeripheralGnssTest, EnableGnssMeasurementTest001, TestSize.Level1");
-        EXPECT_EQ(-3, ret);
+        EXPECT_EQ(HDF_FUNC_NOT_SUPPORT, ret);
         gnssInstance_->DisableGnss();
         sleep(1);
     }
@@ -255,7 +256,7 @@ HWTEST_F(PeripheralGnssTest, DisableGnssMeasurementTest001, TestSize.Level1)
         gnssInstance_->EnableGnss(gnssCallback_);
         if (gnssInstance_ != nullptr) {
             int32_t ret = gnssInstance_->DisableGnssMeasurement();
-            EXPECT_EQ(-3, ret);
+            EXPECT_EQ(HDF_FUNC_NOT_SUPPORT, ret);
         }
         gnssInstance_->DisableGnss();
         sleep(1);
@@ -347,7 +348,7 @@ HWTEST_F(PeripheralGnssTest, SendNiUserResponseTest002, TestSize.Level1)
         GnssNiResponseCmd userResponse = GnssNiResponseCmd::GNSS_NI_RESPONSE_CMD_ACCEPT;
         if (gnssInstance_ != nullptr) {
             int32_t ret = gnssInstance_->SendNiUserResponse(gnssNiNotificationId, userResponse);
-            EXPECT_EQ(-3, ret);
+            EXPECT_EQ(HDF_FUNC_NOT_SUPPORT, ret);
         }
     }
 }
@@ -363,7 +364,7 @@ HWTEST_F(PeripheralGnssTest, SendNetworkInitiatedMsg001, TestSize.Level1)
             std::string msg = "test";
             int length = msg.length();
             int32_t ret = gnssInstance_->SendNetworkInitiatedMsg(msg, length);
-            EXPECT_EQ(-3, ret);
+            EXPECT_EQ(HDF_FUNC_NOT_SUPPORT, ret);
         }
     }
 }
