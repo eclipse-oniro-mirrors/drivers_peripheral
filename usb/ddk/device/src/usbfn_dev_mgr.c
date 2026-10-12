@@ -26,6 +26,7 @@
 
 #define HDF_LOG_TAG    usbfn_dev_mgr
 #define SLEEP_TIME_OUT 100
+#define IDLE_SLEEP_TIME 200
 #define SLEEP_TIMES    20
 
 static struct DListHead g_devEntry = {0};
@@ -564,6 +565,8 @@ static int32_t UsbFnEventProcess(void *arg)
 
         CollectEventHandle(&event, devMgr);
         if (event.ep0Num + event.epNum == 0) {
+            OsalMSleep(IDLE_SLEEP_TIME);
+            HDF_LOGW("%{public}s:%{public}d no ep0/ep registered", __func__, __LINE__);
             continue;
         }
         int32_t ret = fnOps->pollEvent(&event, timeout);

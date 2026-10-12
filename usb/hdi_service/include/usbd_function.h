@@ -113,6 +113,7 @@ private:
     static int32_t UsbdWriteUdc(char* udcName, size_t len);
     static void UsbdUnregisterDevice(const std::string &serviceName);
     static int32_t UsbdRegisterDevice(const std::string &serviceName);
+    static void UsbdReleaseDdkDevice();
     static int32_t InitMtp();
     static int32_t ReleaseMtp();
     static int32_t UsbdInnerSetFunction(uint32_t funcs);

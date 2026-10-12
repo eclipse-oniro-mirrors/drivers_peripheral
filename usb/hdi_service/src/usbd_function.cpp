@@ -627,6 +627,12 @@ void UsbdFunction::UsbdDestroyLock()
     OsalMutexDestroy(&setFunctionLock_);
 }
 
+void UsbdFunction::UsbdReleaseDdkDevice()
+{
+    UsbdFunction::SendCmdToService(DEV_SERVICE_NAME, FUNCTION_DEL, USB_DDK_FUNCTION_SUPPORT);
+    UsbdUnregisterDevice(std::string(DEV_SERVICE_NAME));
+}
+
 int32_t UsbdFunction::UsbdInnerSetFunction(uint32_t funcs)
 {
     HDF_LOGI("%{public}s: UsbdSetFunction funcs=%{public}d", __func__, funcs);
@@ -657,6 +663,7 @@ int32_t UsbdFunction::UsbdInnerSetFunction(uint32_t funcs)
         HDF_LOGE("%{public}s, set kernel func failed", __func__);
         UsbReportSysEvent::ReportUsbRecognitionFailSysEvent("UsbdSetFunction", HDF_FAILURE,
             "SetUsbdSetKernelFunctionDDKFunction error");
+        UsbdReleaseDdkDevice();
         SetFunctionToStorage();
         return HDF_FAILURE;
     }
@@ -669,6 +676,7 @@ int32_t UsbdFunction::UsbdInnerSetFunction(uint32_t funcs)
     if (UsbdWaitUdc() != HDF_SUCCESS) {
         HDF_LOGE("%{public}s, wait udc failed", __func__);
         UsbReportSysEvent::ReportUsbRecognitionFailSysEvent("UsbdSetFunction", HDF_FAILURE, "UsbdWaitUdc error");
+        UsbdReleaseDdkDevice();
         SetFunctionToStorage();
         return HDF_FAILURE;
     }
