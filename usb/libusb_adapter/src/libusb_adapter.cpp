@@ -2089,7 +2089,7 @@ int32_t LibusbAdapter::GetCurrentConfiguration(libusb_device_handle *handle, int
 int32_t LibusbAdapter::RemoveInterfaceFromMap(const UsbDev &dev, libusb_device_handle *devHandle, uint8_t interfaceId)
 {
     HDF_LOGD("%{public}s enter", __func__);
-    std::shared_lock<std::shared_mutex> lock(g_mapMutexInterfaceIdMap);
+    std::unique_lock<std::shared_mutex> lock(g_mapMutexInterfaceIdMap);
     uint32_t result = (static_cast<uint32_t>(dev.busNum) << DISPLACEMENT_NUMBER) |
         static_cast<uint32_t>(dev.devAddr);
     auto deviceIt = g_InterfaceIdMap.find(result);
