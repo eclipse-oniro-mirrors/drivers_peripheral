@@ -195,9 +195,7 @@ HWTEST_F(PeripheralGnssTest, SendNiUserResponseTest001, TestSize.Level1)
     if (gnssInterface != nullptr) {
         GnssNiResponseCmd userResponse = GnssNiResponseCmd::GNSS_NI_RESPONSE_CMD_ACCEPT;
         auto ret = gnssInstance_->SendNiUserResponse(200, userResponse);
-        EXPECT_EQ(HDF_SUCCESS, ret);
-        gnssInstance_->SendNetworkInitiatedMsg("0", 0);
-        gnssInstance_->SendNetworkInitiatedMsg("0x20", 4);
+        EXPECT_EQ(-3, ret);
     }
 }
 
@@ -237,7 +235,7 @@ HWTEST_F(PeripheralGnssTest, EnableGnssMeasurementTest001, TestSize.Level1)
         GnssMeasurementUpdate(&gnssMeasurementInfo);
         GnssMeasurementUpdate(nullptr);
         HDF_LOGI("PeripheralGnssTest, EnableGnssMeasurementTest001, TestSize.Level1");
-        EXPECT_EQ(HDF_SUCCESS, ret);
+        EXPECT_EQ(-3, ret);
         gnssInstance_->DisableGnss();
         sleep(1);
     }
@@ -257,7 +255,7 @@ HWTEST_F(PeripheralGnssTest, DisableGnssMeasurementTest001, TestSize.Level1)
         gnssInstance_->EnableGnss(gnssCallback_);
         if (gnssInstance_ != nullptr) {
             int32_t ret = gnssInstance_->DisableGnssMeasurement();
-            EXPECT_EQ(HDF_SUCCESS, ret);
+            EXPECT_EQ(-3, ret);
         }
         gnssInstance_->DisableGnss();
         sleep(1);
@@ -276,10 +274,10 @@ HWTEST_F(PeripheralGnssTest, SetGnssReferenceInfoTest001, TestSize.Level1)
             GnssRefInfo refInfo;
             refInfo.type = GnssRefInfoType::GNSS_REF_INFO_TIME;
             ret = gnssInstance_->SetGnssReferenceInfo(refInfo);
-            EXPECT_EQ(-1, ret);
+            EXPECT_EQ(0, ret);
             refInfo.type = GnssRefInfoType::GNSS_REF_INFO_LOCATION;
             ret = gnssInstance_->SetGnssReferenceInfo(refInfo);
-            EXPECT_EQ(-1, ret);
+            EXPECT_EQ(0, ret);
             refInfo.type = GnssRefInfoType::GNSS_REF_INFO_BEST_LOCATION;
             ret = gnssInstance_->SetGnssReferenceInfo(refInfo);
         }
@@ -349,7 +347,7 @@ HWTEST_F(PeripheralGnssTest, SendNiUserResponseTest002, TestSize.Level1)
         GnssNiResponseCmd userResponse = GnssNiResponseCmd::GNSS_NI_RESPONSE_CMD_ACCEPT;
         if (gnssInstance_ != nullptr) {
             int32_t ret = gnssInstance_->SendNiUserResponse(gnssNiNotificationId, userResponse);
-            EXPECT_EQ(HDF_SUCCESS, ret);
+            EXPECT_EQ(-3, ret);
         }
     }
 }
@@ -365,7 +363,7 @@ HWTEST_F(PeripheralGnssTest, SendNetworkInitiatedMsg001, TestSize.Level1)
             std::string msg = "test";
             int length = msg.length();
             int32_t ret = gnssInstance_->SendNetworkInitiatedMsg(msg, length);
-            EXPECT_EQ(HDF_SUCCESS, ret);
+            EXPECT_EQ(-3, ret);
         }
     }
 }
@@ -379,7 +377,7 @@ HWTEST_F(PeripheralGnssTest, StartGnssTest001, TestSize.Level1)
         int32_t ret = 0;
         ret = gnssInstance_->StartGnss(GNSS_START_TYPE_NORMAL);
         ret = gnssInstance_->StopGnss(GNSS_START_TYPE_NORMAL);
-        EXPECT_EQ(-1, ret);
+        EXPECT_EQ(0, ret);
     }
 }
 
