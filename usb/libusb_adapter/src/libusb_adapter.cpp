@@ -1976,12 +1976,17 @@ int32_t LibusbAdapter::DoSyncPipeTranfer(libusb_device_handle *devHandle, libusb
         return HDF_FAILURE;
     }
     int completed = 0;
-    if ((endpointDes->bmAttributes & LIBUSB_TRANSFER_TYPE_INTERRUPT) == LIBUSB_TRANSFER_TYPE_INTERRUPT) {
+    uint32_t epType = endpointDes->bmAttributes & LIBUSB_TRANSFER_TYPE_INTERRUPT;
+    if (epType == LIBUSB_TRANSFER_TYPE_INTERRUPT) {
         libusb_fill_interrupt_transfer(transfer, devHandle, endpointDes->bEndpointAddress, buffer,
             syncTranfer.length, SyncTranferCallback, &completed, syncTranfer.timeout);
-    } else {
+    } else if (epType == LIBUSB_TRANSFER_TYPE_BULK) {
         libusb_fill_bulk_transfer(transfer, devHandle, endpointDes->bEndpointAddress, buffer,
             syncTranfer.length, SyncTranferCallback, &completed, syncTranfer.timeout);
+    } else {
+        HDF_LOGW("%{public}s: unsupported endpoint type %{public}u", __func__, epType);
+        libusb_free_transfer(transfer);
+        return HDF_ERR_INVALID_PARAM;
     }
     int32_t ret = SubmitTranferByHandle(devHandle, transfer);
     int32_t transferred = 0;
