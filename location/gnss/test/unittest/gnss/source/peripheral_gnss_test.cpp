@@ -232,10 +232,12 @@ HWTEST_F(PeripheralGnssTest, EnableGnssMeasurementTest001, TestSize.Level1)
         int32_t ret = gnssInstance_->EnableGnssMeasurement(nullptr);
         gnssMeasurementCallback_ = new (std::nothrow) GnssMeasurementCallbackTest(saObject);
         ret = gnssInstance_->EnableGnssMeasurement(gnssMeasurementCallback_);
+#ifndef EMULATOR_ENABLED
         OHOS::HDI::Location::GnssMeasurementInfo gnssMeasurementInfo;
         gnssMeasurementInfo.size = 2;
         GnssMeasurementUpdate(&gnssMeasurementInfo);
         GnssMeasurementUpdate(nullptr);
+#endif
         HDF_LOGI("PeripheralGnssTest, EnableGnssMeasurementTest001, TestSize.Level1");
         EXPECT_EQ(HDF_SUCCESS, ret);
         gnssInstance_->DisableGnss();
@@ -402,6 +404,7 @@ HWTEST_F(PeripheralGnssTest, DoubleEnableGnssTest001, TestSize.Level1)
     }
 }
 
+#ifndef EMULATOR_ENABLED
 HWTEST_F(PeripheralGnssTest, GetGnssMeasurementCallbackMethodsTest001, TestSize.Level1)
 {
     GTEST_LOG_(INFO)
@@ -411,6 +414,7 @@ HWTEST_F(PeripheralGnssTest, GetGnssMeasurementCallbackMethodsTest001, TestSize.
     GetGnssMeasurementCallbackMethods(&device);
     EXPECT_EQ(device.size > 0, true);
 }
+#endif
 
 HWTEST_F(PeripheralGnssTest, GetModuleInterfaceTest001, TestSize.Level1)
 {
