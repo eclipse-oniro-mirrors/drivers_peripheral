@@ -82,7 +82,7 @@ int32_t MotionIfService::Init()
 
 int32_t MotionIfService::EnableMotion(int32_t motionType)
 {
-    uint32_t callingPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
+    pid_t callingPid = HdfRemoteGetCallingPid();
     if (callingPid <= 0) {
         HDF_LOGE("%{public}s: invalid calling pid %{public}d", __func__, callingPid);
         return HDF_FAILURE;
@@ -113,7 +113,7 @@ int32_t MotionIfService::EnableMotion(int32_t motionType)
 
 int32_t MotionIfService::DisableMotion(int32_t motionType)
 {
-    uint32_t callingPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
+    pid_t callingPid = HdfRemoteGetCallingPid();
     if (callingPid <= 0) {
         HDF_LOGE("%{public}s: invalid calling pid %{public}d", __func__, callingPid);
         return HDF_FAILURE;
@@ -144,7 +144,7 @@ int32_t MotionIfService::DisableMotion(int32_t motionType)
 
 int32_t MotionIfService::Register(const sptr<IMotionCallback> &callbackObj)
 {
-    uint32_t callingPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
+    pid_t callingPid = HdfRemoteGetCallingPid();
     if (callingPid <= 0) {
         HDF_LOGE("%{public}s: invalid calling pid %{public}d", __func__, callingPid);
         return HDF_FAILURE;
@@ -167,7 +167,7 @@ int32_t MotionIfService::Register(const sptr<IMotionCallback> &callbackObj)
 
 int32_t MotionIfService::Unregister(const sptr<IMotionCallback> &callbackObj)
 {
-    uint32_t callingPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
+    pid_t callingPid = HdfRemoteGetCallingPid();
     if (callingPid <= 0) {
         HDF_LOGE("%{public}s: invalid calling pid %{public}d", __func__, callingPid);
         return HDF_FAILURE;
@@ -190,7 +190,7 @@ int32_t MotionIfService::Unregister(const sptr<IMotionCallback> &callbackObj)
 
 int32_t MotionIfService::SetMotionConfig(int32_t motionType, const std::vector<uint8_t>& data)
 {
-    uint32_t callingPid = static_cast<uint32_t>(HdfRemoteGetCallingPid());
+    pid_t callingPid = HdfRemoteGetCallingPid();
     if (callingPid <= 0) {
         HDF_LOGE("%{public}s: invalid calling pid %{public}d", __func__, callingPid);
         return HDF_FAILURE;
