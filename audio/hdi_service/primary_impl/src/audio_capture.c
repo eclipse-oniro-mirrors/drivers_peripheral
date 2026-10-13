@@ -224,6 +224,10 @@ int32_t AudioCaptureGetFrameSize(struct IAudioCapture *handle, uint64_t *size)
     }
 
     uint32_t channelCount = hwCapture->captureParam.frameCaptureMode.attrs.channelCount;
+    if (channelCount == 0) {
+        AUDIO_FUNC_LOGE("invalid channelCount: 0");
+        return AUDIO_ERR_INTERNAL;
+    }
     enum AudioFormat format = hwCapture->captureParam.frameCaptureMode.attrs.format;
     uint32_t formatBitsCapture = 0;
 
@@ -232,7 +236,7 @@ int32_t AudioCaptureGetFrameSize(struct IAudioCapture *handle, uint64_t *size)
         return ret;
     }
 
-    *size = FRAME_SIZE * channelCount * (formatBitsCapture >> BITS_TO_FROMAT);
+    *size = (uint64_t)FRAME_SIZE * channelCount * (formatBitsCapture >> BITS_TO_FROMAT);
     AUDIO_FUNC_LOGI("Enter. FrameSize= %{public}llu", (unsigned long long)*size);
     return AUDIO_SUCCESS;
 }
@@ -976,6 +980,10 @@ int32_t AudioCaptureGetMmapPosition(struct IAudioCapture *handle, uint64_t *fram
 
     *frames = capture->captureParam.frameCaptureMode.frames;
 
+    if (capture->captureParam.frameCaptureMode.attrs.sampleRate == 0) {
+        AUDIO_FUNC_LOGE("sampleRate is zero, divisor cannot be zero!");
+        return AUDIO_ERR_INTERNAL;
+    }
     capture->captureParam.frameCaptureMode.time.tvSec = (int64_t)(capture->captureParam.frameCaptureMode.frames /
         capture->captureParam.frameCaptureMode.attrs.sampleRate);
 
