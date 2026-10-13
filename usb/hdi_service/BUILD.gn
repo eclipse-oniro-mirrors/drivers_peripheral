@@ -314,6 +314,8 @@ ohos_shared_library("libusb_port_driver") {
 }
 
 ohos_shared_library("libusb_host_interface_service_2.0") {
+  shlib_type = "hdi"
+  version_script = "usb_host_interface_service_2.0.map"
   sanitize = {
     integer_overflow = true
     ubsan = true
