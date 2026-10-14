@@ -15,7 +15,7 @@
 
 
 #include <gtest/gtest.h>
-#include "v6_1/audio_types.h"
+#include "v6_2/audio_types.h"
 
 using namespace std;
 using namespace testing::ext;
@@ -86,6 +86,7 @@ HWTEST_F(HdfAudioUtTypesTest, HdfAudioTypesAudioCategory001, TestSize.Level0)
     EXPECT_EQ(AUDIO_IN_NAVIGATION, (AudioCategory)(9));
     EXPECT_EQ(AUDIO_DIRECT, (AudioCategory)(10));
     EXPECT_EQ(AUDIO_D2D, (AudioCategory)(12));
+    EXPECT_EQ(AUDIO_ULTRA_LOW_LAT, (AudioCategory)(13));
 }
 
 HWTEST_F(HdfAudioUtTypesTest, HdfAudioTypesAudioFormat001, TestSize.Level0)
