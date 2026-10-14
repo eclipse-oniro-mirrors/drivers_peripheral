@@ -35,23 +35,23 @@
     _ZTVN4OHOS3HDI3Usb4V2_011UsbHostImplE;
     _ZTTN4OHOS3HDI3Usb4V2_011UsbHostImplE;
     _ZTCN4OHOS3HDI3Usb4V2_011UsbHostImpl*;
-    _ZTv0_n24_N4OHOS3HDI3Usb4V2_011UsbHostImpl*;
-    _ZTv0_n32_N4OHOS3HDI3Usb4V2_011UsbHostImpl*;
+    _ZTv0_*N4OHOS3HDI3Usb4V2_011UsbHostImpl*;
 
     # C++ symbols - UsbTransferCb (IUsbdTransferCallback implementation, REVIEW)
     _ZN4OHOS3HDI3Usb4V2_013UsbTransferCb*;
     _ZTVN4OHOS3HDI3Usb4V2_013UsbTransferCbE;
     _ZTTN4OHOS3HDI3Usb4V2_013UsbTransferCbE;
     _ZTCN4OHOS3HDI3Usb4V2_013UsbTransferCb*;
+    _ZTv0_*N4OHOS3HDI3Usb4V2_013UsbTransferCb*;
+    _ZThn*_N4OHOS3HDI3Usb4V2_013UsbTransferCb*;
 
     # C++ symbols - OnDemandLoadCallback (SystemAbilityLoadCallbackStub, REVIEW)
     _ZN4OHOS3HDI3Usb4V1_220OnDemandLoadCallback*;
     _ZTVN4OHOS3HDI3Usb4V1_220OnDemandLoadCallbackE;
     _ZTTN4OHOS3HDI3Usb4V1_220OnDemandLoadCallbackE;
     _ZTCN4OHOS3HDI3Usb4V1_220OnDemandLoadCallback*;
-    _ZThn120_N4OHOS3HDI3Usb4V1_220OnDemandLoadCallback*;
-    _ZTv0_n24_N4OHOS3HDI3Usb4V1_220OnDemandLoadCallback*;
-    _ZTv0_n32_N4OHOS3HDI3Usb4V1_220OnDemandLoadCallback*;
+    _ZThn*_N4OHOS3HDI3Usb4V1_220OnDemandLoadCallback*;
+    _ZTv0_*N4OHOS3HDI3Usb4V1_220OnDemandLoadCallback*;
 
     # C++ symbols - UsbdLoadService (SA load helper, REVIEW)
     _ZN4OHOS3HDI3Usb4V1_215UsbdLoadService*;
