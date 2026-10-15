@@ -27,7 +27,7 @@ public:
     {
     }
 
-    ScopeGuard(ScopeGuard &&rhs) : func_(std::move(rhs.func)), active_(rhs.active_)
+    ScopeGuard(ScopeGuard &&rhs) : func_(std::move(rhs.func_)), active_(rhs.active_)
     {
         rhs.Disable();
     }
