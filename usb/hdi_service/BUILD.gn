@@ -400,6 +400,8 @@ ohos_shared_library("libusb_host_interface_service_2.0") {
 }
 
 ohos_shared_library("libusb_device_interface_service_2.1") {
+  shlib_type = "hdi"
+  version_script = "usb_device_interface_service_2.1.map"
   sanitize = {
     integer_overflow = true
     ubsan = true
