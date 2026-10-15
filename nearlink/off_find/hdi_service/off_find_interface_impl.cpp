@@ -35,8 +35,16 @@ extern "C" IOffFindInterface *OffFindInterfaceImplGetInstance(void)
 
 OffFindInterfaceImpl::OffFindInterfaceImpl()
 {
-    remoteDeathRecipient_ =
-        new RemoteDeathRecipient(std::bind(&OffFindInterfaceImpl::OnRemoteDied, this, std::placeholders::_1));
+    wptr<OffFindInterfaceImpl> weakThis(this);
+    remoteDeathRecipient_ = new RemoteDeathRecipient(
+        [weakThis](const wptr<IRemoteObject> &object) {
+            sptr<OffFindInterfaceImpl> impl = weakThis.promote();
+            if (impl == nullptr) {
+                HDF_LOGW("OffFindInterfaceImpl already destroyed, skip remote death callback");
+                return;
+            }
+            impl->OnRemoteDied(object);
+        });
     if (eventQueue_ != nullptr) {
         HDF_LOGI("eventQueue already init");
     } else {
@@ -78,26 +86,37 @@ int32_t OffFindInterfaceImpl::EnableOffFind(
     const OHOS::HDI::Nearlink::OffFind::V1_0::OffFindExtraInfo& info)
 {
     HDF_LOGI("OffFindInterfaceImpl::EnableOffFind");
-    auto func = [callbackObj, data, info, this]() {
+    wptr<OffFindInterfaceImpl> weakThis(this);
+    auto func = [callbackObj, data, info, weakThis]() {
         HDF_LOGI("Enter EnableOffFind");
+        sptr<OffFindInterfaceImpl> impl = weakThis.promote();
+        if (impl == nullptr) {
+            HDF_LOGW("OffFindInterfaceImpl already destroyed, skip EnableOffFind task");
+            return;
+        }
         if (callbackObj == nullptr) {
             HDF_LOGE("OffFindInterfaceImpl callbackObj null");
             return ;
         }
         VendorInterface::GetInstance()->RegisterClearOffFindCallback(
-            [this]() {
+            [weakThis]() {
+                sptr<OffFindInterfaceImpl> impl = weakThis.promote();
+                if (impl == nullptr) {
+                    HDF_LOGW("OffFindInterfaceImpl already destroyed, skip clear callback");
+                    return;
+                }
                 HDF_LOGI("clear callbacks is success !");
-                if (callbacks_ != nullptr) {
-                    RemoveHciDeathRecipient(callbacks_);
-                    callbacks_ = nullptr;
+                if (impl->callbacks_ != nullptr) {
+                    impl->RemoveHciDeathRecipient(impl->callbacks_);
+                    impl->callbacks_ = nullptr;
                 }
             }
         );
         bool result = VendorInterface::GetInstance()->Initialize(
             [callbackObj](int32_t result) {callbackObj->OnOffFindEnableResult(result); }, data, info);
         if (result) {
-            callbacks_ = callbackObj;
-            AddHciDeathRecipient(callbacks_);
+            impl->callbacks_ = callbackObj;
+            impl->AddHciDeathRecipient(impl->callbacks_);
         }
     };
     if (eventQueue_ == nullptr) {

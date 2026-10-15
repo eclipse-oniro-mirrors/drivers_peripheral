@@ -44,6 +44,7 @@ public:
 
 private:
     void CheckFdReady(std::map<int, DliDataCallback>& fds, fd_set &readFds);
+    bool InitReadFds(fd_set &readFds, int &nfds);
     void WatcherThread();
     void ThreadWakeup();
 
@@ -52,7 +53,7 @@ private:
     std::map<int, DliDataCallback> fds_;
     std::mutex fdsMutex_;
     std::mutex wakeupPipeMutex_;
-    int wakeupPipe_[2] = {0};
+    int wakeupPipe_[2] = {-1, -1};
     timeval timeoutTimer_ = {};
     TimeoutCallback timeoutCallback_;
     std::mutex timeoutMutex_;

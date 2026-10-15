@@ -33,7 +33,8 @@ namespace HDI {
 namespace Nearlink {
 namespace OffFind {
 namespace V1_0 {
-class VendorInterface : public DelayedSingleton<VendorInterface> {
+class VendorInterface : public DelayedSingleton<VendorInterface>,
+    public std::enable_shared_from_this<VendorInterface> {
 public:
     using InitializeCompleteCallback = std::function<void(int32_t result)>;
     using ClearIpcCallback = std::function<void()>;

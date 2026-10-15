@@ -166,7 +166,7 @@ std::shared_ptr<SleAddress> SleAddress::UpdateAddressFromNV(const std::string &p
             needUpdateTxt = false;
         }
     }
-    if (needUpdateTxt) {
+    if (needUpdateTxt && lseek(newFd, 0, SEEK_SET) >= 0) {
         int fdRet = write(newFd, addressStr, ADDRESS_STR_LEN);
         if (fdRet < 0) {
             strerror_r(errno, buf, sizeof(buf));
