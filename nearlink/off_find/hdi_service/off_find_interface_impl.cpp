@@ -129,7 +129,7 @@ void OffFindInterfaceImpl::OnRemoteDied(const wptr<IRemoteObject> &object)
 {
     HDF_LOGI("OffFindInterfaceImpl");
     callbacks_ = nullptr;
-    VendorInterface::GetInstance()->CleanUp();
+    VendorInterface::GetInstance()->OnClientDied();
     VendorInterface::DestroyInstance();
 }
 

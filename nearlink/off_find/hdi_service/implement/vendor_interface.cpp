@@ -517,6 +517,16 @@ size_t VendorInterface::SendPacket(const std::vector<uint8_t> &packet)
     return dli_->SendPacket(packet);
 }
 
+void VendorInterface::OnClientDied()
+{
+    HDF_LOGI("OnClientDied");
+    std::lock_guard<ffrt::recursive_mutex> lock(processMutex_);
+    if (vendorInterface_ != nullptr) {
+        vendorInterface_->op(OffFindOpcodeT::SLE_OP_DLI_CHANNEL_CLOSE, nullptr);
+    }
+    CleanUp();
+}
+
 void VendorInterface::OnInitCallback(OffFindErrorCode result)
 {
     HDF_LOGI("OnInitCallback %{public}d", result);
