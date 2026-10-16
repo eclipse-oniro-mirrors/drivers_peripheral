@@ -73,17 +73,27 @@ bool UsbDriverManager::UpdateDriverInfo(const V1_1::DriverAbilityInfo &driverInf
         return true;
     }
 
+    auto &vec = it->second;
+    for (auto &entry : vec) {
+        if (entry != nullptr && entry->driverUid == driverInfo.driverUid) {
+            entry->vids = driverInfo.vids;
+            HDF_LOGI("%{public}s: driver already registered, update in place, "
+                "driverUid: %{public}s, entryCount: %{public}zu", __func__, driverInfo.driverUid.c_str(), vec.size());
+            return true;
+        }
+    }
+
     constexpr size_t MAX_DRIVER_ENTRIES_PER_TOKEN = 255;
-    if (it->second.size() >= MAX_DRIVER_ENTRIES_PER_TOKEN) {
+    if (vec.size() >= MAX_DRIVER_ENTRIES_PER_TOKEN) {
         HDF_LOGE("%{public}s: entries for tokenId: %{private}u exceed limit, driverUid: %{public}s",
             __func__, tokenId, driverInfo.driverUid.c_str());
         return false;
     }
 
-    driverMap_[tokenId].push_back(std::make_unique<V1_1::DriverAbilityInfo>(driverInfo));
+    vec.push_back(std::make_unique<V1_1::DriverAbilityInfo>(driverInfo));
 
     HDF_LOGI("%{public}s: driver merged, driverUid: %{public}s, entryCount:%{public}zu",
-        __func__, driverInfo.driverUid.c_str(), driverMap_[tokenId].size());
+        __func__, driverInfo.driverUid.c_str(), vec.size());
     return true;
 }
 

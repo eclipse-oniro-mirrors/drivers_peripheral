@@ -13,9 +13,14 @@
  * limitations under the License.
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <gtest/gtest.h>
+#include <hilog/log.h>
+#include <hilog/log_c.h>
+#include <string>
+#include <vector>
 
 #include "hdf_log.h"
 #include "v1_2/iusb_ddk.h"
@@ -425,5 +430,156 @@ HWTEST_F(UsbDdkServiceTest, ControlTransferTimeoutTest001, TestSize.Level1)
         ret = usbDdk->ControlTransfer(deviceId, setup, 10000, data, transferredLength);
         EXPECT_NE(ret, 0);
     }
+}
+
+/*
+ * Bus-reset re-add 测试。
+ *
+ * 背景：扩展坞单接口描述符上若存在多alt setting 带设备接入鸿蒙PC时，USB 总线复位产生 add->remove->add 循环
+ * (场景1):
+ *    1. add mouse     ->  "new driver registered"
+ *    2. bus-reset remove  -> Disconnect 失败，RmoveDriverInfo 未执行，保留entry
+ *    3. bus-reset re-add  -> "update in place"（driverUid 已在driverMap_， 而非 "driver merged"）
+ *
+ * 核心逻辑: 同一 driverUid 在同一 tokenId 下重新添加时，应打印 "update in place"
+ *
+ * 修改前（无 dedup-by-driverUid）: re-add 走 push_back，打印 "driver merged",
+ * 创建重复的 entry -> 打印 "driver merged"，测试失败暴露bug。
+ *
+ * 修改后: re-add 走 "update in place"，不打印 "driver merged"，测试通过。
+ */
+
+/*
+ * LogCapture: 通过 hilog 回调捕捉 HDF_LOGI / HDF_LOGE 的格式化输出。
+ *   构造时注册 LOG_SetCallback, 析构时置空，手机日志到 vector 供测试断言。
+ */
+class LogCapture {
+public:
+    LogCapture()
+    {
+        LOG_SetCallback(LogCapture::OnLogCallback);
+    }
+
+    ~LogCapture()
+    {
+        LOG_SetCallback(nullptr);
+    }
+
+    void Clear()
+    {
+        lock_guard<mutex> lock(mutex_);
+        logs_.clear();
+    }
+
+    bool Contains(const string &sub) const
+    {
+        lock_guard<mutex> lock(mutex_);
+        for (const auto &line : logs_) {
+            if (line.find(sub) != string::npos) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+private:
+    static void OnLogCallback(const LogType, const LogLevel, const unsigned int, const char *tag, const char *msg)
+    {
+        if (msg == nullptr) {
+            return;
+        }
+        lock_guard<mutex> lock(mutex_);
+        logs_.emplace_back(msg);
+    }
+
+    static vector<string> logs_;
+    static mutex mutex_;
+};
+
+vector<string> LogCapture::logs_;
+mutex LogCapture::mutex_;
+
+HWTEST_F(UsbDdkServiceTest, ReAddSameDriverUid, TestSize.Level1)
+{
+    LogCapture capture;
+    capture.Clear();
+
+    V1_2::DriverAbilityInfo driverInfo;
+    driverInfo.driverUid = "dedupReAdd-10001";
+    driverInfo.vids = { 10001 };
+
+    bool ret = V1_2::UsbDriverManager::GetInstance().UpdateDriverInfo(driverInfo);
+    EXPECT_TRUE(ret);
+    EXPECT_TRUE(capture.Contains("new driver registered"));
+
+    capture.Clear();
+
+    ret = V1_2::UsbDriverManager::GetInstance().UpdateDriverInfo(driverInfo);
+    EXPECT_TRUE(ret);
+
+    EXPECT_TRUE(capture.Contains("update in place"));
+    EXPECT_FALSE(capture.Contains("driver merged"));
+
+    (void)V1_2::UsbDriverManager::GetInstance().RemoveDriverInfo("dedupReAdd-10001");
+}
+
+/*
+ * 两个不同的 driverUid 同一个 tokenId 应仍走 "driver merged"，确保 dedup 不会过杀。
+ */
+HWTEST_F(UsbDdkServiceTest, DifferentDriverUidMerged, TestSize.Level1)
+{
+    LogCapture capture;
+    capture.Clear();
+
+    V1_2::DriverAbilityInfo driverInfo1;
+    driverInfo1.driverUid = "dedupDriverA-20002";
+    driverInfo1.vids = { 20002 };
+    bool ret = V1_2::UsbDriverManager::GetInstance().UpdateDriverInfo(driverInfo1);
+    EXPECT_TRUE(ret);
+    EXPECT_TRUE(capture.Contains("new driver registered"));
+
+    V1_2::DriverAbilityInfo driverInfo2;
+    driverInfo2.driverUid = "dedupDriverB-20002";
+    driverInfo2.vids = { 20002 };
+    ret = V1_2::UsbDriverManager::GetInstance().UpdateDriverInfo(driverInfo2);
+    EXPECT_TRUE(ret);
+
+    EXPECT_TRUE(capture.Contains("driver merged"));
+    EXPECT_FALSE(capture.Contains("update in place"));
+
+    (void)V1_2::UsbDriverManager::GetInstance().RemoveDriverInfo("dedupDriverA-20002");
+    (void)V1_2::UsbDriverManager::GetInstance().RemoveDriverInfo("dedupDriverB-20002");
+}
+
+/*
+ * RemoveDriverInfo 后重新添加同一 driverUid 应打印 "new driver registered",
+ * 而非 "update in place", 验证清理后无残留状态。
+ */
+HWTEST_F(UsbDdkServiceTest, ReAddAfterFullRemove, TestSize.Level1)
+{
+    LogCapture capture;
+    capture.Clear();
+
+    V1_2::DriverAbilityInfo driverInfo;
+    driverInfo.driverUid = "dedupRemove-30003";
+    driverInfo.vids = { 30003 };
+
+    bool ret = V1_2::UsbDriverManager::GetInstance().UpdateDriverInfo(driverInfo);
+    EXPECT_TRUE(ret);
+    EXPECT_TRUE(capture.Contains("new driver registered"));
+
+    ret = V1_2::UsbDriverManager::GetInstance().RemoveDriverInfo("dedupRemove-30003");
+    EXPECT_TRUE(ret);
+
+    capture.Clear();
+
+    ret = V1_2::UsbDriverManager::GetInstance().UpdateDriverInfo(driverInfo);
+    EXPECT_TRUE(ret);
+
+    EXPECT_TRUE(capture.Contains("new driver registered"));
+    EXPECT_FALSE(capture.Contains("update in place"));
+    EXPECT_FALSE(capture.Contains("driver merged"));
+
+    (void)V1_2::UsbDriverManager::GetInstance().RemoveDriverInfo("dedupRemove-30003");
 }
 }
