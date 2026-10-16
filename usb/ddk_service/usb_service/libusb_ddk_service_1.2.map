@@ -1,0 +1,62 @@
+# Copyright (c) 2024 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License")*;
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Version Script for libusb_ddk_service_1.2.z.so
+# SO Type: innerapi (passthrough)
+# Strategy: Whitelist mode
+#
+# Exported symbols:
+#   - UsbDdkImplGetInstance: HDI framework entry point (extern "C", dlsym)
+#   - __cfi_check: CFI cross-DSO check entry (cfi_cross_dso=true)
+#   - OHOS::HDI::Usb::Ddk::V1_2::UsbDdkService: IUsbDdk public implementation
+#   - OHOS::HDI::Usb::Ddk::V1_2::UsbDriverManager: driver manager singleton
+#   - UsbDdkHash/UsbDdkUnHash/UsbDdkDelHashRecord/UsbDdkGetAllRecords/UsbDdkGetRecordByVal/GetInterfaceInfoByVal: hash utility (header-declared)
+#   - Internal helper functions (GetInterfaceId, EraseInterfaceId, ReleaseUsbInterface, etc.)
+#   - Associated RTTI/vtable/thunk symbols for cross-DSO inheritance
+
+{
+  global:
+    # C entry points
+    UsbDdkImplGetInstance;
+    __cfi_check;
+
+    # C++ symbols - UsbDdkService (IUsbDdk public implementation)
+    _ZN4OHOS3HDI3Usb3Ddk4V1_213UsbDdkService*;
+    _ZTVN4OHOS3HDI3Usb3Ddk4V1_213UsbDdkServiceE;
+    _ZTTN4OHOS3HDI3Usb3Ddk4V1_213UsbDdkServiceE;
+    _ZTCN4OHOS3HDI3Usb3Ddk4V1_213UsbDdkService*;
+
+    # C++ symbols - UsbDriverManager (singleton, header-declared in usb_driver_manager.h)
+    _ZN4OHOS3HDI3Usb3Ddk4V1_216UsbDriverManager*;
+
+    # Hash utility functions (header-declared in usb_ddk_hash.h)
+    _Z10UsbDdkHashRK13InterfaceInfoRm;
+    _Z12UsbDdkUnHashmRm;
+    _Z19UsbDdkDelHashRecordm;
+    _Z19UsbDdkGetAllRecordsRK13InterfaceInfoRNSt3__h6vectorImNS2_9allocatorImEEEE;
+    _Z20UsbDdkGetRecordByValRK13InterfaceInfoRm;
+    _Z21GetInterfaceInfoByValmR13InterfaceInfo;
+
+    # Internal helper functions (V1_2 namespace, REVIEW - conservatively kept)
+    _ZN4OHOS3HDI3Usb3Ddk4V1_214GetInterfaceIdEm;
+    _ZN4OHOS3HDI3Usb3Ddk4V1_216EraseInterfaceIdEm;
+    _ZN4OHOS3HDI3Usb3Ddk4V1_219ReleaseUsbInterfaceEm;
+    _ZN4OHOS3HDI3Usb3Ddk4V1_219CheckCompleteStatusEP10UsbRequest;
+    _ZN4OHOS3HDI3Usb3Ddk4V1_221FillPipeRequestParamsERKNS2_4V1_014UsbRequestPipeEjR16UsbRequestParams;
+    _ZN4OHOS3HDI3Usb3Ddk4V1_221FillReadRequestParamsERKNS2_4V1_022UsbControlRequestSetupEjjR16UsbRequestParams;
+    _ZN4OHOS3HDI3Usb3Ddk4V1_222FillWriteRequestParamsERKNS2_4V1_022UsbControlRequestSetupERKNSt3__h6vectorIhNS8_9allocatorIhEEEEjR16UsbRequestParams;
+    _ZN4OHOS3HDI3Usb3Ddk4V1_231FillPipeRequestParamsWithAshmemERKNS2_4V1_014UsbRequestPipeERKNS4_9UsbAshmemER16UsbRequestParams;
+
+  local:
+    *;
+};
