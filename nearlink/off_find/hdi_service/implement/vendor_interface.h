@@ -46,6 +46,7 @@ public:
     const OffFindExtraInfo& info);
     void DisableOffFindMode();
     void CleanUp();
+    void OnClientDied();
     size_t SendPacket(const std::vector<uint8_t> &packet);
     void SetSleAddress(uint8_t *localSleAddr);
     uint8_t *SetAddress(uint8_t *addr);
