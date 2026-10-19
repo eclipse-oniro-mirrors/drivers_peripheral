@@ -16,9 +16,9 @@
 #include <gtest/gtest.h>
 #include "osal_mem.h"
 
-#include "v6_1/audio_types.h"
-#include "v6_1/iaudio_manager.h"
-#include "v6_1/iaudio_render.h"
+#include "v6_2/audio_types.h"
+#include "v6_2/iaudio_manager.h"
+#include "v6_2/iaudio_render.h"
 
 using namespace std;
 using namespace testing::ext;

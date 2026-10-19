@@ -17,11 +17,11 @@
 #define AUDIO_DFX_H
 
 #include <stdint.h>
-#include "v6_1/audio_types.h"
-#include "v6_1/iaudio_manager.h"
-#include "v6_1/iaudio_adapter.h"
-#include "v6_1/iaudio_render.h"
-#include "v6_1/iaudio_capture.h"
+#include "v6_2/audio_types.h"
+#include "v6_2/iaudio_manager.h"
+#include "v6_2/iaudio_adapter.h"
+#include "v6_2/iaudio_render.h"
+#include "v6_2/iaudio_capture.h"
 #include "audio_uhdf_log.h"
 #include <sys/time.h>
 

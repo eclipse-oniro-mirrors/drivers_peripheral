@@ -24,7 +24,7 @@
 #include "audio_common_vdi.h"
 #include "audio_render_vdi.h"
 #include "audio_dfx.h"
-#include "v6_1/iaudio_callback.h"
+#include "v6_2/iaudio_callback.h"
 #include "stub_collector.h"
 
 #define HDF_LOG_TAG    HDF_AUDIO_PRIMARY_IMPL
