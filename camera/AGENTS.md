@@ -1,5 +1,261 @@
 # Camera Agent - OpenHarmony 相机驱动模块开发指南
 
+> **本文件是 `drivers/peripheral/camera/` 及其全部子目录的强制 Agent 指引**，与上级 `../AGENTS.md`（驱动外设层通用约束）叠加生效；冲突时以更严格、更具体者为准。
+> 本文档只允许**增补**与**带标注的校正**，不得删减既有内容（历史经验均已沉淀在正文各章）。
+> **阅读顺序**：§0–§3 为规范层（索引、路由、约束、验证），**每次任务都必须读**；其后各章（业务架构、编译命令、部署、调试、UT 等）为参考手册，按 §0.1 索引**按需查阅**。
+
+## 0. 快速索引与适用范围
+
+### 0.1 遇到问题读哪里
+
+| 遇到问题 | 读取位置 |
+|----------|----------|
+| 不知道改动落在哪个目录/模块 | §0.3 代码地图、§0.4 常见任务 → 入口路径 |
+| 需要确认仓库职责与边界（本仓 / 接口仓 / 板载 VDI） | §0.2 适用范围与职责边界 |
+| 不知道这类任务要先读哪些文档 | §1.1–§1.3（按任务 / 按路径 / 按术语路由） |
+| 任务描述、日志、接口里出现不认识的术语 | §1.3 按术语路由 |
+| 不确定能不能直接改、要不要先确认 | §2.2 禁止事项、§2.3 Ask-before |
+| 需要构建、特性开关、产物路径 | §3.2、§3.3 以及「编译命令」「平台编译策略」「构建产物路径」 |
+| 需要部署到设备、推送 .so | 「部署到设备 (RK3568)」「常见问题 → 确定正确的推送路径」 |
+| 需要 Lint / 静态检查 / Done 判定 / 汇报格式 | §3.3–§3.7 |
+| 需要设备侧调试（日志、dump、自动化、截图） | 「Buffer Dump 调试功能」「开启相机详细日志调试」「RK3568 相机自动化测试流程」「屏幕截图工具」 |
+| 需要跑 UT / 分析失败用例 | 「USB 相机 UT 测试」 |
+| 需要理解分层、数据流、模块交互 | 「业务架构」「模块依赖关系」 |
+| 构建环境不可用、只有本仓切片 | §3.7 无法验证时 |
+
+### 0.2 适用范围与职责边界
+
+| 项目 | 内容 |
+|------|------|
+| 适用目录 | `drivers/peripheral/camera/`（含全部子目录；本目录下**没有**嵌套 `AGENTS.md`，本文件即唯一目录级指引） |
+| 组件 | `@ohos/drivers_peripheral_camera`（`bundle.json`：version 4.0，subsystem `hdf`，`adapted_system_type` = standard/small） |
+| 本仓维护 | HDI service 实现（`hdi_service/v1_0/`）、C 语言接口门面（`hal_c/`）、VDI 公共实现（`vdi_base/common/`）、V4L2 原生 VDI（`vdi_base/v4l2/`）、通用 USB 相机 VDI（`vdi_base/usb_camera/`）、测试（`test/`）、组件与特性开关（`bundle.json`、`camera.gni`、`BUILD.gn`）、DFX 事件（`hisysevent.yaml`） |
+| 本仓不维护 | IDL 契约（`drivers/interface/camera`，独立仓）、板载 VDI（`device/board/*/camera/`，芯片/板级供应商）、`hdi-gen` 生成的 proxy/stub/headers |
+| 接口仓（只读参考） | 源码树路径 `drivers/interface/camera`（相对本目录为 `../../interface/camera`）；本工作区扁平布局对应 `../../drivers_interface/camera`（含 v1_0–v1_7 的 `.idl`，自带 `AGENTS.md`）。**IDL 变更走接口评审，不在本仓落地** |
+| 板载 VDI（跨仓） | 部件 `camera_board_vdi_impl`（示例：`device/board/hihope/rk3568/camera/vdi_impl/v4l2`）；本工作区**未包含**该目录，涉及板载实现时先向用户确认路径 |
+| 活跃服务版本 | `hdi_service/v1_0/` 是本仓唯一 HDI service 实现目录；接口侧版本演进（v1_0–v1_7）在接口仓，本仓按需同步实现 |
+
+### 0.3 代码地图（关键路径与路径校正）
+
+**⚠️ 路径校正（重要）**：本文档「业务架构 → 驱动层/框架层 (HAL Layer)」小节给出的 `drivers/peripheral/camera/hal/` 以及 `hdi_impl/`、`buffer_manager/`、`device_manager/`、`pipeline_core/`、`adapter/`、`utils/`、`test/` 子目录是**逻辑分层示意**；本仓**实际不存在 `hal/` 目录**，对应实现落在下表路径。查代码请以下表为准，不要据示意图判断“代码缺失”。
+
+| 逻辑模块 | 示意图路径 | 本仓实际路径 |
+|----------|-----------|--------------|
+| HDI 服务实现（Host / Device / Stream / Offline / Callback） | `hal/hdi_impl/` | `hdi_service/v1_0/src/`、`hdi_service/v1_0/include/` |
+| HDI 本地接口（IPC / 直通） | — | `interfaces/hdi_ipc/`、`interfaces/hdi_passthrough/`（含 `callback/`）、`interfaces/include/` |
+| C 语言接口门面（C HDI） | — | `hal_c/include/*_c_if.h`（host/device/metadata/types/stream_operator）、`hal_c/hdi_cif/{include,src}/` |
+| Buffer 管理 | `hal/buffer_manager/` | `vdi_base/common/buffer_manager/`、`vdi_base/common/include/` |
+| 设备管理与 HCS 解析 | `hal/device_manager/` | `vdi_base/common/device_manager/`、`vdi_base/v4l2/src/camera_host/hcs_deal.cpp` |
+| 元数据与 vendor tag | — | `vdi_base/common/metadata_manager/` |
+| Pipeline 核心与节点 | `hal/pipeline_core/` | `vdi_base/common/pipeline_core/`（`nodes/src/`、`pipeline_impl/src/{builder,dispatcher,parser,strategy}`、`ipp/`、`host_stream/`） |
+| 平台适配 | `hal/adapter/` | `vdi_base/common/adapter/platform/{v4l2,hdf_driver,mpp}/` |
+| 工具与 DFX（watchdog / selfkiller / hicollie / hisysevent / exif） | `hal/utils/` | `vdi_base/common/utils/`（含 `watchdog/`、`selfkiller/`、`hicollie/`、`event/`、`exif/`） |
+| Buffer dump | — | `vdi_base/common/dump/`（`DUMP_CONFIG_PATH = /data/local/tmp/dump.config`） |
+| VDI 契约接口 | `vdi_base/interfaces/` | `vdi_base/interfaces/v1_0/`（`icamera_host_vdi.h`、`icamera_device_vdi.h`、`istream_operator_vdi.h`、`ioffline_stream_operator_vdi.h`、`vdi_types.h`、`*_callback.h`） |
+| V4L2 原生 VDI 实现 | `vdi_base/v4l2/` | `vdi_base/v4l2/{include,src}/`（`camera_host/`、`camera_device/`、`stream_operator/`、`offline_stream_operator/`） |
+| 通用 USB 相机 VDI | `vdi_base/usb_camera/` | `vdi_base/usb_camera/`（`vdi_impl/`、`pipeline_core/src/{node,mjpeg_decoder}`、`camera_config/*.hcs`、`adapter/`、`device_manager/`、`metadata_manager/`、`buffer_manager/`） |
+| 构建与特性开关 | — | `bundle.json`（features / deps / inner_kits）、`camera.gni`（declare_args）、`BUILD.gn`（VDI 二选一分支）、`hal_c/camera.gni`、`vdi_base/usb_camera/camera_usb.gni`、`test/fuzztest/fuzz.gni` |
+| DFX 事件定义 | — | `hisysevent.yaml`（domain `CAMERA_HAL`；事件 `CAMERA_HAL_ERR` / `CAMERA_HAL_PERFORMANCE` / `CAMERA_HAL_STATISTIC`） |
+| 测试代码 | `hal/test/` | `test/hdi/`（v1_0–v1_3、`metadata_test/`、`sequenceable_test/`）、`test/ut/`（usb_camera、v4l2、buffer_manager、pipeline_core、utils、security、camera_vendor_tag）、`test/fuzztest/`、`test/benchmarktest/`、`test/demo/`、`test/demo_3A/`、`test/mpi/`、`test/common/` |
+| 参考文档 | — | `README_zh.md`；pipeline 配置生成说明 `vdi_base/usb_camera/pipeline_core/pipeline_impl/src/strategy/config/generateConfig.md` |
+| 架构图 | — | `figures/Camera模块驱动模型.png`、`figures/logic-view-of-modules-related-to-this-repository_zh.png` |
+
+**高风险路径（改动前必须走 §1.4 声明与 §2.3 确认）**
+
+- `hdi_service/v1_0/**`：HDI 实现对上层暴露的 ABI 面。
+- `vdi_base/interfaces/v1_0/**`：VDI 契约，影响 V4L2、USB、板载三方实现。
+- `vdi_base/common/{buffer_manager,metadata_manager,pipeline_core}/**`：`bundle.json` `inner_kits` 对外暴露面。
+- `hisysevent.yaml`、`camera.gni`、`bundle.json`、根 `BUILD.gn`：DFX 契约与特性开关，影响其他产品形态构建。
+
+**高频改动路径**：`vdi_base/usb_camera/**`、`vdi_base/common/adapter/platform/v4l2/**`、`vdi_base/common/pipeline_core/nodes/**`、`test/ut/**`。
+
+### 0.4 常见任务 → 入口路径
+
+| 任务类型 | 入口路径 |
+|----------|----------|
+| HDI 接口实现（Host / Device / Stream / 回调 / stub） | `hdi_service/v1_0/src/`、`hdi_service/v1_0/include/` |
+| HDI 本地 IPC / 直通模式适配 | `interfaces/hdi_ipc/`、`interfaces/hdi_passthrough/` |
+| C 语言接口 | `hal_c/include/`、`hal_c/hdi_cif/` |
+| Buffer 分配/回收、buffer handle | `vdi_base/common/buffer_manager/` |
+| 设备枚举、热插拔、HCS 配置、能力查询 | `vdi_base/common/device_manager/`、`vdi_base/v4l2/src/camera_host/` |
+| Metadata、vendor tag | `vdi_base/common/metadata_manager/` |
+| Pipeline、node、3A、IPP、stream tunnel | `vdi_base/common/pipeline_core/` |
+| USB / UVC 相机、MJPEG、FFmpeg 解码 | `vdi_base/usb_camera/` |
+| V4L2 设备适配 | `vdi_base/v4l2/`、`vdi_base/common/adapter/platform/v4l2/` |
+| 构建失败、特性开关、产物缺失 | `camera.gni`、`BUILD.gn`、`bundle.json`、`vdi_base/usb_camera/camera_usb.gni` |
+| UT / AT / fuzz / benchmark / demo | `test/BUILD.gn`（分组 `camera_hal_test`）及各子目录 `BUILD.gn` |
+| 日志、事件、故障定界、稳定性 | `hisysevent.yaml`、`vdi_base/common/utils/`（`event/`、`watchdog/`、`selfkiller/`、`hicollie/`） |
+| Buffer dump / dump.config / hidumper | `vdi_base/common/dump/` |
+| 部署、推送 .so、设备侧验证 | 「部署到设备 (RK3568)」「验证步骤」「RK3568 相机自动化测试流程」 |
+
+### 0.5 嵌套与关联指引
+
+- **上级指引**：`../AGENTS.md`（驱动外设层通用约束：IDL 不直改、`bundle.json` 同步、构建/Lint/Done 定义、Ask-before 条款）——必读。
+- **接口仓指引**：源码树路径 `drivers/interface/camera/AGENTS.md`（本工作区对应目录为 `drivers_interface/camera`，其下为同名指引文件；IDL 契约、版本链、`sub_component`/`inner_kits` 一致性规则）——涉及接口、版本或 ABI 时必须读；IDL 变更需接口评审，本仓只做实现同步。
+- **板载指引**：`device/board/*/camera/`（板载 VDI，非本仓维护；本工作区未包含，改动前先向用户确认路径）。
+- **仓内文档**：本仓仅有两份 Markdown 参考文档（`README_zh.md`、`generateConfig.md`），其余知识以代码与 `hisysevent.yaml` / `camera.gni` / `bundle.json` 为准。
+- **Skill 路由**：若当前 Agent 环境提供 OpenHarmony 相关 skill，优先按其指引执行并在报告中说明——构建与编译诊断（如 `ohos-dev-build-execution-diagnosis`）、设备操作（如 `ohos-dev-hdc-command-usage`）、C++ 风格（如 `ohos-dev-cpp-coding-style`）、单元测试生成（如 `ohos-test-ut-generation`）。本文件与 skill 冲突时，以更严格的约束为准。
+
+### 0.6 本文档维护规则
+
+- 本文件已超 1500 行：**新增长篇知识应写入 `README_zh.md` 或代码注释**，本文件只保留可执行的索引、路由、约束与验证闭环。
+- 校正既有内容时使用「⚠️ 路径校正 / 禁止提交 / 调试专用」标注形式追加，不删除原文。
+- 只写入本仓可验证的路径、目标名与命令；未经验证的内容必须显式标注「未验证」（§2.8 末条）。
+
+## 1. 知识路由
+
+### 1.1 按任务类型路由（触发场景 → 必读 → 关键点）
+
+| 任务类型 | 必读 | 关键点 |
+|----------|------|--------|
+| HDI 接口实现/回调/stub（ICameraHost、ICameraDevice、IStreamOperator、IOfflineStreamOperator） | `hdi_service/v1_0/src/*.cpp`、`hdi_service/v1_0/include/*.h`、`interfaces/hdi_ipc/`、`interfaces/hdi_passthrough/`、接口仓对应版本 `.idl` | 实现必须与 IDL 签名、枚举值、错误码一致；不得自行扩展 ABI |
+| 新增或修改 HDI 版本实现 | 接口仓 `AGENTS.md`、`bundle.json`、`BUILD.gn`、`hdi_service/v1_0/BUILD.gn` | 版本目录变更属 Ask-before（§2.3）；版本号必须与接口仓、`bundle.json` 一致 |
+| Buffer 管理、buffer handle、sequenceable | `vdi_base/common/buffer_manager/`、`vdi_base/common/include/` | buffer 生命周期与并发由公共服务统一管理（§2.1） |
+| 设备管理、热插拔、HCS/HCB、设备能力 | `vdi_base/common/device_manager/`、`vdi_base/v4l2/src/camera_host/hcs_deal.cpp`、`vdi_base/usb_camera/camera_config/*.hcs` | HCS 决定 VDI 加载与设备发现；配置改动需说明影响平台 |
+| Metadata、vendor tag | `vdi_base/common/metadata_manager/`、接口仓 `metadata/README_zh.md`、`test/hdi/metadata_test/` | tag 数值与语义是跨进程公共契约（§2.1、§2.2） |
+| Pipeline、node、IPP、3A、stream tunnel | `vdi_base/common/pipeline_core/`、`test/ut/pipeline_core/` | 节点只通过 `inode` 交互；通路由 HCS 与 `config.h` 驱动 |
+| USB/UVC 相机、MJPEG、FFmpeg | `vdi_base/usb_camera/`、`vdi_base/usb_camera/camera_usb.gni`、`test/ut/usb_camera/` | 仅 `drivers_peripheral_camera_feature_usb=true` 时才编译；FFmpeg 依赖见 `bundle.json` |
+| V4L2 适配、ioctl、video 节点 | `vdi_base/v4l2/`、`vdi_base/common/adapter/platform/v4l2/`、`test/ut/v4l2/` | 设备节点权限与 SELinux 属安全边界（§2.4） |
+| 构建失败、产物缺失、镜像裁剪、特性开关 | `camera.gni`、`BUILD.gn`、`bundle.json`、`hal_c/camera.gni`、`vdi_base/usb_camera/camera_usb.gni` | 特性开关必须与 `bundle.json` features 同步（§2.3） |
+| 测试新增/调整（UT/AT/fuzz/benchmark/demo） | `test/BUILD.gn`、对应子目录 `BUILD.gn`、`test/fuzztest/fuzz.gni` | 目标名与分组见 §3.4；不得修改基线掩盖缺陷（§2.3） |
+| 日志、事件、故障定界、稳定性 | `hisysevent.yaml`、`vdi_base/common/utils/{event,watchdog,selfkiller,hicollie}/`、本文「开启相机详细日志调试」 | 事件名、字段、domain 是 DFX 契约（§2.5） |
+| 设备侧调试（dump / 截图 / 自动化） | 「Buffer Dump 调试功能」「屏幕截图工具」「RK3568 相机自动化测试流程」 | 写盘、remount、关闭 SELinux 等操作受 §2.7 约束 |
+| 跨层同步（IDL ↔ 实现） | 接口仓 `AGENTS.md`、§0.2 与 §2 | IDL 变更由接口仓发起，本仓同步实现并说明核对结论 |
+| 文档 / 注释 / `README_zh.md` 更新 | `README_zh.md`、本文件 §0.3 | 不改变 ABI；写入的路径、目标名、命令必须与仓库实际一致（§2.8 末条） |
+
+### 1.2 按路径路由（改哪个路径先读什么）
+
+| 改动路径 | 必读 / 必须同步 |
+|----------|----------------|
+| `hdi_service/**` | `interfaces/` 对应头文件、接口仓对应版本 IDL、§2.1 不变量；回调两侧实现保持一致 |
+| `interfaces/**` | 接口仓 IDL（确认签名与版本一致）；本目录为**手写 IPC/直通兼容层，可正常维护**，但 `hdi-gen` 生成物不得手改（§2.2） |
+| `hal_c/**` | `hal_c/include/*_c_if.h`、`hal_c/hdi_cif/include/`；C 接口与 C++ 接口语义保持一致 |
+| `vdi_base/interfaces/**` | 变更属 VDI 契约：需评估 `vdi_base/v4l2/`、`vdi_base/usb_camera/` 与板载 VDI 三方实现 |
+| `vdi_base/common/**` | `bundle.json` 的 `inner_kits`（对外暴露面）、对应 `BUILD.gn`、受影响 UT |
+| `vdi_base/v4l2/**` | `vdi_base/interfaces/v1_0/`、`camera_host_config.*`、`hcs_deal.*` |
+| `vdi_base/usb_camera/**` | `camera_usb.gni`、`camera_config/*.hcs`、`generateConfig.md`、`test/ut/usb_camera/` |
+| `test/**` | `test/BUILD.gn` 分组与 `camera.gni` 中 `enable_camera_*` 开关 |
+| `camera.gni` / `bundle.json` / `**/BUILD.gn` | §2.3 Ask-before；`bundle.json` 的 features / deps / inner_kits 一致性 |
+| `hisysevent.yaml` | §2.5；事件名与字段变更需 DFX 确认 |
+| `AGENTS.md`（本文件） | 仅在本仓结构或约束真实变化时更新；不得写入未经验证的路径、目标名或命令 |
+
+### 1.3 按术语路由（出现下列词先加载对应知识）
+
+| 术语 | 含义 | 命中后动作 |
+|------|------|------------|
+| HDI / HDI service / stub / proxy | 硬件设备接口层及其服务端实现 / 代理 | 读 `hdi_service/`、`interfaces/`；生成物不手改 |
+| VDI | Vendor Driver Interface（供应商驱动接口） | 读 `vdi_base/interfaces/v1_0/`、`vdi_base/v4l2/`、`vdi_base/usb_camera/` |
+| HAL / hal_c | 本仓 HAL 实现（C++ 在 `vdi_base/common/`）与 C 接口门面 | 先看 §0.3 校正表，再看 `hal_c/` |
+| HCS / HCB / hcs_deal | 硬件配置源 / 配置编译产物 / 配置解析逻辑 | 读 `vdi_base/v4l2/src/camera_host/hcs_deal.cpp`、`vdi_base/usb_camera/camera_config/*.hcs` |
+| Pipeline / node / inode / host_stream / stream tunnel | 数据通路编排与节点契约 | 读 `vdi_base/common/pipeline_core/` |
+| IPP / algo plugin | 图像后处理插件（`ipp_algo`、`algo_plugin`、`ipp_algo_parser`） | 读 `vdi_base/common/pipeline_core/ipp/` |
+| metadata / vendor tag / ICameraVendorTag | 相机元数据与厂商扩展标签 | 读 `vdi_base/common/metadata_manager/`、接口仓 `metadata/README_zh.md` |
+| UVC / MJPEG / DQBuffer / FFmpeg | USB 视频类相机 / JPEG 码流 / V4L2 出队缓冲 / 解码库 | 读 `vdi_base/usb_camera/`、`vdi_base/common/adapter/platform/v4l2/` |
+| camera_host / camera_service / metadata_service | 运行时进程与服务 | 读「部署到设备」「常见问题」；日志 domain 见 §2.5 |
+| hidumper / snapshot_display / uinput | 设备侧调试与自动化工具 | 读「Buffer Dump 调试功能」「屏幕截图工具」「RK3568 相机自动化测试流程」 |
+| watchdog / selfkiller / hicollie | 稳定性与超时检测组件 | 读 `vdi_base/common/utils/{watchdog,selfkiller,hicollie}/` |
+| is_standard_system / ohos_lite / CAMERA_BUILT_ON_OHOS_LITE | 构建形态分支与宏 | 读 `camera.gni`、`BUILD.gn` |
+| drivers_peripheral_camera_v4l2_emulator / V4L2_EMULATOR | 模拟器构建开关（默认取 `is_emulator`） | 读 `camera.gni` |
+| hdf_driver / mpp adapter | 平台适配实现（HDF 驱动 / 海思 MPI 节点） | 读 `vdi_base/common/adapter/platform/{hdf_driver,mpp}/`、`test/mpi/` |
+| camera_board_vdi_impl | 板载 VDI 部件（跨仓） | 本工作区未包含；先确认路径再改 |
+| feature_usb / board_config / host_codec / batch_buffers | 相机特性开关（`camera.gni` declare_args） | 读 `camera.gni` 与 `bundle.json` features，改默认值属 Ask-before（§2.3） |
+
+### 1.4 计划阶段与编辑前声明（必须输出）
+
+开始任何任务前，先输出以下 5 项；缺少任一项即视为未完成前置检查：
+
+1. **任务分类**：HDI 接口 / VDI / 设备管理 / Buffer / Metadata / Pipeline / 构建与特性开关 / 测试 / DFX / 设备调试 中的哪一类，是否涉及跨仓（接口仓或板载 VDI）。
+2. **目标范围**：目标子域、接口版本、接口（`hdi_service/v1_0`）与 VDI（`vdi_base/interfaces/v1_0`）是否需要同步。
+3. **已读文档清单**：按 §1.1–§1.3 命中的条目逐项列出；涉及构建必须读过 `camera.gni`、`bundle.json`、`BUILD.gn`。
+4. **命中的约束与 Ask-before 项**：从 §2.2、§2.3 抄出适用条目及确认结论。
+5. **影响面与验证计划**：是否影响 ABI/元数据契约/特性开关默认值，将执行的 §3.2–§3.4 命令。
+
+## 2. 约束边界
+
+### 2.1 架构不变量
+
+- **依赖方向单向**：HDI service → VDI 契约（`vdi_base/interfaces/v1_0/`）→ 平台适配（`vdi_base/common/adapter/platform/*`、`vdi_base/usb_camera/`）；反向只能通过 VDI 回调（`ICameraDeviceVdiCallback` 等）上报。
+- **VDI 通过配置加载**：`camera_host` 依据 HCS 配置决定加载 `libcamera_host_vdi_impl_1.0.z.so` 或 `libcamera_external_usb_camera.so`；除调试外不得在 HDI service 中硬编码库名。
+- **VDI 与板载实现二选一**：`BUILD.gn` 依据 `drivers_peripheral_camera_feature_usb` 走互斥分支，公共库（v4l2_adapter / buffer_manager / device_manager / metadata_manager / pipeline_core）与 `vdi_base/usb_camera:usb_camera_vdi_impl` 不会同时参与构建。
+- **Pipeline 节点隔离**：节点只通过 `inode` 接口交互，节点间不得直接持有对方实现。
+- **公共服务唯一入口**：buffer 生命周期归 `vdi_base/common/buffer_manager/`，元数据归 `vdi_base/common/metadata_manager/`，不得绕过。
+- **公共库是对外暴露面**：`bundle.json` 的 `inner_kits` 暴露 `peripheral_camera_buffer_manager`、`peripheral_camera_device_manager`、`peripheral_camera_metadata_manager`、`peripheral_camera_pipeline_core`、`peripheral_camera_utils`、`peripheral_camera_v4l2_adapter`，其公开签名变更等同接口变更。
+- **.idl 是接口唯一真相源**：`hdi-gen` 生成的 proxy/stub/headers 属接口仓构建产物，只能改接口仓 `.idl` 后重新生成；本仓 `interfaces/hdi_passthrough/*_stub.h`、`interfaces/hdi_ipc/utils/*_stub.*` 是**手写兼容层**，可按需维护。
+- **构建产物集合随开关变化**：改动公共库后必须确认当前开关分支下该库确实参与编译（见 §2.8）。
+
+### 2.2 禁止事项（Do not）
+
+- 不要直接修改接口仓 `drivers/interface/camera` 的 `.idl`，也不要手改任何 `hdi-gen` 生成物（`*_proxy.*`、生成 headers、构建目录中的 stub）；IDL 变更需走 HDI 接口评审。注意区分：本仓 `interfaces/hdi_passthrough/camera_device_stub.h`、`offline_stream_operator_stub.h`、`stream_operator_stub.h`、`interfaces/hdi_ipc/utils/*_stub.*` 是**手写兼容层**，属可维护源码。
+- 不要修改 HDI/VDI 方法签名、参数顺序、枚举取值、结构字段顺序或既有错误码语义（破坏跨版本 ABI 与上层 Camera Service 兼容）。
+- 不要变更 metadata / vendor tag 的名称与数值语义（跨进程公共契约）。
+- 不要修改 `sequenceable` 类型（`buffer_handle`、`buffer_producer`、`map_data`）与 HDI 结构体的字段顺序或类型；结构字段只允许在末尾追加，否则跨进程反序列化会错位。
+- 不要删除、重命名 `hisysevent.yaml` 中的 domain 或事件（`CAMERA_HAL_ERR`、`CAMERA_HAL_PERFORMANCE`、`CAMERA_HAL_STATISTIC`），也不要删除既有错误码与日志。
+- 不要把调试用强加载 hack（`GetVdiLibList` 中 `#if 1` 硬编码 `libcamera_external_usb_camera.so`，见「强制加载 USB 相机驱动的修改方法」）提交到主干。
+- 不要在 `camera.gni` 中同时启用板载 VDI 与通用 USB VDI，或假定两者产物同时存在。
+- 不要新增未经 `bundle.json` 评审的生产依赖（现有 `deps.components`：`hdf_core`、`hilog`、`samgr`、`init`、`ipc`、`drivers_tools`、`drivers_interface_camera`、`graphic_surface`、`c_utils`、`hitrace`、`hisysevent`、`bounds_checking_function`、`libexif`、`libjpeg-turbo`、`ffmpeg`、`googletest`、`hicollie`）。
+- 不要在 VDI/HAL 层写入框架业务逻辑，也不要让 HDI service 直接调用 V4L2 ioctl。
+- 不要为“让用例变绿”而修改测试基线、放宽断言或长期跳过失败用例（见 §2.3）。
+- 不要在未确认目标设备与分区的情况下执行设备写操作（§2.7）。
+- 不要在验证过程中执行刷写、烧写、擦除、格式化等破坏性设备操作。
+
+### 2.3 Ask-before（先确认再动手）
+
+| 操作 | 确认内容 | 确认对象 |
+|------|----------|----------|
+| 修改 `bundle.json`（features / deps / inner_kits / build.sub_component） | `inner_kits` 与 `sub_component` 是否同步、是否需依赖评审 | 项目负责人 |
+| 修改 `camera.gni` 的 `declare_args` 默认值（feature_usb、board_config、host_codec、batch_buffers、v4l2_emulator） | 是否影响其他产品形态与 CI 目标 | 构建团队 / 项目负责人 |
+| 修改 `BUILD.gn` 或子目录 `BUILD.gn` 的 deps | 是否引入新的生产依赖 | 依赖评审团队 |
+| 新增/删除 HDI 实现版本目录或 `vdi_base/interfaces/vX_X` | 版本号与 `bundle.json`、接口仓、上层调用是否一致 | 项目负责人 + 接口团队 |
+| 修改 HDI 回调接口（callback / stub 签名） | 是否影响 `proxy_deps` / `stub_deps` 与上层回调实现 | 项目负责人 |
+| 修改 `vdi_base/interfaces/**` 或公共库（`inner_kits`）公开签名 | 对 V4L2、USB、板载三方实现的影响 | 项目负责人 + 芯片/板级 |
+| 修改权限、SELinux、进程用户、设备节点权限（`/dev/video*`） | 提权必要性与最小权限原则 | 安全 / 项目负责人 |
+| 修改 `hisysevent.yaml` 或日志 domain（如 `0xD002513`） | 事件字段与告警规则是否同步 | DFX / 项目负责人 |
+| 修改测试基线、跳过用例、调整 `--gtest_filter` 默认集合 | 是否掩盖真实缺陷 | 项目负责人 |
+| 对真实设备执行 remount / 推送 / 重启服务 / 清空目录 | 目标设备、分区、影响范围与回滚方式 | 用户 |
+| 跨仓修改板载 VDI（`device/board/*/camera/`） | 本仓改动是否需同步板级实现 | 板级 / 项目负责人 |
+
+### 2.4 安全、权限与隐私边界
+
+- 相机采集数据属敏感数据：日志、dump、测试输出不得包含图像内容或可识别用户信息；调试结束后及时清理 dump 文件。
+- 不得为调试方便降低既有权限校验语义（如跳过回调校验、隐式打开设备、放宽 token 校验）。
+- `/dev/video*` 等设备节点权限、SELinux 策略、进程用户变更必须走 §2.3 确认；不得以“测试需要”为由长期放宽。
+- 生产/在用设备上不得关闭隐私打印或强制 permissive 模式（`hilog -p off`、`setenforce 0`）；仅调试会话临时使用并记录。
+
+### 2.5 DFX、日志与事件
+
+- 事件契约：`hisysevent.yaml`（domain `CAMERA_HAL`）是对外 DFX 契约，只允许按评审结论扩展字段，不得删除或改名。
+- 日志 domain：`0xD002513`（camera_hdi_service）、`0xD002501`（camera_service）、`0xD002515`（metadata_service）；新增代码沿用既有 domain，变更需确认。
+- 稳定性组件：`watchdog/`、`selfkiller/`、`hicollie/` 行为变更属高风险，需说明误杀/漏检影响。
+- 不得为了让日志“干净”而删除既有 ERROR/WARN 打印或降低日志级别默认值。
+
+### 2.6 依赖与许可
+
+- 生产依赖以 `bundle.json` 的 `component.deps.components` / `third_party` 为受控清单，新增前完成依赖评审。
+- 引入第三方代码（含从 FFmpeg、libjpeg-turbo、libexif 复制/改写的代码）前必须完成许可评审，并保留 Apache 2.0 版权头。
+- 不得把 `third_party` 的实现细节直接耦合进 HDI service；解码/编码能力通过既有适配层使用。
+
+### 2.7 设备与破坏性操作
+
+- 以下命令**仅在调试机上、且用户明确要求时**执行，执行前确认目标设备 SN 与路径：`mount -o rw,remount`、`rm -f /data/local/tmp/*`、`chmod -R 777`、`setenforce 0`、`killall camera_host|camera_service`、覆盖 `/system/lib`、`/vendor/lib`、`rm -rf out/rk3568`。
+- 多设备场景先 `hdc list targets` 确认目标，再执行任何写操作。
+- 推送 .so 前必须先通过 `/proc/<pid>/maps` 确认实际加载路径（见「确定正确的推送路径」），不得凭猜测覆盖分区。
+- 不执行刷写、烧写、擦除、格式化等破坏性设备操作；如需真机验证，先说明设备、影响范围与回滚方式。
+
+### 2.8 相机专属失败模式（Agent 易踩坑）
+
+| 失败模式 | 后果 | 预防 |
+|----------|------|------|
+| 按本文档示意图的 `hal/*` 路径找代码 | 误判“代码缺失”，改错位置 | 使用 §0.3 校正表：实现位于 `vdi_base/common/` 等实际路径 |
+| 手改 `hdi-gen` 生成的 `_proxy` / stub / headers | 下次构建被覆盖，生成不一致 | 只改接口仓 `.idl`，由构建重新生成；注意本仓手写 `*_stub.h` 兼容层可正常维护（§2.2） |
+| 期望 `--build-target drivers_peripheral_camera` 总能解析 | 目标不存在导致构建失败 | 回退到确定性 GN 目标：`//drivers/peripheral/camera:camera_hal`（库）、`//drivers/peripheral/camera:camera_hal_unittest` 或 `//drivers/peripheral/camera/test:camera_hal_test`（测试） |
+| 在 x86_64 非模拟器上构建 | `camera_hal` deps 为空，构建“成功”但无产物 | 使用 rk3568 产品或显式打开模拟器开关（`camera.gni`） |
+| 打开 `feature_usb=true` 后仍找 `libperipheral_camera_*` | 产物不存在（走了 USB 分支） | 按「平台驱动选择对比」确认当前分支产物清单 |
+| 把 .so 推到错误分区 | 重启后行为不变（加载的是另一份库） | 先用 `/proc/<pid>/maps` 定位真实路径 |
+| 跳过 `camera_usb_0001` 后运行其余用例 | 其余用例全部 SKIP（`g_usbCameraExit` 未置位） | 先插入 USB 相机再运行，或用 `--gtest_filter` 选择与状态无关的用例 |
+| 改动公共库后只验证默认分支 | USB 分支未编译，问题漏到目标产品 | 两个开关分支都构建（§3.4） |
+| dump 大文件遗留在设备或仓库 | 存储占满、误提交 | 按 dump 步骤 12 清理，产物不入库 |
+| 写入未验证的命令/路径到本文档 | 后续 Agent 照抄失败 | 只写本仓可验证的路径、目标名与命令 |
+
 ## 工作目录
 
 ```bash
@@ -117,6 +373,8 @@ hdi_service/
 | 平台适配 | `hal/adapter/` | 平台适配层实现 |
 | 工具类 | `hal/utils/` | Watchdog 等工具 |
 | 测试代码 | `hal/test/` | HDI 接口测试用例 |
+
+> **⚠️ 路径校正（重要）**：上表中的 `hal/hdi_impl/`、`hal/buffer_manager/`、`hal/device_manager/`、`hal/pipeline_core/`、`hal/adapter/`、`hal/utils/`、`hal/test/` 为**逻辑分层示意**；本仓**不存在 `hal/` 目录**，实际实现分别位于 `hdi_service/v1_0/`、`vdi_base/common/{buffer_manager,device_manager,metadata_manager,pipeline_core,utils,adapter}/`、`test/` 等路径。完整对照表见 §0.3，查代码请以实际路径为准。
 
 **关键流程**:
 ```
@@ -482,6 +740,8 @@ int32_t CameraHostService::GetVdiLibList(std::vector<std::string> &vdiLibList)
    hdc shell killall camera_service
    ```
 
+> **⚠️ 禁止提交**：上述 `#if 1` 强加载写法（`GetVdiLibList` 硬编码 `libcamera_external_usb_camera.so`）**仅用于单机调试**，作用是绕过基于 HCS 的设备发现。提交前必须还原为原始 HCS 驱动逻辑；该改动进入主干会导致板载相机/USB 相机共存场景行为异常，属 §2.2 禁止事项，仅保留在临时调试分支。
+
 ## 构建产物路径
 
 ### 相机驱动模块
@@ -662,6 +922,7 @@ hdc shell "cat /proc/$PID/maps | grep camera_host_service"
 ### 编译失败
 - 检查 GN 配置：`./build.sh --product-name rk3568 --build-target drivers_peripheral_camera --gn-args="..."`
 - 清理构建：`rm -rf out/rk3568` 后重新编译
+- ⚠️ `rm -rf out/rk3568` 属破坏性操作：仅在确认无需保留增量产物时使用；共享/CI 环境先与用户确认（§2.7）。
 
 ### 推送失败
 - 确保设备已连接：`hdc list targets`
@@ -876,6 +1137,8 @@ hdc shell rm -f /data/local/tmp/*.yuv
 hdc shell rm -f /data/local/tmp/*.jpeg
 hdc shell rm -f /data/local/tmp/*.meta
 ```
+
+> **⚠️ 调试专用**：`setenforce 0`（关闭 SELinux 强制）、`mount -o rw,remount /data`、`chmod -R 777` 仅限调试机临时使用，生产/在用设备不得执行（§2.4、§2.7）。dump 产生的 `.yuv` / `.jpeg` / `.meta` 文件体积大，验证完成后必须按步骤 12 清理，且不得提交入库。
 
 ### Dump 文件说明
 
@@ -1213,6 +1476,134 @@ hdc shell "cd /data/local/tmp && ./camera_usb_test_ut \
 - rc=-3: CommitStreams 失败（资源冲突或配置不支持）
 - rc=-4: OpenCamera 失败（设备被占用或权限问题）
 - Skip: USB 相机未插入或全局变量未设置
+
+---
+
+## 3. 验证闭环
+
+### 3.1 环境前置条件
+
+- 本仓是 OpenHarmony 源码树的子目录（`drivers/peripheral/camera`）。§3.3 的构建命令必须在**完整源码树 + Linux/WSL 环境**下、从源码树根目录执行。
+- 只有本仓切片（如 Windows 工作区，无 `build.sh` / `gn` / `ninja`）时：执行 §3.2，并按 §3.7 明确标注「未验证」。
+- 设备侧命令需要可用的 `hdc` 连接（`hdc list targets` 确认；多设备时先确认目标 SN）。
+
+### 3.2 最小验证（本仓内可执行，不需要完整源码树）
+
+```powershell
+# 1) 组件配置可解析（PowerShell 原生，无需 Python；失败会抛异常）
+Get-Content -Raw .\bundle.json | ConvertFrom-Json > $null
+
+# 2) 关键构建文件齐备
+Test-Path .\camera.gni, .\BUILD.gn, .\bundle.json, .\vdi_base\usb_camera\camera_usb.gni, .\hal_c\camera.gni
+
+# 3) 生成物边界自查：输出应为空（命中 out/ 或 hdi-gen 命名即违规，§2.2）
+#    注意：interfaces/hdi_passthrough/*_stub.h 等是本仓手写兼容层，允许修改
+#    git 可能打印 "LF will be replaced by CRLF" 警告，属正常提示，不算违规
+git diff --name-only | Select-String -Pattern '(^|/)out/|_proxy\.(h|cpp)$|_stub\.cpp$'
+
+# 4) 改动范围自查（确认没有越界改动）
+git status --porcelain
+
+# 5) 接口契约自查（切片环境可用，需要接口仓切片）
+Get-ChildItem ..\..\drivers_interface\camera\v1_0\*.idl | ForEach-Object { $_.BaseName }
+Select-String -Path .\hdi_service\v1_0\include\camera_host_service.h -Pattern 'int32_t\s+\w+\(' |
+  ForEach-Object { $_.Line.Trim() }
+```
+
+```bash
+# POSIX shell 等价写法（Linux/WSL 使用 python3；无 python3 时可用 jq . bundle.json 替代）
+python3 -m json.tool bundle.json > /dev/null
+ls camera.gni BUILD.gn bundle.json vdi_base/usb_camera/camera_usb.gni hal_c/camera.gni
+git diff --name-only | grep -E '(^|/)out/|_proxy\.(h|cpp)$|_stub\.cpp$'
+git status --porcelain
+ls ../../drivers_interface/camera/v1_0/*.idl
+```
+
+- 本仓**不含** `hdi-gen` 生成物（生成物出现在接口仓构建目录），因此第 3 步判定的是“是否越界改动生成物或构建目录”，不是产物校验；`interfaces/hdi_passthrough/*_stub.h`、`interfaces/hdi_ipc/utils/*_stub.*` 属手写兼容层，修改不违规。
+- 若新增 `camera.gni` 开关，必须同时出现在 `bundle.json` 的 `component.features`（§2.3）。
+- 第 5 步用于**接口契约核对**：以接口仓 `.idl` 的方法集合为准，逐项核对 `hdi_service/v1_0/include/*.h` 的方法名、参数与错误码，两侧应一致或差异已登记说明；本仓不保存 `.idl` 副本，无法比对时按 §3.7 标注「未验证」。
+
+### 3.3 构建 / Lint / 静态检查（完整源码树，从源码树根目录执行）
+
+```bash
+cd ${OHOS_ROOT}
+
+# 标准构建（完整，含 GN gen）
+./build.sh --product-name rk3568 --build-target drivers_peripheral_camera
+
+# 快速重编译（仅改源码）
+./build.sh --product-name rk3568 --build-target drivers_peripheral_camera --fast-rebuild
+
+# 最快：直接 ninja 增量（跳过 GN/Python 封装）
+prebuilts/build-tools/linux-x86/bin/ninja -w dupbuild=warn -C out/rk3568 drivers_peripheral_camera
+
+# 确定性 GN 目标（组件名无法解析时使用）
+./build.sh --product-name rk3568 --build-target //drivers/peripheral/camera:camera_hal
+./build.sh --product-name rk3568 --build-target //drivers/peripheral/camera/test:camera_hal_test
+
+# 特性开关分支构建（通用 USB VDI）
+./build.sh --product-name rk3568 --build-target drivers_peripheral_camera \
+  --gn-args="drivers_peripheral_camera_feature_usb=true"
+```
+
+```bash
+# 格式与静态检查（仓根格式基线：../.clang-format）
+clang-format --dry-run --Werror <本次修改的文件>
+cppcheck --enable=all --error-exitcode=1 <本次修改的目录>
+./build.sh --product-name rk3568 --build-target drivers_peripheral_camera --lint
+```
+
+- `--lint` 在部分分支可能不含相机目标；若提示不支持或失败，改用 `clang-format` + `cppcheck`，并在报告中标注该命令未验证（§3.7）。
+
+### 3.4 任务特定验证
+
+| 任务类型 | 验证方式 | 通过标准 |
+|----------|----------|----------|
+| HDI 接口实现（Host / Device / Stream / 回调） | §3.3 标准构建 + `camera_test_at` + `camera_metadata_operator_ut` | 构建 0 错误；签名/枚举/错误码与 IDL 一致（无 ABI 变更） |
+| 接口版本或回调签名变更 | §3.3 + 接口仓 `AGENTS.md` 同步核对 | 版本号、回调清单两侧一致；已取得 §2.3 确认 |
+| Buffer / 设备管理 / 元数据公共库 | 构建 + `camera_buffer_manager_ut` / `camera_utils_ut` / `camera_vendor_tag_hdi_test` | 用例全通过；`inner_kits` 暴露面未意外变化 |
+| Pipeline / 节点 / 3A / IPP | `camera_usb_test_ut`（或 pipeline UT）+ `ohos_camera_3a_demo` | 预览/拍照链路可用，无节点泄漏与超时 |
+| USB / UVC / MJPEG / FFmpeg | `camera_usb_test_ut` + `mjpeg_decoder_test`（需 `feature_usb=true`） | 单相机用例通过；串流无解码错误 |
+| V4L2 适配 | `camera_test_v4l2_ut` + 设备侧 `/dev/video*` 检查 | 用例通过；设备节点权限正常 |
+| 安全相关（回调 / 容量 / EXIF） | `camera_security_ut` | 死亡测试与容量边界用例通过 |
+| 接口健壮性 | `test/fuzztest` 的 `camera_hdi_fuzztest` 目标短跑 | fuzz 目标可编译，短跑无崩溃 |
+| 元数据 / 序列化 | `camera_metadata_operator_ut` + `camera_hdi_sequenceable_ut` | 枚举、tag、序列化往返一致 |
+| 特性开关 / 构建配置 | 默认分支 + `feature_usb=true` 分支各构建一次 | 两分支产物与「构建产物路径」清单一致 |
+| 设备侧行为 | 「验证步骤」+「RK3568 相机自动化测试流程」 | 服务存活、有帧、`hilog` 无 ERROR 峰值 |
+| 跨层同步（IDL ↔ 实现） | 人工复核接口仓 `.idl` 与本仓实现 | 实现已同步，或登记待办并说明 |
+
+### 3.5 Done 定义
+
+任务完成需同时满足：
+
+1. §1.4 的编辑前声明已输出，且与最终改动一致。
+2. §3.2 最小验证全部通过（或按 §3.7 标注「未验证」）。
+3. §3.4 中对应任务类型的验证命令已执行且通过（构建返回 0）。
+4. `bundle.json` 的 features / deps / inner_kits 与 `camera.gni`、`BUILD.gn` 保持一致（如本次涉及）。
+5. 未手改生成物；`.idl` 与实现保持一致（如本次涉及跨层同步）。
+6. ABI、元数据契约、特性开关默认值的影响已判定；如有影响，已取得 §2.3 对应确认。
+7. 按 §3.6 输出完成报告。
+
+### 3.6 最终响应期望
+
+完成报告必须包含：
+
+1. 修改文件清单（按 `file:line` 引用）。
+2. 任务分类与对应验证命令的执行结果（构建 / 测试 / lint / 静态分析）。
+3. 是否触发跨层同步（接口仓 IDL / 本仓实现 / `bundle.json` / `*.gni`）。
+4. 是否影响特性开关默认值或公共 ABI。
+5. 是否触及架构不变量（§2.1）与需确认事项（§2.3）及确认结论。
+6. 未验证项与原因（§3.7）。
+7. 若涉及设备侧验证：目标设备、执行的分区写操作与回滚方式。
+
+### 3.7 无法验证时
+
+如果构建环境不可用（只有本仓切片、无 `build.sh` / `gn` / `ninja`，或为 Windows 切片）：
+
+1. 列出应执行的 §3.3 命令及各自预期结果，并明确标注「**未验证**」。
+2. 至少完成 §3.2 的 4 项本仓内检查，并给出实际输出。
+3. 涉及 `drivers/interface/camera` IDL 变更或跨层同步的，必须人工复核 IDL 与实现的匹配性，并说明当前环境无法编译验证的限制。
+4. 不得以“环境不可用”为由省略影响面分析、Ask-before 结论与风险说明。
 
 ---
 
