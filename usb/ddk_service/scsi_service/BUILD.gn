@@ -26,8 +26,6 @@ ohos_shared_library("libscsi_peripheral_ddk_service_1.0") {
   }
   branch_protector_ret = "pac_ret"
 
-  version_script = "libscsi_peripheral_ddk_service_1.0.map"
-
   sources = [ "src/scsi_ddk_service.cpp" ]
   include_dirs = [
     "include",
@@ -61,6 +59,8 @@ ohos_shared_library("libscsi_peripheral_ddk_service_1.0") {
   install_images = [ chipset_base_dir ]
   subsystem_name = "hdf"
   part_name = "drivers_peripheral_usb"
+
+  version_script = "libscsi_peripheral_ddk_service_1.0.map"
 }
 
 ohos_shared_library("libscsi_ddk_driver") {
