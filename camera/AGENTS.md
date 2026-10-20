@@ -10,7 +10,7 @@
 
 | 遇到问题 | 读取位置 |
 |----------|----------|
-| 不知道改动落在哪个目录/模块 | §0.3 代码地图、§0.4 常见任务 → 入口路径 |
+| 不知道改动落在哪个目录/模块 | §0.3 代码导航、§0.4 常见任务 → 入口路径 |
 | 需要确认仓库职责与边界（本仓 / 接口仓 / 板载 VDI） | §0.2 适用范围与职责边界 |
 | 不知道这类任务要先读哪些文档 | §1.1–§1.3（按任务 / 按路径 / 按术语路由） |
 | 任务描述、日志、接口里出现不认识的术语 | §1.3 按术语路由 |
@@ -35,7 +35,7 @@
 | 板载 VDI（跨仓） | 部件 `camera_board_vdi_impl`（示例：`device/board/hihope/rk3568/camera/vdi_impl/v4l2`）；本工作区**未包含**该目录，涉及板载实现时先向用户确认路径 |
 | 活跃服务版本 | `hdi_service/v1_0/` 是本仓唯一 HDI service 实现目录；接口侧版本演进（v1_0–v1_7）在接口仓，本仓按需同步实现 |
 
-### 0.3 代码地图（关键路径与路径校正）
+### 0.3 代码导航（关键路径与路径校正）
 
 **⚠️ 路径校正（重要）**：本文档「业务架构 → 驱动层/框架层 (HAL Layer)」小节给出的 `drivers/peripheral/camera/hal/` 以及 `hdi_impl/`、`buffer_manager/`、`device_manager/`、`pipeline_core/`、`adapter/`、`utils/`、`test/` 子目录是**逻辑分层示意**；本仓**实际不存在 `hal/` 目录**，对应实现落在下表路径。查代码请以下表为准，不要据示意图判断“代码缺失”。
 
@@ -65,7 +65,7 @@
 - `hdi_service/v1_0/**`：HDI 实现对上层暴露的 ABI 面。
 - `vdi_base/interfaces/v1_0/**`：VDI 契约，影响 V4L2、USB、板载三方实现。
 - `vdi_base/common/{buffer_manager,metadata_manager,pipeline_core}/**`：`bundle.json` `inner_kits` 对外暴露面。
-- `hisysevent.yaml`、`camera.gni`、`bundle.json`、根 `BUILD.gn`：DFX 契约与特性开关，影响其他产品形态构建。
+- `hisysevent.yaml`、`camera.gni`、`bundle.json`、根 `BUILD.gn`：DFX 契约与特性开关，影响其它产品形态构建。
 
 **高频改动路径**：`vdi_base/usb_camera/**`、`vdi_base/common/adapter/platform/v4l2/**`、`vdi_base/common/pipeline_core/nodes/**`、`test/ut/**`。
 
@@ -203,7 +203,7 @@
 | 操作 | 确认内容 | 确认对象 |
 |------|----------|----------|
 | 修改 `bundle.json`（features / deps / inner_kits / build.sub_component） | `inner_kits` 与 `sub_component` 是否同步、是否需依赖评审 | 项目负责人 |
-| 修改 `camera.gni` 的 `declare_args` 默认值（feature_usb、board_config、host_codec、batch_buffers、v4l2_emulator） | 是否影响其他产品形态与 CI 目标 | 构建团队 / 项目负责人 |
+| 修改 `camera.gni` 的 `declare_args` 默认值（feature_usb、board_config、host_codec、batch_buffers、v4l2_emulator） | 是否影响其它产品形态与 CI 目标 | 构建团队 / 项目负责人 |
 | 修改 `BUILD.gn` 或子目录 `BUILD.gn` 的 deps | 是否引入新的生产依赖 | 依赖评审团队 |
 | 新增/删除 HDI 实现版本目录或 `vdi_base/interfaces/vX_X` | 版本号与 `bundle.json`、接口仓、上层调用是否一致 | 项目负责人 + 接口团队 |
 | 修改 HDI 回调接口（callback / stub 签名） | 是否影响 `proxy_deps` / `stub_deps` 与上层回调实现 | 项目负责人 |
@@ -1534,7 +1534,7 @@ cd ${OHOS_ROOT}
 # 快速重编译（仅改源码）
 ./build.sh --product-name rk3568 --build-target drivers_peripheral_camera --fast-rebuild
 
-# 最快：直接 ninja 增量（跳过 GN/Python 封装）
+# 快速：直接 ninja 增量（跳过 GN/Python 封装）
 prebuilts/build-tools/linux-x86/bin/ninja -w dupbuild=warn -C out/rk3568 drivers_peripheral_camera
 
 # 确定性 GN 目标（组件名无法解析时使用）
@@ -1547,13 +1547,13 @@ prebuilts/build-tools/linux-x86/bin/ninja -w dupbuild=warn -C out/rk3568 drivers
 ```
 
 ```bash
-# 格式与静态检查（仓根格式基线：../.clang-format）
+# 格式与静态检查（仓根格式基线文件）
 clang-format --dry-run --Werror <本次修改的文件>
 cppcheck --enable=all --error-exitcode=1 <本次修改的目录>
 ./build.sh --product-name rk3568 --build-target drivers_peripheral_camera --lint
 ```
 
-- `--lint` 在部分分支可能不含相机目标；若提示不支持或失败，改用 `clang-format` + `cppcheck`，并在报告中标注该命令未验证（§3.7）。
+- `--lint` 在部分分支可能不含相机目标；若提示不支持或失败，改用格式化工具与静态检查工具，并在报告中标注该命令未验证（§3.7）。
 
 ### 3.4 任务特定验证
 
