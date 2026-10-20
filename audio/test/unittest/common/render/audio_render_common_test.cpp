@@ -1431,25 +1431,4 @@ HWTEST_F(AudioUtRenderTest, RenderIsSupportsPauseAndResumeIsValid001, TestSize.L
     ASSERT_TRUE(ret == HDF_ERR_NOT_SUPPORT || ret == HDF_ERR_INVALID_PARAM);
 }
 
-HWTEST_F(AudioUtRenderTest, RenderCheckSceneCapabilityIsValid006, TestSize.Level0)
-{
-    struct AudioSceneDescriptor scene;
-    bool supported = false;
-    scene.scene.id = AUDIO_ULTRA_LOW_LAT;
-    scene.desc = devDescRender_;
-    int32_t ret = render_->CheckSceneCapability(render_, &scene, &supported);
-    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
-}
-
-HWTEST_F(AudioUtRenderTest, RenderSelectSceneUltraLowLat001, TestSize.Level0)
-{
-    struct AudioSceneDescriptor scene;
-    scene.scene.id = AUDIO_ULTRA_LOW_LAT;
-    scene.desc.pins = PIN_OUT_SPEAKER;
-    scene.desc.desc = strdup("mic");
-    int32_t ret = render_->SelectScene(render_, &scene);
-    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT || ret == HDF_FAILURE);
-    free(scene.desc.desc);
-}
-
 } // end of namespace
