@@ -1804,7 +1804,7 @@ HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterCreateCallTransferIsvalid001, Tes
     if (ret == HDF_ERR_NOT_SUPPORT) {
         GTEST_SKIP() << "CreateCallTransfer not support" << std::endl;
     }
-    ASSERT_TRUE(ret == HDF_SUCCESS);
+    ASSERT_TRUE(ret == HDF_ERR_INVALID_PARAM);
 }
 
 HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterSetPhoneCallSceneNull001, TestSize.Level1)
