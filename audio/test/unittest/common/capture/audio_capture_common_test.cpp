@@ -1296,4 +1296,15 @@ HWTEST_F(AudioUtCaptureTest, CaptureGetFrameCountIsValid001, TestSize.Level0)
     EXPECT_EQ(HDF_SUCCESS, capture_->GetFrameCount(capture_, &frameCount));
 }
 
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureCheckSceneCapabilityUltraLowLat001, TestSize.Level0)
+{
+    ASSERT_NE(capture_->CheckSceneCapability, nullptr);
+    struct AudioSceneDescriptor sceneDesc = {};
+    sceneDesc.scene.id = AUDIO_ULTRA_LOW_LAT;
+    bool isSupport = false;
+
+    int32_t ret = capture_->CheckSceneCapability(capture_, &sceneDesc, &isSupport);
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
 } // end of name space
