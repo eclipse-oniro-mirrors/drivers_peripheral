@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -19,7 +19,7 @@
  *
  * @brief Defines codec-related APIs for MEDIA_INTERFACE_V1_0 (lite).
  *
- * @since 1.0
+ * @since 7.0
  * @version 1.0
  */
 
@@ -29,7 +29,7 @@
  * @brief Declares custom data types used when MEDIA_INTERFACE_V1_0 is enabled,
  * including the codec types, audio and video parameters, input and output data, and callbacks.
  *
- * @since 1.0
+ * @since 7.0
  * @version 1.0
  */
 
