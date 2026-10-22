@@ -29,6 +29,7 @@ ohos_fuzztest("StopVibrateBySessionIdFuzzTest") {
   sources = [ "stopvibratebysessionid_fuzzer.cpp" ]
   deps = [ "../../../hal:hdi_vibrator" ]
   external_deps = [
+    "bounds_checking_function:libsec_shared",
     "c_utils:utils",
     "c_utils:utils",
     "drivers_interface_vibrator:libvibrator_proxy_2.0",

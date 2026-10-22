@@ -40,6 +40,7 @@ ohos_fuzztest("SensorEnableWithCallbackIdFuzzTest") {
   deps = [ "../../../hal:hdi_sensor" ]
 
   external_deps = [
+    "bounds_checking_function:libsec_shared",
     "c_utils:utils",
     "drivers_interface_sensor:libsensor_proxy_3.0",
     "drivers_interface_sensor:libsensor_proxy_3.1",

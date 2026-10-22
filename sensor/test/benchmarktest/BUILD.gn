@@ -41,6 +41,7 @@ ohos_benchmarktest("hdf_sensor_benchmark_test") {
 
   if (is_standard_system) {
     external_deps = [
+      "bounds_checking_function:libsec_shared",
       "drivers_interface_sensor:libsensor_convert_proxy_1.0",
       "drivers_interface_sensor:libsensor_proxy_3.0",
       "drivers_interface_sensor:libsensor_proxy_3.1",
@@ -82,6 +83,7 @@ ohos_benchmarktest("hdf_sensor_single_interface_benchmark_test") {
 
   if (is_standard_system) {
     external_deps = [
+      "bounds_checking_function:libsec_shared",
       "drivers_interface_sensor:libsensor_convert_proxy_1.0",
       "drivers_interface_sensor:libsensor_proxy_3.0",
       "drivers_interface_sensor:libsensor_proxy_3.1",

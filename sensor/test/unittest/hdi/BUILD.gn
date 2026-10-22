@@ -42,6 +42,7 @@ ohos_unittest("hdi_unittest_sensor") {
 
   if (is_standard_system) {
     external_deps = [
+      "bounds_checking_function:libsec_shared",
       "drivers_interface_sensor:libsensor_proxy_3.0",
       "hdf_core:libhdf_utils",
       "hilog:libhilog",

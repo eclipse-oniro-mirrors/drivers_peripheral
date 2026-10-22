@@ -21,6 +21,7 @@ ohos_fuzztest("MetadataFuzzTest") {
   fuzz_config_file = "."
   include_dirs = [ "../common" ]
   external_deps = [
+    "bounds_checking_function:libsec_shared",
     "c_utils:utils",
     "drivers_interface_display:libdisplay_buffer_hdi_impl_v1_1",
     "drivers_interface_display:libdisplay_buffer_stub_1.0",

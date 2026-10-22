@@ -31,6 +31,7 @@ ohos_unittest("hdf_unittest_hdi_light_common") {
   ]
   if (is_standard_system) {
     external_deps = [
+      "bounds_checking_function:libsec_shared",
       "drivers_interface_light:liblight_proxy_1.0",
       "hdf_core:libhdf_utils",
       "hilog:libhilog",
@@ -60,6 +61,7 @@ ohos_unittest("hdf_unittest_hdi_light") {
   ]
   if (is_standard_system) {
     external_deps = [
+      "bounds_checking_function:libsec_shared",
       "c_utils:utils",
       "drivers_interface_light:liblight_proxy_1.0",
       "hdf_core:libhdf_utils",
@@ -88,6 +90,7 @@ ohos_unittest("hdi_unittest_light") {
   ]
   if (is_standard_system) {
     external_deps = [
+      "bounds_checking_function:libsec_shared",
       "c_utils:utils",
       "drivers_interface_light:liblight_proxy_1.0",
       "hdf_core:libhdf_utils",
