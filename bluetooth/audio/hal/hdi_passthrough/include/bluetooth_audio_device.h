@@ -55,6 +55,18 @@ typedef RenderMixerState (*GetRenderMixerStateFunc)();
 typedef size_t (*ReadFrameFunc)(void *data, size_t size);
 typedef bool (*StartCaptureFunc)();
 typedef bool (*StartHearingAidFunc)();
+#ifdef MULTI_A2DP_ENABLED
+typedef bool (*SetUpByAddrFunc)(const char* addr);
+typedef void (*TearDownByAddrFunc)(const char* addr);
+typedef bool (*StartPlayingByAddrFunc)(const char* addr, uint32_t sampleRate, uint32_t channelCount, uint32_t format);
+typedef bool (*SuspendPlayingByAddrFunc)(const char* addr);
+typedef void (*StopPlayingByAddrFunc)(const char* addr);
+typedef size_t (*WriteFrameByAddrFunc)(const char* addr, const void* data, size_t size);
+typedef BTAudioStreamState (*GetStateByAddrFunc)(const char* addr);
+typedef bool (*GetLatencyByAddrFunc)(const char* addr, uint32_t &latency);
+typedef int (*SuspendPlayingFromParamByAddrFunc)(const char* addr);
+typedef void (*UnBlockStartByAddrFunc)(const char* addr);
+#endif
 }
 }
 }

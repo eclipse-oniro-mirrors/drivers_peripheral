@@ -12,10 +12,7 @@
 # limitations under the License.
 
 import("//build/ohos.gni")
-
-declare_args() {
-  drivers_peripheral_bluetooth_a2dp_hdi = false
-}
+import("//drivers/peripheral/bluetooth/bluetooth.gni")
 
 config("hdi_audio_config") {
   visibility = [ ":*" ]
@@ -57,6 +54,10 @@ ohos_shared_library("hdi_audio_bluetooth") {
   }
   if (drivers_peripheral_bluetooth_a2dp_hdi) {
     defines = [ "A2DP_HDI_SERVICE" ]
+  }
+
+  if (drivers_peripheral_bluetooth_multi_a2dp_enabled) {
+    defines += [ "MULTI_A2DP_ENABLED" ]
   }
 
   sources = [

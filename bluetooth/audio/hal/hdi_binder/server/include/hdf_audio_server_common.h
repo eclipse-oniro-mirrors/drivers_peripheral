@@ -19,9 +19,23 @@
 #include "hdf_device_desc.h"
 #include "hdf_log.h"
 #include "audio_internal.h"
+#include <map>
+#include <mutex>
+#include <string>
 namespace OHOS::HDI::Audio_Bluetooth {
 #define MAX_AUDIO_ADAPTER_NUM_SERVER    8   // Limit the number of sound cards supported to a maximum of 8
 #define STR_MAX 512
+
+#ifdef MULTI_A2DP_ENABLED
+#define MAX_MULTI_A2DP_RENDER 2
+struct RenderEntry {
+    struct AudioRender *render;
+    int renderPriority;
+    uint32_t renderPid;
+    bool renderBusy;
+    bool renderDestroy;
+};
+#endif
 
 /* RenderManage Info */
 struct AudioInfoInAdapter {
@@ -32,8 +46,11 @@ struct AudioInfoInAdapter {
     int renderPriority;
     struct AudioRender *render;
     bool renderBusy;
-    bool renderDestory;
+    bool renderDestroy;
     uint32_t renderPid;
+#ifdef MULTI_A2DP_ENABLED
+    std::map<std::string, RenderEntry> renderMap;
+#endif
     int captureStatus;
     int capturePriority;
     struct AudioCapture *capture;
@@ -43,31 +60,59 @@ struct AudioInfoInAdapter {
 };
 
 int32_t AudioAdapterListGetAdapter(const char *adapterName, struct AudioAdapter **adapter);
-int32_t AudioCreatRenderCheck(const char *adapterName, const int32_t priority);
+int32_t AudioCreateRenderCheck(const char *adapterName, const int32_t priority);
+#ifdef MULTI_A2DP_ENABLED
+int32_t AudioCreateRenderCheckByAddr(const char *adapterName, const int32_t priority, const std::string &macAddress);
+#endif
 int32_t AudioAddRenderInfoInAdapter(const char *adapterName,
     struct AudioRender *render,
     const struct AudioAdapter *adapter,
     const int32_t priority,
     uint32_t renderPid);
+#ifdef MULTI_A2DP_ENABLED
+int32_t AudioAddRenderInfoInAdapterByAddr(const char *adapterName,
+    const RenderEntry &renderEntry, const std::string &macAddress);
+#endif
 int32_t AudioDestroyRenderInfoInAdapter(const char *adapterName);
+#ifdef MULTI_A2DP_ENABLED
+int32_t AudioDestroyRenderInfoInAdapterByAddr(const char *adapterName, const std::string &macAddress);
+#endif
 int32_t AudioAdapterListGetAdapterRender(const char *adapterName,
     struct AudioAdapter **adapter, struct AudioRender **render);
+#ifdef MULTI_A2DP_ENABLED
+int32_t AudioAdapterListGetAdapterRenderByAddr(const char *adapterName,
+    struct AudioAdapter **adapter, struct AudioRender **render, const std::string &macAddress);
+#endif
 int32_t AudioAdapterCheckListExist(const char *adapterName);
-int32_t AudioAdapterListDestory(const char *adapterName, struct AudioAdapter **adapter);
+int32_t AudioAdapterListDestroy(const char *adapterName, struct AudioAdapter **adapter);
 int32_t AudioAdapterListAdd(const char *adapterName, struct AudioAdapter *adapter);
 int32_t HdiServiceRenderCaptureReadData(struct HdfSBuf *data,
     const char **adapterName, uint32_t *pid);
+#ifdef MULTI_A2DP_ENABLED
+int32_t HdiServiceRenderCaptureReadDataByAddr(struct HdfSBuf *data,
+    const char **adapterName, uint32_t *pid, const char **macAddress);
+#endif
 int32_t AudioAdapterListGetRender(const char *adapterName,
     struct AudioRender **render, uint32_t pid);
+#ifdef MULTI_A2DP_ENABLED
+int32_t AudioAdapterListGetRenderByAddr(const char *adapterName,
+    struct AudioRender **render, uint32_t pid, const std::string &macAddress);
+#endif
 int32_t AudioAdapterListGetPid(const char *adapterName, uint32_t *pid);
 void AudioSetRenderStatus(const char *adapterName, bool renderStatus);
+#ifdef MULTI_A2DP_ENABLED
+void AudioSetRenderStatusByAddr(const char *adapterName, bool renderStatus, const std::string &macAddress);
+#endif
 int32_t AudioGetRenderStatus(const char *adapterName);
+#ifdef MULTI_A2DP_ENABLED
+int32_t AudioGetRenderStatusByAddr(const char *adapterName, const std::string &macAddress);
+#endif
 int32_t AudioAdapterListCheckAndGetRender(struct AudioRender **render, struct HdfSBuf *data);
 int32_t ReadAudioSapmleAttrbutes(struct HdfSBuf *data, struct AudioSampleAttributes *attrs);
 int32_t WriteAudioSampleAttributes(struct HdfSBuf *reply, const struct AudioSampleAttributes *attrs);
 int32_t ServerManageGetAdapterNum(void);
 struct AudioInfoInAdapter *ServerManageGetAdapters(void);
-void AdaptersServerManageRelease(const struct AudioInfoInAdapter *adaptersManage, int32_t num);
+void AdaptersServerManageRelease(struct AudioInfoInAdapter *adaptersManage, int32_t num);
 void AdaptersServerManageInfomationRecycle(void);
 int32_t AdaptersServerManageInit(const struct AudioAdapterDescriptor *descs, int32_t num);
 int32_t HdiServicePositionWrite(struct HdfSBuf *reply,

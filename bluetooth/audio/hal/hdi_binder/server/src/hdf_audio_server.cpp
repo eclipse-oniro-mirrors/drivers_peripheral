@@ -205,7 +205,7 @@ static int32_t HdiServiceUnloadAdapter(const struct HdfDeviceIoClient *client,
         HDF_LOGE("%{public}s: adapterNameCase Is NULL", __func__);
         return AUDIO_HAL_ERR_INVALID_PARAM;
     }
-    ret = AudioAdapterListDestory(adapterName, &adapter);
+    ret = AudioAdapterListDestroy(adapterName, &adapter);
     if (ret == AUDIO_HAL_ERR_INTERNAL) {
         HDF_LOGE("%{public}s: Other dev Use the adapter", __func__);
         return AUDIO_HAL_SUCCESS;
@@ -254,7 +254,7 @@ static int32_t HdiServiceGetPortCapability(const struct HdfDeviceIoClient *clien
         return AUDIO_HAL_ERR_INTERNAL;
     }
     if (adapter == NULL) {
-        HDF_LOGE("%{public}s: HdiServiceCreatRender adapter is NULL!", __func__);
+        HDF_LOGE("%{public}s: HdiServiceCreateRender adapter is NULL!", __func__);
         return AUDIO_HAL_ERR_INVALID_PARAM;
     }
     int32_t ret = adapter->GetPortCapability(adapter, &port, &capability);
@@ -305,7 +305,7 @@ static int32_t HdiServiceSetPassthroughMode(const struct HdfDeviceIoClient *clie
         return AUDIO_HAL_ERR_INTERNAL;
     }
     if (adapter == NULL) {
-        HDF_LOGE("%{public}s: HdiServiceCreatRender adapter is NULL!", __func__);
+        HDF_LOGE("%{public}s: HdiServiceCreateRender adapter is NULL!", __func__);
         return AUDIO_HAL_ERR_INVALID_PARAM;
     }
     int ret = adapter->SetPassthroughMode(adapter, &port, mode);
@@ -368,8 +368,8 @@ struct HdiServiceDispatchCmdHandleList g_hdiServiceDispatchCmdHandleList[] = {
     {AUDIO_HDI_ADT_GET_PORT_CAPABILITY, HdiServiceGetPortCapability},
     {AUDIO_HDI_ADT_SET_PASS_MODE, HdiServiceSetPassthroughMode},
     {AUDIO_HDI_ADT_GET_PASS_MODE, HdiServiceGetPassthroughMode},
-    {AUDIO_HDI_RENDER_CREATE_RENDER, HdiServiceCreatRender},
-    {AUDIO_HDI_RENDER_DESTROY, HdiServiceRenderDestory},
+    {AUDIO_HDI_RENDER_CREATE_RENDER, HdiServiceCreateRender},
+    {AUDIO_HDI_RENDER_DESTROY, HdiServiceRenderDestroy},
     {AUDIO_HDI_RENDER_START, HdiServiceRenderStart},
     {AUDIO_HDI_RENDER_STOP, HdiServiceRenderStop},
     {AUDIO_HDI_RENDER_PAUSE, HdiServiceRenderPause},
@@ -405,7 +405,7 @@ struct HdiServiceDispatchCmdHandleList g_hdiServiceDispatchCmdHandleList[] = {
     {AUDIO_HDI_RENDER_REG_CALLBACK, HdiServiceRenderRegCallback},
     {AUDIO_HDI_RENDER_DRAIN_BUFFER, HdiServiceRenderDrainBuffer},
     {AUDIO_HDI_CAPTURE_CREATE_CAPTURE, HdiServiceCreateCapture},
-    {AUDIO_HDI_CAPTURE_DESTROY, HdiServiceCaptureDestory},
+    {AUDIO_HDI_CAPTURE_DESTROY, HdiServiceCaptureDestroy},
     {AUDIO_HDI_CAPTURE_START, HdiServiceCaptureStart},
     {AUDIO_HDI_CAPTURE_STOP, HdiServiceCaptureStop},
     {AUDIO_HDI_CAPTURE_PAUSE, HdiServiceCapturePause},

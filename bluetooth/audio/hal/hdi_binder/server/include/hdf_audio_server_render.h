@@ -18,9 +18,9 @@
 
 #include "hdf_device_desc.h"
 namespace OHOS::HDI::Audio_Bluetooth {
-int32_t HdiServiceCreatRender(const struct HdfDeviceIoClient *client,
+int32_t HdiServiceCreateRender(const struct HdfDeviceIoClient *client,
     struct HdfSBuf *data, struct HdfSBuf *reply);
-int32_t HdiServiceRenderDestory(const struct HdfDeviceIoClient *client,
+int32_t HdiServiceRenderDestroy(const struct HdfDeviceIoClient *client,
     struct HdfSBuf *data, struct HdfSBuf *reply);
 int32_t HdiServiceRenderStart(const struct HdfDeviceIoClient *client,
     struct HdfSBuf *data, struct HdfSBuf *reply);

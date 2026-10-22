@@ -16,6 +16,7 @@
 #include <hdf_log.h>
 #include <hdf_remote_service.h>
 #include <servmgr_hdi.h>
+#include "audio_adapter_info_common.h"
 #include "audio_proxy_common.h"
 
 namespace OHOS::HDI::Audio_Bluetooth {
@@ -98,6 +99,18 @@ int32_t AudioProxyPreprocessRender(struct AudioHwRender *render, struct HdfSBuf 
         AudioProxyBufReplyRecycle(*data, *reply);
         return HDF_FAILURE;
     }
+#ifdef MULTI_A2DP_ENABLED
+    const char *macAddress = hwRender->peerAddress;
+    if (!IsValidA2dpMac(macAddress, sizeof(hwRender->peerAddress))) {
+        AudioProxyBufReplyRecycle(*data, *reply);
+        HDF_LOGE("macAddress is invalid");
+        return HDF_FAILURE;
+    }
+    if (!HdfSbufWriteString(*data, macAddress)) {
+        AudioProxyBufReplyRecycle(*data, *reply);
+        return HDF_FAILURE;
+    }
+#endif
     return HDF_SUCCESS;
 }
 

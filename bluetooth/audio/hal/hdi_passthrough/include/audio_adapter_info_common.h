@@ -40,6 +40,9 @@ struct AudioAdapterDescriptor *AudioAdapterGetConfigDescs(void);
 int32_t AudioAdapterGetAdapterNum(void);
 int32_t AudioAdaptersForUser(struct AudioAdapterDescriptor **descs, int *size);
 int32_t AudioAdapterExist(const char *adapterName);
+#ifdef MULTI_A2DP_ENABLED
+bool IsValidA2dpMac(const char *mac, size_t capacity);
+#endif
 int32_t HdmiPortInit(struct AudioPort portIndex, struct AudioPortCapability *capabilityIndex);
 int32_t KeyValueListToMap(const char *keyValueList, struct ParamValMap mParamValMap[], int32_t *count);
 int32_t AddElementToList(char *keyValueList, int32_t listLenth, const char *key, void *value);

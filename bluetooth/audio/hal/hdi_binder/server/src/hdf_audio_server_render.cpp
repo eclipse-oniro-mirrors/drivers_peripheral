@@ -14,6 +14,7 @@
  */
 #include "hdf_audio_server_render.h"
 #include "hdf_audio_server_common.h"
+#include "securec.h"
 
 #ifdef LOG_DOMAIN
 #undef LOG_DOMAIN
@@ -107,91 +108,164 @@ int32_t GetInitRenderPara(struct HdfSBuf *data, struct AudioDeviceDescriptor *de
     return HDF_SUCCESS;
 }
 
-int32_t HdiServiceCreatRender(const struct HdfDeviceIoClient *client,
-    struct HdfSBuf *data, struct HdfSBuf *reply)
+static int32_t ReadCreateRenderReq(struct HdfSBuf *data, const char **adapterName, uint32_t *renderPid,
+    struct AudioDeviceDescriptor *devDesc, struct AudioSampleAttributes *attrs)
 {
-    if (client == NULL || data == NULL || reply == NULL) {
-        return AUDIO_HAL_ERR_INVALID_PARAM;
-    }
-    struct AudioAdapter *adapter = NULL;
-    struct AudioDeviceDescriptor devDesc;
-    struct AudioSampleAttributes attrs;
-    struct AudioRender *render = NULL;
-    const char *adapterName = NULL;
-    uint32_t renderPid = 0;
-    if ((adapterName = HdfSbufReadString(data)) == NULL) {
+    if ((*adapterName = HdfSbufReadString(data)) == nullptr) {
         HDF_LOGE("%{public}s: adapterNameCase Is NULL", __func__);
         return AUDIO_HAL_ERR_INVALID_PARAM;
     }
-    if (!HdfSbufReadUint32(data, &renderPid)) {
+    if (!HdfSbufReadUint32(data, renderPid)) {
         return AUDIO_HAL_ERR_INTERNAL;
     }
-    HDF_LOGE("HdiServiceCreatRender: renderPid = %{public}u", renderPid);
-    int32_t ret = GetInitRenderPara(data, &devDesc, &attrs);
+    HDF_LOGE("HdiServiceCreateRender: renderPid = %{public}u", *renderPid);
+    int32_t ret = GetInitRenderPara(data, devDesc, attrs);
     if (ret < 0) {
         HDF_LOGE("%{public}s: GetInitRenderPara fail", __func__);
-        return AUDIO_HAL_ERR_INTERNAL;
-    }
-    if (AudioAdapterListGetAdapter(adapterName, &adapter)) {
-        HDF_LOGE("%{public}s: fail", __func__);
-        return AUDIO_HAL_ERR_INTERNAL;
-    }
-    if (adapter == NULL) {
-        HDF_LOGE("%{public}s: adapter is NULL!", __func__);
-        return AUDIO_HAL_ERR_INVALID_PARAM;
-    }
-    const int32_t priority = attrs.type;
-    ret = AudioCreatRenderCheck(adapterName, priority);
-    if (ret < 0) {
-        HDF_LOGE("%{public}s: AudioCreatRenderCheck: Render is working can not replace!", __func__);
-        return ret;
-    }
-    ret = adapter->CreateRender(adapter, &devDesc, &attrs, &render);
-    if (render == NULL || ret < 0) {
-        HDF_LOGE("%{public}s: Failed to CreateRender", __func__);
-        return AUDIO_HAL_ERR_INTERNAL;
-    }
-    if (AudioAddRenderInfoInAdapter(adapterName, render, adapter, priority, renderPid)) {
-        HDF_LOGE("%{public}s: AudioAddRenderInfoInAdapter", __func__);
-        adapter->DestroyRender(adapter, render);
         return AUDIO_HAL_ERR_INTERNAL;
     }
     return AUDIO_HAL_SUCCESS;
 }
 
-int32_t HdiServiceRenderDestory(const struct HdfDeviceIoClient *client,
-    struct HdfSBuf *data, struct HdfSBuf *reply)
+static int32_t GetAdapterAndCheckRenderCreate(struct HdfSBuf *data, const char *adapterName,
+    int32_t priority, struct AudioAdapter **adapter, const char **macAddress)
 {
-    if (client == NULL || data == NULL || reply == NULL) {
-        return AUDIO_HAL_ERR_INVALID_PARAM;
-    }
-    struct AudioAdapter *adapter = NULL;
-    struct AudioRender *render = NULL;
-    const char *adapterName = NULL;
-    uint32_t pid = 0;
-    if (HdiServiceRenderCaptureReadData(data, &adapterName, &pid) < 0) {
+    if (AudioAdapterListGetAdapter(adapterName, adapter)) {
+        HDF_LOGE("%{public}s: fail", __func__);
         return AUDIO_HAL_ERR_INTERNAL;
     }
-    int32_t ret = AudioAdapterListGetRender(adapterName, &render, pid);
-    if (ret < 0) {
-        return ret;
-    }
-    ret = AudioAdapterListGetAdapterRender(adapterName, &adapter, &render);
-    if (ret < 0) {
-        return ret;
-    }
-    if (adapter == NULL || render == NULL) {
+    if (*adapter == nullptr) {
+        HDF_LOGE("%{public}s: adapter is NULL!", __func__);
         return AUDIO_HAL_ERR_INVALID_PARAM;
     }
-    HDF_LOGI("%{public}s: DestroyRender.", __func__);
+#ifdef MULTI_A2DP_ENABLED
+    const char *macAddr = HdfSbufReadString(data);
+    if (macAddr == nullptr) {
+        HDF_LOGE("%{public}s: read macAddress fail", __func__);
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+    *macAddress = macAddr;
+    int32_t ret = AudioCreateRenderCheckByAddr(adapterName, priority, macAddr);
+#else
+    (void)macAddress;
+    int32_t ret = AudioCreateRenderCheck(adapterName, priority);
+#endif
+    if (ret < 0) {
+        HDF_LOGE("%{public}s: AudioCreateRenderCheck: Render is working can not replace!", __func__);
+        return ret;
+    }
+    return AUDIO_HAL_SUCCESS;
+}
+
+int32_t HdiServiceCreateRender(const struct HdfDeviceIoClient *client,
+    struct HdfSBuf *data, struct HdfSBuf *reply)
+{
+    if (client == nullptr || data == nullptr || reply == nullptr) {
+        return AUDIO_HAL_ERR_INVALID_PARAM;
+    }
+    struct AudioAdapter *adapter = nullptr;
+    struct AudioDeviceDescriptor devDesc;
+    struct AudioSampleAttributes attrs;
+    struct AudioRender *render = nullptr;
+    const char *adapterName = nullptr;
+    uint32_t renderPid = 0;
+    int32_t ret = ReadCreateRenderReq(data, &adapterName, &renderPid, &devDesc, &attrs);
+    if (ret < 0) {
+        return ret;
+    }
+    const int32_t priority = attrs.type;
+    const char *macAddress = nullptr;
+    ret = GetAdapterAndCheckRenderCreate(data, adapterName, priority, &adapter, &macAddress);
+    if (ret < 0) {
+        return ret;
+    }
+#ifdef MULTI_A2DP_ENABLED
+    devDesc.desc = macAddress;
+#endif
+    ret = adapter->CreateRender(adapter, &devDesc, &attrs, &render);
+    if (render == nullptr || ret < 0) {
+        HDF_LOGE("%{public}s: Failed to CreateRender", __func__);
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+#ifdef MULTI_A2DP_ENABLED
+    RenderEntry renderEntry = {render, priority, renderPid, false, false};
+    if (AudioAddRenderInfoInAdapterByAddr(adapterName, renderEntry, macAddress)) {
+        HDF_LOGE("%{public}s: AudioAddRenderInfoInAdapterByAddr", __func__);
+        adapter->DestroyRender(adapter, render);
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+#else
+    if (AudioAddRenderInfoInAdapter(adapterName, render, adapter, priority, renderPid)) {
+        HDF_LOGE("%{public}s: AudioAddRenderInfoInAdapter", __func__);
+        adapter->DestroyRender(adapter, render);
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+#endif
+    return AUDIO_HAL_SUCCESS;
+}
+
+static int32_t GetRenderAndAdapterForDestroy(struct HdfSBuf *data, const char **adapterName,
+    struct AudioRender **render, struct AudioAdapter **adapter, const char **macAddress)
+{
+    uint32_t pid = 0;
+#ifdef MULTI_A2DP_ENABLED
+    if (HdiServiceRenderCaptureReadDataByAddr(data, adapterName, &pid, macAddress) < 0) {
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+    int32_t ret = AudioAdapterListGetRenderByAddr(*adapterName, render, pid, *macAddress);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = AudioAdapterListGetAdapterRenderByAddr(*adapterName, adapter, render, *macAddress);
+#else
+    (void)macAddress;
+    if (HdiServiceRenderCaptureReadData(data, adapterName, &pid) < 0) {
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+    int32_t ret = AudioAdapterListGetRender(*adapterName, render, pid);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = AudioAdapterListGetAdapterRender(*adapterName, adapter, render);
+#endif
+    if (ret < 0) {
+        return ret;
+    }
+    return AUDIO_HAL_SUCCESS;
+}
+
+int32_t HdiServiceRenderDestroy(const struct HdfDeviceIoClient *client,
+    struct HdfSBuf *data, struct HdfSBuf *reply)
+{
+    if (client == nullptr || data == nullptr || reply == nullptr) {
+        return AUDIO_HAL_ERR_INVALID_PARAM;
+    }
+    struct AudioAdapter *adapter = nullptr;
+    struct AudioRender *render = nullptr;
+    const char *adapterName = nullptr;
+    const char *macAddress = nullptr;
+    int32_t ret = GetRenderAndAdapterForDestroy(data, &adapterName, &render, &adapter, &macAddress);
+    if (ret < 0) {
+        return ret;
+    }
+    if (adapter == nullptr || render == nullptr) {
+        return AUDIO_HAL_ERR_INVALID_PARAM;
+    }
+    HDF_LOGI("%{public}s: adapter DestroyRender.", __func__);
     ret = adapter->DestroyRender(adapter, render);
     if (ret < 0) {
         HDF_LOGE("%{public}s: DestroyRender failed!", __func__);
         return ret;
     }
+#ifdef MULTI_A2DP_ENABLED
+    if (AudioDestroyRenderInfoInAdapterByAddr(adapterName, macAddress)) {
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+#else
     if (AudioDestroyRenderInfoInAdapter(adapterName)) {
         return AUDIO_HAL_ERR_INTERNAL;
     }
+#endif
     return AUDIO_HAL_SUCCESS;
 }
 
@@ -601,6 +675,50 @@ int32_t HdiServiceRenderGetLatency(const struct HdfDeviceIoClient *client,
     return AUDIO_HAL_SUCCESS;
 }
 
+static int32_t PrepareRenderFrameReq(struct HdfSBuf *data, const char **adapterName, uint32_t *pid,
+    const char **macAddress, struct AudioRender **render)
+{
+#ifdef MULTI_A2DP_ENABLED
+    if (HdiServiceRenderCaptureReadDataByAddr(data, adapterName, pid, macAddress) < 0) {
+        HDF_LOGE("%{public}s: HdiServiceRenderCaptureReadDataByAddr fail!", __func__);
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+    int32_t ret = AudioAdapterListGetRenderByAddr(*adapterName, render, *pid, *macAddress);
+    if (ret < 0) {
+        HDF_LOGE("%{public}s: AudioAdapterListGetRenderByAddr fail", __func__);
+        return ret;
+    }
+    ret = AudioGetRenderStatusByAddr(*adapterName, *macAddress);
+#else
+    (void)macAddress;
+    if (HdiServiceRenderCaptureReadData(data, adapterName, pid) < 0) {
+        HDF_LOGE("%{public}s: HdiServiceRenderCaptureReadData fail!", __func__);
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+    int32_t ret = AudioAdapterListGetRender(*adapterName, render, *pid);
+    if (ret < 0) {
+        HDF_LOGE("%{public}s: AudioAdapterListGetRender fail", __func__);
+        return ret;
+    }
+    ret = AudioGetRenderStatus(*adapterName);
+#endif
+    if (ret < 0) {
+        HDF_LOGE("%{public}s: AudioGetRenderStatus fail", __func__);
+        return ret;
+    }
+    return AUDIO_HAL_SUCCESS;
+}
+
+static void SetRenderStatusByMode(const char *adapterName, bool status, const char *macAddress)
+{
+#ifdef MULTI_A2DP_ENABLED
+    AudioSetRenderStatusByAddr(adapterName, status, macAddress);
+#else
+    (void)macAddress;
+    AudioSetRenderStatus(adapterName, status);
+#endif
+}
+
 int32_t HdiServiceRenderRenderFrame(const struct HdfDeviceIoClient *client,
     struct HdfSBuf *data, struct HdfSBuf *reply)
 {
@@ -613,28 +731,19 @@ int32_t HdiServiceRenderRenderFrame(const struct HdfDeviceIoClient *client,
     struct AudioRender *render = NULL;
     const char *adapterName = NULL;
     uint32_t pid;
-    if (HdiServiceRenderCaptureReadData(data, &adapterName, &pid) < 0) {
-        HDF_LOGE("%{public}s: HdiServiceRenderCaptureReadData fail!", __func__);
-        return AUDIO_HAL_ERR_INTERNAL;
-    }
-    int32_t ret = AudioAdapterListGetRender(adapterName, &render, pid);
+    const char *macAddress = nullptr;
+    int32_t ret = PrepareRenderFrameReq(data, &adapterName, &pid, &macAddress, &render);
     if (ret < 0) {
-        HDF_LOGE("%{public}s: AudioAdapterListGetRender fail", __func__);
-        return ret;
-    }
-    ret = AudioGetRenderStatus(adapterName);
-    if (ret < 0) {
-        HDF_LOGE("%{public}s: AudioGetRenderStatus fail", __func__);
         return ret;
     }
     if (!HdfSbufReadBuffer(data, &frame, &requestBytes)) {
         HDF_LOGE("%{public}s: AudioAdapterListGetRender:HdfSbufReadBuffer fail", __func__);
         return AUDIO_HAL_ERR_INTERNAL;
     }
-    AudioSetRenderStatus(adapterName, true);
+    SetRenderStatusByMode(adapterName, true, macAddress);
     ret = render->RenderFrame(render, frame,
         static_cast<uint64_t>(requestBytes), &replyBytes);
-    AudioSetRenderStatus(adapterName, false);
+    SetRenderStatusByMode(adapterName, false, macAddress);
     HDF_LOGD("%{public}s,%{public}u,%{public}ju", __func__, requestBytes, replyBytes);
     if (ret < 0) {
         HDF_LOGE("%{public}s: HdiServiceRenderRenderFrame ", __func__);

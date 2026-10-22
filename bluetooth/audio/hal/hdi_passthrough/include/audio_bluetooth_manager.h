@@ -68,6 +68,18 @@ void TearDownHearingAid();
 int StartHearingAid();
 int SuspendHearingAid();
 int StopHearingAid();
+#ifdef MULTI_A2DP_ENABLED
+bool SetUpByAddr(const char* addr);
+void TearDownByAddr(const char* addr);
+int StartPlayingByAddr(const char* addr);
+int SuspendPlayingByAddr(const char* addr);
+int StopPlayingByAddr(const char* addr);
+int WriteFrameByAddr(const char* addr, const uint8_t *data, uint32_t size,
+    const HDI::Audio_Bluetooth::AudioSampleAttributes *attrs);
+int GetLatencyByAddr(const char* addr, uint32_t &latency);
+int SuspendPlayingFromParamByAddr(const char* addr);
+void UnBlockStartByAddr(const char* addr);
+#endif
 #endif
 
 int WriteFrameHearingAid(const uint8_t *data, uint32_t size, const HDI::Audio_Bluetooth::AudioSampleAttributes *attrs);
