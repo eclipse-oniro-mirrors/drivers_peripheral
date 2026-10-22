@@ -39,6 +39,7 @@ ohos_unittest("SensorHubDumpTest") {
 
   if (is_standard_system) {
     external_deps = [
+      "bounds_checking_function:libsec_shared",
       "drivers_interface_sensor:libsensor_proxy_3.0",
       "hdf_core:libhdf_host",
       "hdf_core:libhdf_utils",

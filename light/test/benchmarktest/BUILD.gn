@@ -34,6 +34,7 @@ ohos_benchmarktest("hdf_light_benchmark_test") {
 
   if (is_standard_system) {
     external_deps = [
+      "bounds_checking_function:libsec_shared",
       "drivers_interface_light:liblight_proxy_1.0",
       "hdf_core:libhdf_utils",
       "hilog:libhilog",
