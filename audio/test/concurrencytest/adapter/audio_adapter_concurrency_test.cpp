@@ -37,6 +37,7 @@ using namespace testing::ext;
 #define INT_32_MAX                     0x7fffffff
 #define AUDIO_ADAPTER_NUM_MAX          5
 #define AUDIO_THREAD_NUM               4
+#define AUDIO_CREATE_REPEAT_TIMES      4
 
 namespace {
 
@@ -50,6 +51,10 @@ public:
     virtual void TearDown();
     void InitAttrs(struct AudioSampleAttributes &attrs);
     void InitDevDesc(struct AudioDeviceDescriptor &devDesc, enum AudioPortDirection dir);
+    void InitPort(struct AudioPort &port, enum AudioPortDirection dir);
+    void CreateRenderDestroyChurnWorker(const struct AudioDeviceDescriptor *devDesc,
+        const struct AudioSampleAttributes *attrs, std::atomic<int32_t> &createCnt,
+        std::atomic<int32_t> &destroyCnt);
     void AudioAdapterDescriptorFree(struct AudioAdapterDescriptor *dataBlock, bool freeSelf);
     void ReleaseAdapterDescs(struct AudioAdapterDescriptor **descs, uint32_t descsLen);
 };
@@ -109,6 +114,34 @@ void HdfAudioConcAdapterTest::InitDevDesc(struct AudioDeviceDescriptor &devDesc,
         if (adapterDescs_->ports[index].dir == dir) {
             devDesc.portId = adapterDescs_->ports[index].portId;
             return;
+        }
+    }
+}
+
+void HdfAudioConcAdapterTest::InitPort(struct AudioPort &port, enum AudioPortDirection dir)
+{
+    ASSERT_NE(adapterDescs_, nullptr);
+    ASSERT_NE(adapterDescs_->ports, nullptr);
+    for (uint32_t index = 0; index < adapterDescs_->portsLen; index++) {
+        if (adapterDescs_->ports[index].dir == dir) {
+            port = adapterDescs_->ports[index];
+            return;
+        }
+    }
+}
+
+void HdfAudioConcAdapterTest::CreateRenderDestroyChurnWorker(const struct AudioDeviceDescriptor *devDesc,
+    const struct AudioSampleAttributes *attrs, std::atomic<int32_t> &createCnt, std::atomic<int32_t> &destroyCnt)
+{
+    for (uint32_t j = 0; j < AUDIO_CREATE_REPEAT_TIMES; j++) {
+        struct IAudioRender *render = nullptr;
+        uint32_t renderId = 0;
+        if (adapter_->CreateRender(adapter_, devDesc, attrs, &render, &renderId) != HDF_SUCCESS) {
+            continue;
+        }
+        createCnt++;
+        if (adapter_->DestroyRender(adapter_, renderId) == HDF_SUCCESS) {
+            destroyCnt++;
         }
     }
 }
@@ -201,6 +234,124 @@ HWTEST_F(HdfAudioConcAdapterTest, HdfAudioAdapterConcCreateRenderMutiThread001, 
         }
     }
     EXPECT_GE(successCnt.load(), 1);
+}
+
+HWTEST_F(HdfAudioConcAdapterTest, HdfAudioAdapterConcGetPortCapabilityMutiThread001, TestSize.Level1)
+{
+    struct AudioPort port = {};
+    InitPort(port, PORT_OUT);
+    ASSERT_NE(port.portId, 0);
+
+    std::atomic<int32_t> successCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&successCnt, port, this]() {
+            struct AudioPortCapability capability = {};
+            if (adapter_->GetPortCapability(adapter_, &port, &capability) == HDF_SUCCESS) {
+                successCnt++;
+            }
+            AudioPortCapabilityFree(&capability, false);
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    EXPECT_EQ(AUDIO_THREAD_NUM, successCnt.load());
+}
+
+HWTEST_F(HdfAudioConcAdapterTest, HdfAudioAdapterConcGetDeviceStatusMutiThread001, TestSize.Level1)
+{
+    std::atomic<int32_t> successCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&successCnt, this]() {
+            struct AudioDeviceStatus status = {};
+            if (adapter_->GetDeviceStatus(adapter_, &status) == HDF_SUCCESS) {
+                successCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    EXPECT_EQ(AUDIO_THREAD_NUM, successCnt.load());
+}
+
+HWTEST_F(HdfAudioConcAdapterTest, HdfAudioAdapterConcSetMicMuteGetMicMuteMutiThread001, TestSize.Level1)
+{
+    std::atomic<int32_t> getCnt(0);
+    std::atomic<int32_t> setCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([i, &getCnt, &setCnt, this]() {
+            bool mute = false;
+            if (adapter_->GetMicMute(adapter_, &mute) == HDF_SUCCESS) {
+                getCnt++;
+            }
+            if ((i % 2 == 0) && (adapter_->SetMicMute(adapter_, true) == HDF_SUCCESS) &&
+                (adapter_->SetMicMute(adapter_, false) == HDF_SUCCESS)) {
+                setCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    // restore mic mute state
+    (void)adapter_->SetMicMute(adapter_, false);
+
+    EXPECT_EQ(AUDIO_THREAD_NUM, getCnt.load());
+    EXPECT_GE(setCnt.load(), 1);
+}
+
+HWTEST_F(HdfAudioConcAdapterTest, HdfAudioAdapterConcGetPassthroughModeMutiThread001, TestSize.Level1)
+{
+    struct AudioPort port = {};
+    InitPort(port, PORT_OUT);
+    ASSERT_NE(port.portId, 0);
+
+    std::atomic<int32_t> successCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&successCnt, port, this]() {
+            enum AudioPortPassthroughMode mode = PORT_PASSTHROUGH_LPCM;
+            if (adapter_->GetPassthroughMode(adapter_, &port, &mode) == HDF_SUCCESS) {
+                successCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    // passthrough mode support depends on the HAL implementation
+    EXPECT_GE(successCnt.load(), 1);
+}
+
+HWTEST_F(HdfAudioConcAdapterTest, HdfAudioAdapterConcCreateRenderDestroyChurnMutiThread001, TestSize.Level1)
+{
+    struct AudioDeviceDescriptor devDesc = {};
+    struct AudioSampleAttributes attrs = {};
+    InitDevDesc(devDesc, PORT_OUT);
+    devDesc.desc = const_cast<char *>("primary");
+    devDesc.pins = PIN_OUT_SPEAKER;
+    InitAttrs(attrs);
+    attrs.silenceThreshold = 0;
+    attrs.streamId = 0;
+
+    std::atomic<int32_t> createCnt(0);
+    std::atomic<int32_t> destroyCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([devDesc, attrs, &createCnt, &destroyCnt, this]() {
+            CreateRenderDestroyChurnWorker(&devDesc, &attrs, createCnt, destroyCnt);
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_GE(createCnt.load(), 1);
+    EXPECT_EQ(createCnt.load(), destroyCnt.load());
 }
 
 } // namespace

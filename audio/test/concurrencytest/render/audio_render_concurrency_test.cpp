@@ -38,6 +38,7 @@ using namespace testing::ext;
 #define INT_32_MAX                     0x7fffffff
 #define AUDIO_ADAPTER_NUM_MAX          5
 #define AUDIO_THREAD_NUM               4
+#define AUDIO_HALF_OF_MAX_VOLUME       0.5f
 
 namespace {
 
@@ -48,6 +49,7 @@ public:
     struct AudioAdapterDescriptor *adapterDescs_ = nullptr;
     struct IAudioRender *render_ = nullptr;
     uint32_t renderId_ = 0;
+    uint32_t frameByteLen_ = 0;
     char *devDescriptorName_ = nullptr;
     virtual void SetUp();
     virtual void TearDown();
@@ -145,6 +147,7 @@ void HdfAudioConcRenderTest::SetUp()
     struct AudioSampleAttributes attrs = {};
     InitDevDesc(devDesc);
     devDescriptorName_ = strdup("cardname");
+    ASSERT_NE(devDescriptorName_, nullptr);
     devDesc.desc = devDescriptorName_;
     devDesc.pins = PIN_OUT_SPEAKER;
     InitAttrs(attrs);
@@ -157,6 +160,15 @@ void HdfAudioConcRenderTest::SetUp()
         ASSERT_EQ(HDF_SUCCESS, adapter_->CreateRender(adapter_, &devDesc, &attrs, &render_, &renderId_));
     }
     ASSERT_NE(render_, nullptr);
+
+    // frame bytes used by RenderFrame, query the real value from driver first
+    uint64_t frameSize = 0;
+    if ((render_->GetFrameSize(render_, &frameSize) == HDF_SUCCESS) && (frameSize > 0) &&
+        (frameSize <= DEEP_BUFFER_RENDER_PERIOD_SIZE)) {
+        frameByteLen_ = static_cast<uint32_t>(frameSize * attrs.period);
+    } else {
+        frameByteLen_ = attrs.period * attrs.frameSize;
+    }
 }
 
 void HdfAudioConcRenderTest::TearDown()
@@ -216,6 +228,172 @@ HWTEST_F(HdfAudioConcRenderTest, HdfAudioRenderConcGetAttrsMutiThread001, TestSi
     }
     EXPECT_EQ(AUDIO_THREAD_NUM, successCnt.load());
     render_->Stop(render_);
+}
+
+HWTEST_F(HdfAudioConcRenderTest, HdfAudioRenderConcPauseResumeMutiThread001, TestSize.Level1)
+{
+    ASSERT_EQ(HDF_SUCCESS, render_->Start(render_));
+
+    std::atomic<int32_t> pauseCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&pauseCnt, this]() {
+            if (render_->Pause(render_) == HDF_SUCCESS) {
+                pauseCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    EXPECT_EQ(1, pauseCnt.load());
+
+    std::atomic<int32_t> resumeCnt(0);
+    threads.clear();
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&resumeCnt, this]() {
+            if (render_->Resume(render_) == HDF_SUCCESS) {
+                resumeCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    EXPECT_EQ(1, resumeCnt.load());
+
+    render_->Stop(render_);
+}
+
+HWTEST_F(HdfAudioConcRenderTest, HdfAudioRenderConcFlushMutiThread001, TestSize.Level1)
+{
+    ASSERT_EQ(HDF_SUCCESS, render_->Start(render_));
+    ASSERT_EQ(HDF_SUCCESS, render_->Pause(render_));
+
+    std::atomic<int32_t> flushCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&flushCnt, this]() {
+            if (render_->Flush(render_) == HDF_SUCCESS) {
+                flushCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+
+    render_->Resume(render_);
+    render_->Stop(render_);
+
+    EXPECT_GE(flushCnt.load(), 1);
+}
+
+HWTEST_F(HdfAudioConcRenderTest, HdfAudioRenderConcGetLatencyAndPositionMutiThread001, TestSize.Level1)
+{
+    ASSERT_EQ(HDF_SUCCESS, render_->Start(render_));
+
+    std::atomic<int32_t> latencyCnt(0);
+    std::atomic<int32_t> positionCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&latencyCnt, &positionCnt, this]() {
+            uint32_t ms = 0;
+            if (render_->GetLatency(render_, &ms) == HDF_SUCCESS) {
+                latencyCnt++;
+            }
+            uint64_t frames = 0;
+            struct AudioTimeStamp time = {};
+            if (render_->GetRenderPosition(render_, &frames, &time) == HDF_SUCCESS) {
+                positionCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    render_->Stop(render_);
+
+    EXPECT_EQ(AUDIO_THREAD_NUM, latencyCnt.load());
+    EXPECT_GE(positionCnt.load(), 1);
+}
+
+HWTEST_F(HdfAudioConcRenderTest, HdfAudioRenderConcGetFrameCountSizeMutiThread001, TestSize.Level1)
+{
+    std::atomic<int32_t> countCnt(0);
+    std::atomic<int32_t> sizeCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&countCnt, &sizeCnt, this]() {
+            uint64_t count = 0;
+            if (render_->GetFrameCount(render_, &count) == HDF_SUCCESS) {
+                countCnt++;
+            }
+            uint64_t size = 0;
+            if (render_->GetFrameSize(render_, &size) == HDF_SUCCESS) {
+                sizeCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_EQ(AUDIO_THREAD_NUM, countCnt.load());
+    EXPECT_EQ(AUDIO_THREAD_NUM, sizeCnt.load());
+}
+
+HWTEST_F(HdfAudioConcRenderTest, HdfAudioRenderConcSetGetVolumeMutiThread001, TestSize.Level1)
+{
+    float originalVolume = 0.0;
+    (void)render_->GetVolume(render_, &originalVolume);
+
+    std::atomic<int32_t> getCnt(0);
+    std::atomic<int32_t> setCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&getCnt, &setCnt, this]() {
+            if (render_->SetVolume(render_, AUDIO_HALF_OF_MAX_VOLUME) == HDF_SUCCESS) {
+                setCnt++;
+            }
+            float volume = 0.0;
+            if (render_->GetVolume(render_, &volume) == HDF_SUCCESS) {
+                getCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    // restore the original volume
+    (void)render_->SetVolume(render_, originalVolume);
+
+    EXPECT_EQ(AUDIO_THREAD_NUM, getCnt.load());
+    EXPECT_GE(setCnt.load(), 1);
+}
+
+HWTEST_F(HdfAudioConcRenderTest, HdfAudioRenderConcRenderFrameMutiThread001, TestSize.Level1)
+{
+    ASSERT_EQ(HDF_SUCCESS, render_->Start(render_));
+    ASSERT_GT(frameByteLen_, 0);
+
+    std::atomic<int32_t> writeCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&writeCnt, this]() {
+            std::vector<int8_t> frame(frameByteLen_, 0);
+            uint64_t replyBytes = 0;
+            if (render_->RenderFrame(render_, frame.data(), frameByteLen_, &replyBytes) == HDF_SUCCESS) {
+                writeCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    render_->Stop(render_);
+
+    EXPECT_GE(writeCnt.load(), 1);
 }
 
 } // namespace
