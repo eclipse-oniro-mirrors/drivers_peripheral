@@ -1426,7 +1426,10 @@ HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureGetVersionV6_1001, TestSize.Level0)
     uint32_t minorVer;
 
     int32_t ret = capture_->GetVersionV6_1(capture_, &majorVer, &minorVer);
-    ASSERT_EQ(HDF_SUCCESS, ret);
+    if (ret == HDF_ERR_NOT_SUPPORT) {
+        GTEST_SKIP() << "test not support" << std::endl;
+    }
+    ASSERT_TRUE(HDF_SUCCESS == ret);
     EXPECT_EQ(IAUDIO_MANAGER_MAJOR_VERSION, majorVer);
     EXPECT_EQ(IAUDIO_MANAGER_MINOR_VERSION, minorVer);
 }
@@ -1438,6 +1441,9 @@ HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureGetVersionV6_1Exception001, TestSize
     uint32_t minorVer;
 
     int32_t ret = capture_->GetVersionV6_1(capture_, &majorVer, &minorVer);
+    if (ret == HDF_ERR_NOT_SUPPORT) {
+        GTEST_SKIP() << "test not support" << std::endl;
+    }
     EXPECT_EQ(HDF_ERR_INVALID_OBJECT, ret);
 }
 

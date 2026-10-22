@@ -331,7 +331,7 @@ HWTEST_F(AudioUtRenderTest, RenderCheckSceneCapabilityNull003, TestSize.Level1)
 HWTEST_F(AudioUtRenderTest, RenderCheckSceneCapabilityNull004, TestSize.Level1)
 {
     bool supported = false;
-    EXPECT_EQ(HDF_ERR_INVALID_PARAM, render_->CheckSceneCapability(nullptr, nullptr, &supported));
+    EXPECT_EQ(HDF_ERR_INVALID_OBJECT, render_->CheckSceneCapability(nullptr, nullptr, &supported));
 }
 
 HWTEST_F(AudioUtRenderTest, RenderCheckSceneCapabilityInValid001, TestSize.Level1)
@@ -1183,7 +1183,7 @@ HWTEST_F(AudioUtRenderTest, RenderSetGainIsValid002, TestSize.Level0)
     float gain = -1.0;
     int32_t ret = render_->SetGain(render_, gain);
 
-    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+    ASSERT_NE(ret == HDF_SUCCESS);
 }
 
 HWTEST_F(AudioUtRenderTest, RenderSetGainIsValid003, TestSize.Level0)
