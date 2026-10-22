@@ -59,6 +59,8 @@ ohos_shared_library("libscsi_peripheral_ddk_service_1.0") {
   install_images = [ chipset_base_dir ]
   subsystem_name = "hdf"
   part_name = "drivers_peripheral_usb"
+
+  version_script = "libscsi_peripheral_ddk_service_1.0.map"
 }
 
 ohos_shared_library("libscsi_ddk_driver") {

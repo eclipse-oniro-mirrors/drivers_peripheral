@@ -92,6 +92,8 @@ ohos_shared_library("libusb_ddk_service_1.2") {
   install_images = [ chipset_base_dir ]
   subsystem_name = "hdf"
   part_name = "drivers_peripheral_usb"
+
+  version_script = "libusb_ddk_service_1.2.map"
 }
 
 ohos_shared_library("usb_ddk_dynamic_library_wrapper") {
@@ -118,6 +120,8 @@ ohos_shared_library("usb_ddk_dynamic_library_wrapper") {
   install_images = [ chipset_base_dir ]
   subsystem_name = "hdf"
   part_name = "drivers_peripheral_usb"
+
+  version_script = "libusb_ddk_dynamic_library_wrapper.map"
 }
 
 ohos_shared_library("libusb_ddk_driver") {

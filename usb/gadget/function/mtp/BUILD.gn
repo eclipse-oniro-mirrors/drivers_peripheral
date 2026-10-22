@@ -60,6 +60,8 @@ ohos_shared_library("libusbfn_mtp_interface_service_1.0") {
   innerapi_tags = [ "passthrough" ]
   subsystem_name = "hdf"
   part_name = "drivers_peripheral_usb"
+
+  version_script = "libusbfn_mtp_interface_service_1.0.map"
 }
 
 ohos_shared_library("libusbfn_mtp_driver") {

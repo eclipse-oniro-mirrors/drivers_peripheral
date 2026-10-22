@@ -33,6 +33,8 @@ ohos_shared_library("libusb_ddk_host") {
   }
   branch_protector_ret = "pac_ret"
 
+  version_script = "libusb_ddk_host.map"
+
   include_dirs = [
     "device/include",
     "./../hdf_usb/include",
@@ -91,6 +93,8 @@ ohos_shared_library("libusb_pnp_manager") {
     debug = false
   }
   branch_protector_ret = "pac_ret"
+
+  version_script = "libusb_pnp_manager.map"
 
   include_dirs = [
     "./../hdf_usb/include",
@@ -169,6 +173,8 @@ ohos_shared_library("libusb_ddk_device") {
     debug = false
   }
   branch_protector_ret = "pac_ret"
+
+  version_script = "libusb_ddk_device.map"
 
   include_dirs = [
     "device/include",

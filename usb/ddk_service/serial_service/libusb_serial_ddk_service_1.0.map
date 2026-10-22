@@ -1,0 +1,45 @@
+# Copyright (c) 2024 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License")*;
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Version Script for libusb_serial_ddk_service_1.0.z.so
+# SO Type: innerapi (passthrough)
+# Strategy: Whitelist mode
+#
+# Exported symbols:
+#   - UsbSerialDdkImplGetInstance: HDI framework entry point (extern "C", dlsym)
+#   - __cfi_check: CFI cross-DSO check entry (cfi_cross_dso=true)
+#   - OHOS::HDI::Usb::UsbSerialDdk::V1_0::UsbSerialDdkService: IUsbSerialDdk public implementation
+#   - OHOS::HDI::Usb::UsbSerialDdk::V1_0::LinuxUsbSerialOsAdapter:OS adapter (REVIEW - vtable for cross-DSO polymorphism)
+#   - Associated RTTI/vtable/thunk symbols for cross-DSO inheritance
+
+{
+  global:
+    # C entry points
+    UsbSerialDdkImplGetInstance;
+    __cfi_check;
+
+    # C++ symbols - UsbSerialDdkService (IUsbSerialDdk public implementation)
+    _ZN4OHOS3HDI3Usb12UsbSerialDdk4V1_019UsbSerialDdkService*;
+    _ZTVN4OHOS3HDI3Usb12UsbSerialDdk4V1_019UsbSerialDdkServiceE;
+    _ZTTN4OHOS3HDI3Usb12UsbSerialDdk4V1_019UsbSerialDdkServiceE;
+    _ZTCN4OHOS3HDI3Usb12UsbSerialDdk4V1_019UsbSerialDdkService*;
+
+    # C++ symbols -LinuxUsbSerialOsAdapter (UsbSerialOsAdapter implementation, REVIEW)
+    _ZN4OHOS3HDI3Usb12UsbSerialDdk4V1_023LinuxUsbSerialOsAdapter*;
+    _ZTVN4OHOS3HDI3Usb12UsbSerialDdk4V1_023LinuxUsbSerialOsAdapterE;
+    _ZTTN4OHOS3HDI3Usb12UsbSerialDdk4V1_023LinuxUsbSerialOsAdapterE;
+    _ZTCN4OHOS3HDI3Usb12UsbSerialDdk4V1_023LinuxUsbSerialOsAdapter*;
+
+  local:
+    *;
+};

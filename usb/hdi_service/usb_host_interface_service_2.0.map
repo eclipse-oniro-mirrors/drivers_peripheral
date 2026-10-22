@@ -1,0 +1,61 @@
+# Copyright (c) 2026 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License")*;
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Version Script for libusb_host_interface_service_2.0.z.so
+# SO Type:innerapi (passthrough)
+# Strategy: Whitelist mode
+#
+# Exported symbols:
+#   - UsbHostInterfaceImplGetInstance:HDI framework entry point (extern"C")
+#   - __cfi_check:CFI cross-DSO check entry (cfi_cross_dso=true)
+#   - OHOS::HDI::Usb::V2_0::UsbHostImpl::*:IUsbHostInterface public implementation
+#   - OHOS::HDI::Usb::V2_0::UsbTransferCb::*:IUsbdTransferCallback implementation (REVIEW)
+#   - OHOS::HDI::Usb::V1_2::OnDemandLoadCallback::*:SA load callback (REVIEW)
+#   - OHOS::HDI::Usb::V1_2::UsbdLoadService::*:SA load helper (REVIEW)
+#   - Associated RTTI/vtable/thunk symbols for cross-DSO inheritance
+
+{
+  global:
+    # C entry points
+    UsbHostInterfaceImplGetInstance;
+    __cfi_check;
+
+    # C++ symbols - UsbHostImpl (IUsbHostInterface public implementation)
+    _ZN4OHOS3HDI3Usb4V2_011UsbHostImpl*;
+    _ZTVN4OHOS3HDI3Usb4V2_011UsbHostImplE;
+    _ZTTN4OHOS3HDI3Usb4V2_011UsbHostImplE;
+    _ZTCN4OHOS3HDI3Usb4V2_011UsbHostImpl*;
+    _ZTv0_*N4OHOS3HDI3Usb4V2_011UsbHostImpl*;
+
+    # C++ symbols - UsbTransferCb (IUsbdTransferCallback implementation, REVIEW)
+    _ZN4OHOS3HDI3Usb4V2_013UsbTransferCb*;
+    _ZTVN4OHOS3HDI3Usb4V2_013UsbTransferCbE;
+    _ZTTN4OHOS3HDI3Usb4V2_013UsbTransferCbE;
+    _ZTCN4OHOS3HDI3Usb4V2_013UsbTransferCb*;
+    _ZTv0_*N4OHOS3HDI3Usb4V2_013UsbTransferCb*;
+    _ZThn*_N4OHOS3HDI3Usb4V2_013UsbTransferCb*;
+
+    # C++ symbols - OnDemandLoadCallback (SystemAbilityLoadCallbackStub, REVIEW)
+    _ZN4OHOS3HDI3Usb4V1_220OnDemandLoadCallback*;
+    _ZTVN4OHOS3HDI3Usb4V1_220OnDemandLoadCallbackE;
+    _ZTTN4OHOS3HDI3Usb4V1_220OnDemandLoadCallbackE;
+    _ZTCN4OHOS3HDI3Usb4V1_220OnDemandLoadCallback*;
+    _ZThn*_N4OHOS3HDI3Usb4V1_220OnDemandLoadCallback*;
+    _ZTv0_*N4OHOS3HDI3Usb4V1_220OnDemandLoadCallback*;
+
+    # C++ symbols - UsbdLoadService (SA load helper, REVIEW)
+    _ZN4OHOS3HDI3Usb4V1_215UsbdLoadService*;
+
+  local:
+    *;
+};
