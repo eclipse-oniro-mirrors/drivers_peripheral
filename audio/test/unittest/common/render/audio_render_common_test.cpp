@@ -1183,7 +1183,7 @@ HWTEST_F(AudioUtRenderTest, RenderSetGainIsValid002, TestSize.Level0)
     float gain = -1.0;
     int32_t ret = render_->SetGain(render_, gain);
 
-    ASSERT_NE(ret == HDF_SUCCESS);
+    ASSERT_NE(HDF_SUCCESS, ret);
 }
 
 HWTEST_F(AudioUtRenderTest, RenderSetGainIsValid003, TestSize.Level0)
