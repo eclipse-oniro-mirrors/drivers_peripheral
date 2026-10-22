@@ -328,6 +328,12 @@ HWTEST_F(AudioUtRenderTest, RenderCheckSceneCapabilityNull003, TestSize.Level1)
     EXPECT_EQ(HDF_ERR_INVALID_PARAM, render_->CheckSceneCapability(render_, &scene, nullptr));
 }
 
+HWTEST_F(AudioUtRenderTest, RenderCheckSceneCapabilityNull004, TestSize.Level1)
+{
+    bool supported = false;
+    EXPECT_EQ(HDF_ERR_INVALID_PARAM, render_->CheckSceneCapability(nullptr, nullptr, &supported));
+}
+
 HWTEST_F(AudioUtRenderTest, RenderCheckSceneCapabilityInValid001, TestSize.Level1)
 {
     struct AudioSceneDescriptor scene;
@@ -754,6 +760,106 @@ HWTEST_F(AudioUtRenderTest, RenderGetRenderPositionIsValid002, TestSize.Level0)
     }
 }
 
+HWTEST_F(AudioUtRenderTest, RenderGetRenderPositionIsValid003, TestSize.Level0)
+{
+    uint32_t frameLen = (uint64_t)GetRenderBufferSize();
+    uint64_t requestBytes = frameLen;
+
+    int32_t ret = render_->Start(render_);
+    EXPECT_EQ(ret, HDF_SUCCESS);
+
+    int8_t *frame = (int8_t *)calloc(1, frameLen);
+    EXPECT_NE(nullptr, frame);
+
+    ret = render_->RenderFrame(render_, frame, frameLen, &requestBytes);
+    EXPECT_EQ(ret, HDF_SUCCESS);
+
+    EXPECT_EQ(HDF_SUCCESS, render_->Stop(render_));
+}
+
+HWTEST_F(AudioUtRenderTest, RenderGetRenderPositionIsValid004, TestSize.Level0)
+{
+    uint32_t frameLen = (uint64_t)GetRenderBufferSize();
+    uint64_t requestBytes = frameLen;
+
+    int32_t ret = render_->Start(render_);
+    int i = 0;
+    EXPECT_EQ(ret, HDF_SUCCESS);
+
+    int8_t *frame = (int8_t *)calloc(1, frameLen);
+    EXPECT_NE(nullptr, frame);
+    for (i = 0; i < 1000; i++) {
+        ret |= render_->RenderFrame(render_, frame, frameLen, &requestBytes);
+        EXPECT_EQ(ret, HDF_SUCCESS);
+    }
+
+    EXPECT_EQ(HDF_SUCCESS, render_->Stop(render_));
+}
+
+HWTEST_F(AudioUtRenderTest, RenderGetRenderPositionIsValid005, TestSize.Level0)
+{
+    uint32_t frameLen = (uint64_t)GetRenderBufferSize();
+    uint64_t requestBytes = frameLen;
+
+    int32_t ret = render_->Start(render_);
+    EXPECT_EQ(ret, HDF_SUCCESS);
+
+    int8_t *frame = (int8_t *)calloc(1, frameLen);
+    EXPECT_NE(nullptr, frame);
+
+    ret = render_->RenderFrame(nullptr, frame, frameLen, &requestBytes);
+    EXPECT_NE(ret, HDF_SUCCESS);
+    render_->Stop(render_);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderGetRenderPositionIsValid006, TestSize.Level0)
+{
+    uint32_t frameLen = (uint64_t)GetRenderBufferSize();
+    uint64_t requestBytes = frameLen;
+
+    int32_t ret = render_->Start(render_);
+    EXPECT_EQ(ret, HDF_SUCCESS);
+
+    ret = render_->RenderFrame(render_, nullptr, frameLen, &requestBytes);
+    EXPECT_NE(ret, HDF_SUCCESS);
+    render_->Stop(render_);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderGetRenderPositionIsValid007, TestSize.Level0)
+{
+    uint32_t frameLen = (uint64_t)GetRenderBufferSize();
+
+    int32_t ret = render_->Start(render_);
+    EXPECT_EQ(ret, HDF_SUCCESS);
+
+    int8_t *frame = (int8_t *)calloc(1, frameLen);
+    EXPECT_NE(nullptr, frame);
+
+    ret = render_->RenderFrame(render_, frame, frameLen, nullptr);
+    EXPECT_NE(ret, HDF_SUCCESS);
+    render_->Stop(render_);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderGetRenderPositionIsValid008, TestSize.Level0)
+{
+    uint32_t frameLen = (uint64_t)GetRenderBufferSize();
+    uint64_t requestBytes = frameLen;
+
+    int32_t ret = render_->Start(render_);
+    EXPECT_EQ(ret, HDF_SUCCESS);
+
+    int8_t *frame = (int8_t *)calloc(1, frameLen);
+    EXPECT_NE(nullptr, frame);
+
+    ret = render_->RenderFrame(render_, frame, frameLen, &requestBytes);
+    EXPECT_EQ(ret, HDF_SUCCESS);
+
+    render_->Stop(render_);
+    if (frame != nullptr) {
+        free(frame);
+        frame = nullptr;
+    }
+}
 HWTEST_F(AudioUtRenderTest, RenderSetExtraParamsNull001, TestSize.Level1)
 {
     char keyValueList[AUDIO_RENDER_BUF_TEST];
@@ -856,10 +962,35 @@ HWTEST_F(AudioUtRenderTest, RenderGetGainThresholdNull001, TestSize.Level1)
     EXPECT_EQ(HDF_ERR_INVALID_OBJECT, render_->GetGainThreshold(nullptr, &min, &max));
 }
 
+HWTEST_F(AudioUtRenderTest, RenderGetGainThresholdNull002, TestSize.Level1)
+{
+    float max = 0.0;
+    int32_t ret = render_->GetGainThreshold(render_, nullptr, &max);
+    ASSERT_TRUE(ret == HDF_ERR_INVALID_PARAM || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderGetGainThresholdNull003, TestSize.Level1)
+{
+    float min = 0.0;
+    int32_t ret = render_->GetGainThreshold(render_, &min, nullptr);
+    ASSERT_TRUE(ret == HDF_ERR_INVALID_PARAM || ret == HDF_ERR_NOT_SUPPORT);
+}
+
 HWTEST_F(AudioUtRenderTest, RenderGetGainThresholdIsValid001, TestSize.Level0)
 {
     float min = 0.0;
     float max = 1.0;
+    int32_t ret = render_->GetGainThreshold(render_, &min, &max);
+
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+    EXPECT_GE(min, MIN_GAINTHRESHOLD);
+    EXPECT_LE(max, MAX_GAINTHRESHOLD);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderGetGainThresholdIsValid002, TestSize.Level0)
+{
+    float min = 0.0;
+    float max = 2.0;
     int32_t ret = render_->GetGainThreshold(render_, &min, &max);
 
     ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
@@ -1047,6 +1178,30 @@ HWTEST_F(AudioUtRenderTest, RenderSetGainIsValid001, TestSize.Level0)
     ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
 }
 
+HWTEST_F(AudioUtRenderTest, RenderSetGainIsValid002, TestSize.Level0)
+{
+    float gain = -1.0;
+    int32_t ret = render_->SetGain(render_, gain);
+
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetGainIsValid003, TestSize.Level0)
+{
+    float gain = 0.0;
+    int32_t ret = render_->SetGain(render_, gain);
+
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT || ret == HDF_ERR_INVALID_PARAM);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetGainIsValid004, TestSize.Level0)
+{
+    float gain = 2.0;
+    int32_t ret = render_->SetGain(render_, gain);
+
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT || ret == HDF_ERR_INVALID_PARAM);
+}
+
 HWTEST_F(AudioUtRenderTest, RenderSetMuteNull001, TestSize.Level1)
 {
     bool mute = false;
@@ -1073,6 +1228,29 @@ HWTEST_F(AudioUtRenderTest, RenderSetRenderSpeedIsValid001, TestSize.Level1)
     EXPECT_NE(HDF_SUCCESS, render_->SetRenderSpeed(render_, speed));
 }
 
+HWTEST_F(AudioUtRenderTest, RenderSetRenderSpeedIsValid002, TestSize.Level1)
+{
+    float speed = -1.0;
+    EXPECT_NE(HDF_SUCCESS, render_->SetRenderSpeed(render_, speed));
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetRenderSpeedIsValid003, TestSize.Level1)
+{
+    float speed = 0.0;
+    EXPECT_NE(HDF_SUCCESS, render_->SetRenderSpeed(render_, speed));
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetRenderSpeedIsValid004, TestSize.Level1)
+{
+    float speed = 2.0;
+    int i, ret = 0;
+    for (i = 0; i < 1000; i++) {
+        ret = render_->SetRenderSpeed(render_, speed);
+        ASSERT_EQ(ret, HDF_ERR_NOT_SUPPORT);
+    }
+    EXPECT_NE(HDF_SUCCESS, render_->SetRenderSpeed(render_, speed));
+}
+
 HWTEST_F(AudioUtRenderTest, RenderSetVolumeNull001, TestSize.Level1)
 {
     float volume = 0.2;
@@ -1089,6 +1267,33 @@ HWTEST_F(AudioUtRenderTest, RenderSetVolumeIsInValid002, TestSize.Level1)
 {
     float volume = 2.0;
     EXPECT_NE(HDF_SUCCESS, render_->SetVolume(render_, volume));
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetVolumeIsInValid003, TestSize.Level1)
+{
+    float volume = 0.0;
+    int32_t ret = render_->SetVolume(render_, volume);
+
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetVolumeIsInValid004, TestSize.Level1)
+{
+    float volume = 1.0;
+    int32_t ret = render_->SetVolume(render_, volume);
+
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetVolumeIsInValid005, TestSize.Level1)
+{
+    float volume = 1.0;
+    int32_t ret = render_->SetVolume(render_, volume);
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+
+    volume = 1.0;
+    ret = render_->SetVolume(render_, volume);
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
 }
 
 HWTEST_F(AudioUtRenderTest, RenderSetVolumeIsValid001, TestSize.Level1)
@@ -1133,10 +1338,71 @@ HWTEST_F(AudioUtRenderTest, RenderSetVolumeWithRamp004, TestSize.Level1)
     ASSERT_NE(HDF_SUCCESS, render_->SetVolumeWithRamp(render_, volume, duration));
 }
 
+HWTEST_F(AudioUtRenderTest, RenderSetVolumeWithRamp005, TestSize.Level1)
+{
+    float volume = 0.2;
+    uint32_t duration = 0;
+    int32_t ret = render_->SetVolumeWithRamp(render_, volume, duration);
+
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetVolumeWithRamp006, TestSize.Level1)
+{
+    float volume = 0.0;
+    uint32_t duration = 10;
+    int32_t ret = render_->SetVolumeWithRamp(render_, volume, duration);
+
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetVolumeWithRampshort001, TestSize.Level1)
+{
+    float volume = 0.2;
+    uint32_t duration = 5;
+    int32_t ret = render_->SetVolumeWithRamp(render_, volume, duration);
+
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetVolumeWithRampshort002, TestSize.Level1)
+{
+    float volume = 0.0;
+    uint32_t duration = 5;
+    int32_t ret = render_->SetVolumeWithRamp(render_, volume, duration);
+
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetVolumeWithRampshort003, TestSize.Level1)
+{
+    float volume = 2.0;
+    uint32_t duration = 5;
+
+    ASSERT_NE(HDF_SUCCESS, render_->SetVolumeWithRamp(render_, volume, duration));
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetVolumeWithRampshort004, TestSize.Level1)
+{
+    float volume = -1.0;
+    uint32_t duration = 5;
+
+    ASSERT_NE(HDF_SUCCESS, render_->SetVolumeWithRamp(render_, volume, duration));
+}
+
 HWTEST_F(AudioUtRenderTest, RenderSetVolumeWithRampNull001, TestSize.Level1)
 {
     float volume = 0.2;
     uint32_t duration = 10;
+    int32_t ret = render_->SetVolumeWithRamp(nullptr, volume, duration);
+
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_INVALID_OBJECT);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetVolumeWithRampNull002, TestSize.Level1)
+{
+    float volume = 0.2;
+    uint32_t duration = 5;
     int32_t ret = render_->SetVolumeWithRamp(nullptr, volume, duration);
 
     ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_INVALID_OBJECT);
@@ -1180,6 +1446,32 @@ HWTEST_F(AudioUtRenderTest, RenderSetAndGetVolumeWithRampNull002, TestSize.Level
 
     ret = render_->GetVolume(render_, NULL);
     ASSERT_TRUE(ret == HDF_ERR_INVALID_PARAM || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetAndGetVolumeWithRampNull003, TestSize.Level1)
+{
+    float targetvolume = 0.2;
+    uint32_t duration = 5;
+    int32_t ret = render_->SetVolumeWithRamp(nullptr, targetvolume, duration);
+
+    ASSERT_TRUE(ret == HDF_ERR_INVALID_OBJECT || ret == HDF_ERR_NOT_SUPPORT);
+
+    ret = render_->GetVolume(render_, NULL);
+    ASSERT_TRUE(ret == HDF_ERR_INVALID_PARAM || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderSetAndGetVolumeWithRampNull004, TestSize.Level1)
+{
+    float targetvolume = 0.2;
+    uint32_t duration = 5;
+    int32_t ret = render_->SetVolumeWithRamp(nullptr, targetvolume, duration);
+
+    ASSERT_TRUE(ret == HDF_ERR_INVALID_OBJECT || ret == HDF_ERR_NOT_SUPPORT);
+
+    float val = 0.0;
+    ret = render_->GetVolume(nullptr, &val);
+
+    ASSERT_TRUE(ret == HDF_ERR_INVALID_PARAM || ret == HDF_ERR_INVALID_OBJECT);
 }
 
 HWTEST_F(AudioUtRenderTest, RenderGetRenderSpeedIsInValid001, TestSize.Level0)
@@ -1364,6 +1656,23 @@ HWTEST_F(AudioUtRenderTest, RenderDrainBufferIsValid001, TestSize.Level1)
     EXPECT_EQ(HDF_ERR_NOT_SUPPORT, render_->DrainBuffer(render_, &type));
 }
 
+HWTEST_F(AudioUtRenderTest, RenderDrainBufferIsValid002, TestSize.Level1)
+{
+    enum AudioDrainNotifyType type = AUDIO_DRAIN_EARLY_MODE;
+    EXPECT_EQ(HDF_ERR_NOT_SUPPORT, render_->DrainBuffer(render_, &type));
+}
+
+HWTEST_F(AudioUtRenderTest, RenderDrainBufferIsValid003, TestSize.Level1)
+{
+    enum AudioDrainNotifyType type = AUDIO_DRAIN_NORMAL_MODE;
+    int i = 0;
+    int32_t ret = 0;
+    for (i = 0; i < 1000; i++) {
+        ret |= render_->DrainBuffer(render_, &type);
+        EXPECT_EQ(HDF_ERR_NOT_SUPPORT, ret);
+    }
+}
+
 HWTEST_F(AudioUtRenderTest, RenderIsSupportsDrainIsInValid001, TestSize.Level1)
 {
     bool support = false;
@@ -1373,11 +1682,28 @@ HWTEST_F(AudioUtRenderTest, RenderIsSupportsDrainIsInValid001, TestSize.Level1)
     ASSERT_TRUE(ret == HDF_ERR_NOT_SUPPORT || ret == HDF_ERR_INVALID_PARAM);
 }
 
+HWTEST_F(AudioUtRenderTest, RenderIsSupportsDrainIsInValid002, TestSize.Level1)
+{
+    int32_t ret = render_->IsSupportsDrain(nullptr, nullptr);
+    EXPECT_EQ(HDF_ERR_INVALID_OBJECT, ret);
+}
+
 HWTEST_F(AudioUtRenderTest, RenderIsSupportsDrainIsValid001, TestSize.Level1)
 {
     bool support = false;
     int32_t ret = render_->IsSupportsDrain(render_, &support);
     ASSERT_TRUE(ret == HDF_ERR_NOT_SUPPORT || ret == HDF_SUCCESS);
+}
+
+HWTEST_F(AudioUtRenderTest, RenderIsSupportsDrainIsValid002, TestSize.Level1)
+{
+    int i = 0;
+    int32_t ret = 0;
+    bool support = false;
+    for (i = 0; i < 100; i++) {
+        ret |= render_->IsSupportsDrain(render_, &support);
+        ASSERT_TRUE(ret == HDF_ERR_NOT_SUPPORT || ret == HDF_SUCCESS);
+    }
 }
 
 HWTEST_F(AudioUtRenderTest, RenderAddAudioEffectIsInValid001, TestSize.Level1)
@@ -1431,4 +1757,10 @@ HWTEST_F(AudioUtRenderTest, RenderIsSupportsPauseAndResumeIsValid001, TestSize.L
     ASSERT_TRUE(ret == HDF_ERR_NOT_SUPPORT || ret == HDF_ERR_INVALID_PARAM);
 }
 
+HWTEST_F(AudioUtRenderTest, RenderSetBufferSizeNull001, TestSize.Level1)
+{
+    uint32_t size = AUDIO_RENDER_BUF_TEST;
+    int32_t ret = render_->SetBufferSize(nullptr, size);
+    EXPECT_EQ(HDF_ERR_INVALID_OBJECT, ret);
+}
 } // end of namespace

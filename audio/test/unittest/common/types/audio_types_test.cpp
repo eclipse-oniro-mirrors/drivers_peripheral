@@ -70,6 +70,7 @@ HWTEST_F(HdfAudioUtTypesTest, HdfAudioTypesAudioPortPin001, TestSize.Level0)
     EXPECT_EQ(PIN_IN_PENCIL, (AudioPortPin)(1 << 27 | 1 << 7));
     EXPECT_EQ(PIN_IN_UWB, (AudioPortPin)(1 << 27 | 1 << 8));
     EXPECT_EQ(PIN_IN_NEARLINK, (AudioPortPin)(1 << 27 | 1 << 9));
+    EXPECT_EQ(PIN_IN_REAR_MIC, (AudioPortPin)(1 << 27 | 1 << 10));
 }
 
 HWTEST_F(HdfAudioUtTypesTest, HdfAudioTypesAudioCategory001, TestSize.Level0)
@@ -85,6 +86,7 @@ HWTEST_F(HdfAudioUtTypesTest, HdfAudioTypesAudioCategory001, TestSize.Level0)
     EXPECT_EQ(AUDIO_MMAP_VOIP, (AudioCategory)(8));
     EXPECT_EQ(AUDIO_IN_NAVIGATION, (AudioCategory)(9));
     EXPECT_EQ(AUDIO_DIRECT, (AudioCategory)(10));
+    EXPECT_EQ(AUDIO_TTS, (AudioCategory)(11));
     EXPECT_EQ(AUDIO_D2D, (AudioCategory)(12));
     EXPECT_EQ(AUDIO_ULTRA_LOW_LAT, (AudioCategory)(13));
 }
@@ -122,6 +124,7 @@ HWTEST_F(HdfAudioUtTypesTest, HdfAudioTypesAudioSampleRatesMask001, TestSize.Lev
     EXPECT_EQ(AUDIO_SAMPLE_RATE_MASK_48000, (AudioSampleRatesMask)(1 << 8));
     EXPECT_EQ(AUDIO_SAMPLE_RATE_MASK_64000, (AudioSampleRatesMask)(1 << 9));
     EXPECT_EQ(AUDIO_SAMPLE_RATE_MASK_96000, (AudioSampleRatesMask)(1 << 10));
+    EXPECT_EQ(AUDIO_SAMPLE_RATE_MASK_INVALID, (AudioSampleRatesMask)(4294967295));
 }
 
 HWTEST_F(HdfAudioUtTypesTest, HdfAudioTypesAudioPortPassthroughMode001, TestSize.Level0)
@@ -170,6 +173,14 @@ HWTEST_F(HdfAudioUtTypesTest, HdfAudioTypesAudioChannelMode001, TestSize.Level0)
     EXPECT_EQ(AUDIO_CHANNEL_LEFT_MUTE, (AudioChannelMode)(5));
     EXPECT_EQ(AUDIO_CHANNEL_RIGHT_MUTE, (AudioChannelMode)(6));
     EXPECT_EQ(AUDIO_CHANNEL_BOTH_MUTE, (AudioChannelMode)(7));
+}
+
+HWTEST_F(HdfAudioUtTypesTest, HdfAudioTypesAudioChannelMask001, TestSize.Level0)
+{
+    EXPECT_EQ(AUDIO_CHANNEL_FRONT_LEFT, (AudioChannelMask)(1));
+    EXPECT_EQ(AUDIO_CHANNEL_FRONT_RIGHT, (AudioChannelMask)(2));
+    EXPECT_EQ(AUDIO_CHANNEL_MONO, (AudioChannelMask)(1));
+    EXPECT_EQ(AUDIO_CHANNEL_STEREO, (AudioChannelMask)(3));
 }
 
 HWTEST_F(HdfAudioUtTypesTest, HdfAudioTypesAudioDrainNotifyType001, TestSize.Level0)
