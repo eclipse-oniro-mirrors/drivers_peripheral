@@ -257,7 +257,7 @@ HWTEST_F(HdfAudioUtManagerTest, HdfAudioManagerLoadAdapterInvalid_001, TestSize.
     ASSERT_NE(nullptr, descs);
 
     ASSERT_NE(HDF_SUCCESS, g_manager->GetAllAdapters(g_manager, descs, &size));
-    EXPECT_EQ(HDF_SUCCESS, g_manager->LoadAdapter(g_manager, &descs[0], &adapter));
+    EXPECT_NE(HDF_SUCCESS, g_manager->LoadAdapter(g_manager, &descs[0], &adapter));
 
     ReleaseAdapterDescs(&descs, g_audioAdapterNumMax);
 }
