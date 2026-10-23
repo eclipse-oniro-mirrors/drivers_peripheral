@@ -27,6 +27,8 @@ const int BUFFER_LENTH = 1024 * 16;
 const int DEEP_BUFFER_CAPTURE_PERIOD_SIZE = 4 * 1024;
 const int DEFAULT_BUFFER_SIZE = 16384;
 const float HALF_OF_MAX_VOLUME = 0.5;
+const float MAX_VOLUME = 0.5;
+const float MIN_VOLUME = 0.0;
 const int MOVE_LEFT_NUM = 8;
 const int TEST_SAMPLE_RATE_MASK_48000 = 48000;
 const int TEST_CHANNEL_COUNT = 2;
@@ -181,6 +183,7 @@ void AudioUtCaptureTest::TearDown()
 {
     ASSERT_NE(devDescriptorName_, nullptr);
     free(devDescriptorName_);
+    devDescriptorName_ = nullptr;
 
     ASSERT_NE(capture_, nullptr);
     EXPECT_EQ(HDF_SUCCESS, adapter_->DestroyCapture(adapter_, captureId_));
@@ -629,6 +632,40 @@ HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureSetVolume001, TestSize.Level0)
     }
 }
 
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureSetVolume002, TestSize.Level0)
+{
+    float volume = 0.0;
+    EXPECT_NE(capture_->SetVolume, nullptr);
+    EXPECT_NE(capture_->GetVolume, nullptr);
+
+    int32_t ret = capture_->SetVolume(capture_, MAX_VOLUME);
+    if (ret == HDF_SUCCESS) {
+        ret = capture_->GetVolume(capture_, &volume);
+        ASSERT_EQ(volume, MAX_VOLUME);
+    } else if (ret == HDF_ERR_NOT_SUPPORT) {
+        ASSERT_TRUE(true);
+    } else {
+        ASSERT_TRUE(false);
+    }
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureSetVolume003, TestSize.Level0)
+{
+    float volume = 0.0;
+    EXPECT_NE(capture_->SetVolume, nullptr);
+    EXPECT_NE(capture_->GetVolume, nullptr);
+
+    int32_t ret = capture_->SetVolume(capture_, MIN_VOLUME);
+    if (ret == HDF_SUCCESS) {
+        ret = capture_->GetVolume(capture_, &volume);
+        ASSERT_EQ(volume, MIN_VOLUME);
+    } else if (ret == HDF_ERR_NOT_SUPPORT) {
+        ASSERT_TRUE(true);
+    } else {
+        ASSERT_TRUE(false);
+    }
+}
+
 HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureSetVolumeException001, TestSize.Level1)
 {
     float exceptionVolume = 2.0;
@@ -647,6 +684,22 @@ HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureSetVolumeException002, TestSize.Leve
     EXPECT_NE(capture_->SetVolume, nullptr);
 
     int32_t ret = capture_->SetVolume(nullptr, HALF_OF_MAX_VOLUME);
+    EXPECT_NE(ret, HDF_SUCCESS);
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureSetVolumeException003, TestSize.Level1)
+{
+    EXPECT_NE(capture_->SetVolume, nullptr);
+
+    int32_t ret = capture_->SetVolume(nullptr, MAX_VOLUME);
+    EXPECT_NE(ret, HDF_SUCCESS);
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureSetVolumeException004, TestSize.Level1)
+{
+    EXPECT_NE(capture_->SetVolume, nullptr);
+
+    int32_t ret = capture_->SetVolume(nullptr, MIN_VOLUME);
     EXPECT_NE(ret, HDF_SUCCESS);
 }
 
@@ -743,6 +796,29 @@ HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureGetGainException001, TestSize.Level1
     EXPECT_NE(ret, HDF_SUCCESS);
 }
 
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureGetGainException002, TestSize.Level1)
+{
+    EXPECT_NE(capture_->SetGain, nullptr);
+    float exceptionGain = 0.0;
+
+    int32_t ret = capture_->GetGain(capture_, nullptr);
+    EXPECT_NE(ret, HDF_SUCCESS);
+
+    ret = capture_->GetGain(nullptr, &exceptionGain);
+    EXPECT_NE(ret, HDF_SUCCESS);
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureGetGainException003, TestSize.Level1)
+{
+    EXPECT_NE(capture_->SetGain, nullptr);
+    float exceptionGain = -3.0;
+
+    int32_t ret = capture_->GetGain(capture_, nullptr);
+    EXPECT_NE(ret, HDF_SUCCESS);
+
+    ret = capture_->GetGain(nullptr, &exceptionGain);
+    EXPECT_NE(ret, HDF_SUCCESS);
+}
 /**
  * @brief here starts the attributes cases
  */
@@ -1296,4 +1372,96 @@ HWTEST_F(AudioUtCaptureTest, CaptureGetFrameCountIsValid001, TestSize.Level0)
     EXPECT_EQ(HDF_SUCCESS, capture_->GetFrameCount(capture_, &frameCount));
 }
 
+HWTEST_F(AudioUtCaptureTest, CaptureGetFrameCount001, TestSize.Level0)
+{
+    ASSERT_NE(capture_->GetFrameCount, nullptr);
+    uint64_t frameCount = 0;
+
+    int32_t ret = capture_->GetFrameCount(capture_, &frameCount);
+    EXPECT_EQ(HDF_SUCCESS, ret);
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureGetFrameCountException001, TestSize.Level0)
+{
+    ASSERT_NE(capture_->GetFrameCount, nullptr);
+    uint64_t frameCount = 0;
+
+    int32_t ret = capture_->GetFrameCount(capture_, nullptr);
+    EXPECT_NE(HDF_SUCCESS, ret);
+
+    ret = capture_->GetFrameCount(nullptr, &frameCount);
+    EXPECT_NE(HDF_SUCCESS, ret);
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureGetFrameSize001, TestSize.Level0)
+{
+    ASSERT_NE(capture_->GetFrameSize, nullptr);
+    uint64_t frameSize = 0;
+
+    int32_t ret = capture_->GetFrameSize(capture_, &frameSize);
+    EXPECT_EQ(HDF_SUCCESS, ret);
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureGetFrameSizeException001, TestSize.Level0)
+{
+    ASSERT_NE(capture_->GetFrameSize, nullptr);
+    uint64_t frameSize = 0;
+
+    int32_t ret = capture_->GetFrameSize(nullptr, &frameSize);
+    EXPECT_NE(HDF_SUCCESS, ret);
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureGetFrameSizeException002, TestSize.Level0)
+{
+    ASSERT_NE(capture_->GetFrameSize, nullptr);
+
+    int32_t ret = capture_->GetFrameSize(capture_, nullptr);
+    EXPECT_NE(HDF_SUCCESS, ret);
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureGetVersionV6_1001, TestSize.Level0)
+{
+    ASSERT_NE(capture_->GetVersionV6_1, nullptr);
+    uint32_t majorVer;
+    uint32_t minorVer;
+
+    int32_t ret = capture_->GetVersionV6_1(capture_, &majorVer, &minorVer);
+    if (ret == HDF_ERR_NOT_SUPPORT) {
+        GTEST_SKIP() << "test not support" << std::endl;
+    }
+    ASSERT_TRUE(HDF_SUCCESS == ret);
+    EXPECT_EQ(IAUDIO_MANAGER_MAJOR_VERSION, majorVer);
+    EXPECT_EQ(IAUDIO_MANAGER_MINOR_VERSION, minorVer);
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureGetVersionV6_1Exception001, TestSize.Level1)
+{
+    ASSERT_NE(capture_->GetVersionV6_1, nullptr);
+    uint32_t majorVer;
+    uint32_t minorVer;
+
+    int32_t ret = capture_->GetVersionV6_1(capture_, &majorVer, &minorVer);
+    if (ret == HDF_ERR_NOT_SUPPORT) {
+        GTEST_SKIP() << "test not support" << std::endl;
+    }
+    EXPECT_EQ(HDF_ERR_INVALID_OBJECT, ret);
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureRegCallback001, TestSize.Level1)
+{
+    ASSERT_NE(capture_->RegCallback, nullptr);
+    struct IAudioCaptureCallback *audioCallback = nullptr;
+
+    int32_t ret = capture_->RegCallback(capture_, audioCallback);
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_INVALID_PARAM);
+}
+
+HWTEST_F(AudioUtCaptureTest, HdfAudioCaptureRegCallbackException001, TestSize.Level1)
+{
+    ASSERT_NE(capture_->RegCallback, nullptr);
+    struct IAudioCaptureCallback *audioCallback = nullptr;
+
+    int32_t ret = capture_->RegCallback(nullptr, audioCallback);
+    EXPECT_EQ(HDF_ERR_INVALID_OBJECT, ret);
+}
 } // end of name space

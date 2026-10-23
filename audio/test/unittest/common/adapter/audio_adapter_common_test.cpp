@@ -685,6 +685,111 @@ HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterCreateRenderIsvalid024, TestSize.
 #endif
 }
 
+HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterCreateRender001, TestSize.Level0)
+{
+    struct IAudioRender *render = nullptr;
+    struct AudioDeviceDescriptor devicedesc = {};
+    struct AudioSampleAttributes attrs = {};
+    InitDevDesc(devicedesc);
+    devicedesc.desc = const_cast<char*>("primary");
+    devicedesc.pins = PIN_OUT_SPEAKER;
+    InitAttrs(attrs);
+    attrs.format = AUDIO_FORMAT_TYPE_PCM_8_BIT;
+
+    int32_t ret = adapter_->CreateRender(adapter_, &devicedesc, &attrs, &render, &renderId_);
+    if (ret == HDF_ERR_NOT_SUPPORT) {
+        GTEST_SKIP() << "CreateRender not support" << std::endl;
+    }
+    ASSERT_TRUE(ret == HDF_SUCCESS);
+    if (ret == HDF_SUCCESS) {
+        EXPECT_EQ(HDF_SUCCESS, adapter_->DestroyRender(adapter_, renderId_));
+    }
+}
+
+HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterCreateRender002, TestSize.Level0)
+{
+    struct IAudioRender *render = nullptr;
+    struct AudioDeviceDescriptor devicedesc = {};
+    struct AudioSampleAttributes attrs = {};
+    InitDevDesc(devicedesc);
+    devicedesc.desc = const_cast<char*>("primary");
+    devicedesc.pins = PIN_OUT_SPEAKER;
+    InitAttrs(attrs);
+    attrs.format = AUDIO_FORMAT_TYPE_PCM_24_BIT;
+
+    int32_t ret = adapter_->CreateRender(adapter_, &devicedesc, &attrs, &render, &renderId_);
+    if (ret == HDF_ERR_NOT_SUPPORT) {
+        GTEST_SKIP() << "CreateRender not support" << std::endl;
+    }
+    ASSERT_TRUE(ret == HDF_SUCCESS);
+    if (ret == HDF_SUCCESS) {
+        EXPECT_EQ(HDF_SUCCESS, adapter_->DestroyRender(adapter_, renderId_));
+    }
+}
+
+HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterCreateRender003, TestSize.Level0)
+{
+    struct IAudioRender *render = nullptr;
+    struct AudioDeviceDescriptor devicedesc = {};
+    struct AudioSampleAttributes attrs = {};
+    InitDevDesc(devicedesc);
+    devicedesc.desc = const_cast<char*>("primary");
+    devicedesc.pins = PIN_OUT_SPEAKER;
+    InitAttrs(attrs);
+    attrs.sampleRate = 44100;
+
+    int32_t ret = adapter_->CreateRender(adapter_, &devicedesc, &attrs, &render, &renderId_);
+    if (ret == HDF_ERR_NOT_SUPPORT) {
+        GTEST_SKIP() << "CreateRender not support" << std::endl;
+    }
+    ASSERT_TRUE(ret == HDF_SUCCESS);
+    if (ret == HDF_SUCCESS) {
+        EXPECT_EQ(HDF_SUCCESS, adapter_->DestroyRender(adapter_, renderId_));
+    }
+}
+
+HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterCreateRender004, TestSize.Level0)
+{
+    struct IAudioRender *render = nullptr;
+    struct AudioDeviceDescriptor devicedesc = {};
+    struct AudioSampleAttributes attrs = {};
+    InitDevDesc(devicedesc);
+    devicedesc.desc = const_cast<char*>("primary");
+    devicedesc.pins = PIN_OUT_SPEAKER;
+    InitAttrs(attrs);
+    attrs.sampleRate = 96000;
+
+    int32_t ret = adapter_->CreateRender(adapter_, &devicedesc, &attrs, &render, &renderId_);
+    if (ret == HDF_ERR_NOT_SUPPORT) {
+        GTEST_SKIP() << "CreateRender not support" << std::endl;
+    }
+    ASSERT_TRUE(ret == HDF_SUCCESS);
+    if (ret == HDF_SUCCESS) {
+        EXPECT_EQ(HDF_SUCCESS, adapter_->DestroyRender(adapter_, renderId_));
+    }
+}
+
+HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterCreateRender005, TestSize.Level0)
+{
+    struct IAudioRender *render = nullptr;
+    struct AudioDeviceDescriptor devicedesc = {};
+    struct AudioSampleAttributes attrs = {};
+    InitDevDesc(devicedesc);
+    devicedesc.desc = const_cast<char*>("primary");
+    devicedesc.pins = PIN_OUT_SPEAKER;
+    InitAttrs(attrs);
+    attrs.sampleRate = 192000;
+
+    int32_t ret = adapter_->CreateRender(adapter_, &devicedesc, &attrs, &render, &renderId_);
+    if (ret == HDF_ERR_NOT_SUPPORT  ) {
+        GTEST_SKIP() << "CreateRender not support" << std::endl;
+    }
+    ASSERT_TRUE(ret == HDF_SUCCESS);
+    if (ret == HDF_SUCCESS) {
+        EXPECT_EQ(HDF_SUCCESS, adapter_->DestroyRender(adapter_, renderId_));
+    }
+}
+
 HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterCreateRenderID2d001, TestSize.Level0)
 {
     struct IAudioRender *render = nullptr;
@@ -1514,6 +1619,25 @@ HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterGetPortCapabilityIsvalid001, Test
     ASSERT_TRUE(ret == HDF_SUCCESS);
 }
 
+HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterGetPortCapabilityIsvalid002, TestSize.Level1)
+{
+    struct AudioPort port = {};
+    struct AudioPortCapability capability = {};
+    ASSERT_NE(adapterDescs_, nullptr);
+    ASSERT_NE(adapterDescs_->ports, nullptr);
+    for (uint32_t index =0; index < adapterDescs_->portsLen; index++) {
+        if (adapterDescs_->ports[index].dir == PORT_IN) {
+            port = adapterDescs_->ports[index];
+            break;
+        }
+    }
+    int32_t ret = adapter_->GetPortCapability(adapter_, &port, &capability);
+    if (ret == HDF_ERR_NOT_SUPPORT) {
+        GTEST_SKIP() << "GetPortCapability not support" << std::endl;
+    }
+    ASSERT_TRUE(ret == HDF_SUCCESS);
+}
+
 HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterSetPassthroughModeNull001, TestSize.Level1)
 {
     enum AudioPortPassthroughMode mode = PORT_PASSTHROUGH_LPCM;
@@ -1608,6 +1732,13 @@ HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterSetMicMuteIsvalid001, TestSize.Le
     ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
 }
 
+HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterSetMicMuteIsvalid002, TestSize.Level0)
+{
+    bool mute = true;
+    int32_t ret = adapter_->SetMicMute(adapter_, mute);
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
 HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterGetMicMuteNull001, TestSize.Level1)
 {
     EXPECT_NE(HDF_SUCCESS, adapter_->GetMicMute(nullptr, nullptr));
@@ -1626,6 +1757,13 @@ HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterGetMicMuteIsvalid001, TestSize.Le
     ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
 }
 
+HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterGetMicMuteIsvalid002, TestSize.Level0)
+{
+    bool mute = true;
+    int32_t ret = adapter_->GetMicMute(adapter_, &mute);
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
 HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterSetVoiceVolumeNull001, TestSize.Level1)
 {
     float volume = 0;
@@ -1635,6 +1773,20 @@ HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterSetVoiceVolumeNull001, TestSize.L
 HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterSetVoiceVolumeIsvalid001, TestSize.Level0)
 {
     float volume = 0;
+    int32_t ret = adapter_->SetVoiceVolume(adapter_, volume);
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterSetVoiceVolumeIsvalid002, TestSize.Level0)
+{
+    float volume = 1.0;
+    int32_t ret = adapter_->SetVoiceVolume(adapter_, volume);
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterSetVoiceVolumeIsvalid003, TestSize.Level0)
+{
+    float volume = 2.0;
     int32_t ret = adapter_->SetVoiceVolume(adapter_, volume);
     ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
 }
@@ -1658,6 +1810,15 @@ HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterSetExtraParamsIsvalid001, TestSiz
     enum AudioExtParamKey key = AUDIO_EXT_PARAM_KEY_LOWPOWER;
     char condition[AUDIO_ADAPTER_BUF_TEST];
     const char *value = "sup_sampling_rates=4800;sup_channels=1;sup_formats=2;";
+    int32_t ret = adapter_->SetExtraParams(adapter_, key, condition, value);
+    ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
+}
+
+HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterSetExtraParamsIsvalid002, TestSize.Level0)
+{
+    enum AudioExtParamKey key = AUDIO_EXT_PARAM_KEY_LOWPOWER;
+    char condition[AUDIO_ADAPTER_BUF_TEST] = "EVENT_TYPE=1;VOLUME_GROUP_ID=1;AUDIO_VOLUME_TYPE=1;";
+    const char *value = "1";
     int32_t ret = adapter_->SetExtraParams(adapter_, key, condition, value);
     ASSERT_TRUE(ret == HDF_SUCCESS || ret == HDF_ERR_NOT_SUPPORT);
 }
@@ -1859,7 +2020,7 @@ HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterCreateRenderUltraLowLat001, TestS
         EXPECT_EQ(HDF_SUCCESS, ret);
     }
 }
-
+ 
 HWTEST_F(HdfAudioUtAdapterTest, HdfAudioAdapterCreateCaptureUltraLowLat001, TestSize.Level0)
 {
     struct IAudioCapture *capture = nullptr;

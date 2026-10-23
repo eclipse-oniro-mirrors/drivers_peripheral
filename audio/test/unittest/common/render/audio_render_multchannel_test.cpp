@@ -151,4 +151,14 @@ void AudioUtRenderMultchannelTest::TearDown()
     }
 }
 
+HWTEST_F(AudioUtRenderMultchannelTest, testCommonRenderGetLatency001, TestSize.Level1)
+{
+    uint32_t ms = 0;
+    int i, ret = 0;
+    for (i = 0; i < 1000; i++) {
+        ret |= render_->GetLatency(render_, &ms);
+        EXPECT_EQ(HDF_SUCCESS, ret);
+    }
+}
+
 } // end of namespace
