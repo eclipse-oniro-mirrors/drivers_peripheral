@@ -145,7 +145,12 @@ int32_t AllocatorService::AllocMem(const AllocInfo& info, sptr<NativeBuffer>& ha
         HdfTrace traceOne("AllocMem-VDI", "HDI:VDI:");
         int32_t ec = vdiImpl_->AllocMem(info, buffer);
         if (ec != HDF_SUCCESS) {
-            HDF_LOGE("%{public}s: AllocMem failed, ec = %{public}d", __func__, ec);
+            static int64_t allocMemErrorCount = 0;
+            allocMemErrorCount++;
+            if (allocMemErrorCount % 10 == 0) {
+                HDF_LOGE("%{public}s: AllocMem failed, ec = %{public}d, allocMemErrorCount:%{public}d",
+                    __func__, ec, allocMemErrorCount);
+            }
             return ec;
         }
     }
