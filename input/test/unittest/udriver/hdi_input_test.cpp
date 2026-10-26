@@ -1175,3 +1175,286 @@ HWTEST_F(HdiInputTest, GetDeviceList001, TestSize.Level0)
     }
     EXPECT_NE(ret, INPUT_SUCCESS);
 }
+
+/**
+  * @tc.name: GetFiles001
+  * @tc.desc: Get Files with invalid path
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, GetFiles001, TestSize.Level1)
+{
+    printf("%s: [Input] GetFiles001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    vector<string> fileList = iInputDeviceManager.GetFiles("/dev/input_invalid_path_not_exist");
+    EXPECT_TRUE(fileList.empty());
+}
+
+/**
+  * @tc.name: GetFiles002
+  * @tc.desc: Get Files with empty path
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, GetFiles002, TestSize.Level1)
+{
+    printf("%s: [Input] GetFiles002 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    vector<string> fileList = iInputDeviceManager.GetFiles("");
+    EXPECT_TRUE(fileList.empty());
+}
+
+/**
+  * @tc.name: OpenInputDeviceMgr001
+  * @tc.desc: Open Input Device with invalid path
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, OpenInputDeviceMgr001, TestSize.Level1)
+{
+    printf("%s: [Input] OpenInputDeviceMgr001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    int32_t ret = iInputDeviceManager.OpenInputDevice("/dev/input/event_not_exist");
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: OpenInputDeviceMgr002
+  * @tc.desc: Open Input Device with empty path
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, OpenInputDeviceMgr002, TestSize.Level1)
+{
+    printf("%s: [Input] OpenInputDeviceMgr002 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    int32_t ret = iInputDeviceManager.OpenInputDevice("");
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: CloseInputDeviceMgr001
+  * @tc.desc: Close Input Device with path not in dev list
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, CloseInputDeviceMgr001, TestSize.Level1)
+{
+    printf("%s: [Input] CloseInputDeviceMgr001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    RetStatus ret = iInputDeviceManager.CloseInputDevice("/dev/input/event_not_in_list");
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: AddToEpoll001
+  * @tc.desc: Add To Epoll with invalid epoll fd
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, AddToEpoll001, TestSize.Level1)
+{
+    printf("%s: [Input] AddToEpoll001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    int32_t ret = iInputDeviceManager.AddToEpoll(INVALID_INDEX1, g_fileDescriptorFirst);
+    EXPECT_NE(ret, INPUT_SUCCESS);
+}
+
+/**
+  * @tc.name: AddToEpoll002
+  * @tc.desc: Add To Epoll with invalid file fd
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, AddToEpoll002, TestSize.Level1)
+{
+    printf("%s: [Input] AddToEpoll002 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    int32_t ret = iInputDeviceManager.AddToEpoll(g_fileDescriptorFirst, INVALID_INDEX1);
+    EXPECT_NE(ret, INPUT_SUCCESS);
+}
+
+/**
+  * @tc.name: RemoveEpoll001
+  * @tc.desc: Remove From Epoll with invalid fds, should not crash
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, RemoveEpoll001, TestSize.Level1)
+{
+    printf("%s: [Input] RemoveEpoll001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    iInputDeviceManager.RemoveEpoll(INVALID_INDEX1, INVALID_INDEX1);
+    EXPECT_TRUE(true);
+}
+
+/**
+  * @tc.name: GetInputDeviceInfo001
+  * @tc.desc: Get Input Device Info with invalid fd
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, GetInputDeviceInfo001, TestSize.Level1)
+{
+    printf("%s: [Input] GetInputDeviceInfo001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    InputDeviceInfo detailInfo {};
+    int32_t ret = iInputDeviceManager.GetInputDeviceInfo(INVALID_INDEX1, &detailInfo);
+    EXPECT_EQ(ret, INPUT_SUCCESS);
+}
+
+/**
+  * @tc.name: OpenDevice001
+  * @tc.desc: Open Device with index out of range
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, OpenDevice001, TestSize.Level1)
+{
+    printf("%s: [Input] OpenDevice001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    RetStatus ret = iInputDeviceManager.OpenDevice(INVALID_DEV_INDEX);
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: CloseDevice001
+  * @tc.desc: Close Device with index out of range
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, CloseDevice001, TestSize.Level1)
+{
+    printf("%s: [Input] CloseDevice001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    RetStatus ret = iInputDeviceManager.CloseDevice(INVALID_DEV_INDEX);
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: GetDevice001
+  * @tc.desc: Get Device with null devInfo pointer
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, GetDevice001, TestSize.Level1)
+{
+    printf("%s: [Input] GetDevice001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    InputDeviceInfo *devInfo = nullptr;
+    int32_t ret = iInputDeviceManager.GetDevice(g_touchIndex, &devInfo);
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: GetDevice002
+  * @tc.desc: Get Device with invalid index
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, GetDevice002, TestSize.Level1)
+{
+    printf("%s: [Input] GetDevice002 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    InputDeviceInfo *devInfo = nullptr;
+    int32_t ret = iInputDeviceManager.GetDevice(INVALID_INDEX1, &devInfo);
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: RegisterReportCallbackMgr001
+  * @tc.desc: Register Report Callback with index out of range
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, RegisterReportCallbackMgr001, TestSize.Level1)
+{
+    printf("%s: [Input] RegisterReportCallbackMgr001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    RetStatus ret = iInputDeviceManager.RegisterReportCallback(INVALID_DEV_INDEX, &g_callback);
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: UnregisterReportCallbackMgr001
+  * @tc.desc: Unregister Report Callback with index out of range
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, UnregisterReportCallbackMgr001, TestSize.Level1)
+{
+    printf("%s: [Input] UnregisterReportCallbackMgr001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    RetStatus ret = iInputDeviceManager.UnregisterReportCallback(INVALID_DEV_INDEX);
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: SetPowerStatusMgr001
+  * @tc.desc: Set Power Status with unknown status value
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, SetPowerStatusMgr001, TestSize.Level1)
+{
+    printf("%s: [Input] SetPowerStatusMgr001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    RetStatus ret = iInputDeviceManager.SetPowerStatus(g_touchIndex, INPUT_POWER_STATUS_UNKNOWN);
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: GetChipInfoMgr001
+  * @tc.desc: Get Chip Info with null pointer
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, GetChipInfoMgr001, TestSize.Level1)
+{
+    printf("%s: [Input] GetChipInfoMgr001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    RetStatus ret = iInputDeviceManager.GetChipInfo(g_touchIndex, nullptr, TEST_LEN1);
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: GetVendorNameMgr001
+  * @tc.desc: Get Vendor Name with null pointer
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, GetVendorNameMgr001, TestSize.Level1)
+{
+    printf("%s: [Input] GetVendorNameMgr001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    RetStatus ret = iInputDeviceManager.GetVendorName(g_touchIndex, nullptr, TEST_LEN1);
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: GetChipNameMgr001
+  * @tc.desc: Get Chip Name with null pointer
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, GetChipNameMgr001, TestSize.Level1)
+{
+    printf("%s: [Input] GetChipNameMgr001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    RetStatus ret = iInputDeviceManager.GetChipName(g_touchIndex, nullptr, TEST_LEN1);
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
+
+/**
+  * @tc.name: RunExtraCommandMgr001
+  * @tc.desc: Run Extra Command with null cmd pointer
+  * @tc.type: FUNC
+  * @tc.require: SR000F867Q
+  */
+HWTEST_F(HdiInputTest, RunExtraCommandMgr001, TestSize.Level1)
+{
+    printf("%s: [Input] RunExtraCommandMgr001 enter\n", __func__);
+    InputDeviceManager iInputDeviceManager;
+    RetStatus ret = iInputDeviceManager.RunExtraCommand(g_touchIndex, nullptr);
+    EXPECT_EQ(ret, INPUT_FAILURE);
+}
