@@ -207,7 +207,7 @@ int32_t MapperService::AllocMem(const AllocInfo& info, sptr<NativeBuffer>& handl
 
     handle = new NativeBuffer();
     if (handle == nullptr) {
-        HDF_LOGD("%{public}s: new NativeBuffer failed", __func__);
+        HDF_LOGE("%{public}s: new NativeBuffer failed", __func__);
         FreeMemVdi(buffer);
         return HDF_FAILURE;
     }
