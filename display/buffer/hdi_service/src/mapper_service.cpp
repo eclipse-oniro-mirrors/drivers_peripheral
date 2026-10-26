@@ -199,7 +199,7 @@ int32_t MapperService::AllocMem(const AllocInfo& info, sptr<NativeBuffer>& handl
     HdfTrace traceOne("AllocMem-VDI", "HDI:VDI:");
     int32_t ec = vdiImpl_->AllocMem(info, buffer);
     if (ec != HDF_SUCCESS) {
-        HDF_LOGE("%{public}s: AllocMem failed, ec = %{public}d", __func__, ec);
+        HDF_LOGD("%{public}s: AllocMem failed, ec = %{public}d", __func__, ec);
         return ec;
     }
 
@@ -207,7 +207,7 @@ int32_t MapperService::AllocMem(const AllocInfo& info, sptr<NativeBuffer>& handl
 
     handle = new NativeBuffer();
     if (handle == nullptr) {
-        HDF_LOGD("%{public}s: new NativeBuffer failed", __func__);
+        HDF_LOGE("%{public}s: new NativeBuffer failed", __func__);
         FreeMemVdi(buffer);
         return HDF_FAILURE;
     }
