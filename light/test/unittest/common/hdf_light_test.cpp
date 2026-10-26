@@ -484,3 +484,59 @@ HWTEST_F(HdfLightTest, DisableLight001, TestSize.Level1)
     int32_t ret = g_lightDev->TurnOffLight(lightId);
     EXPECT_EQ(HDF_FAILURE, ret);
 }
+
+/**
+  * @tc.name: TurnOnMultiLights001
+  * @tc.desc: Verifies parameter validity of TurnOnMultiLights: invalid lightId, null colors,
+  *           count == 0 and count > MULTI_LIGHT_MAX_NUMBER. Pure parameter validation,
+  *           no hardware dependency.
+  * @tc.type: FUNC
+  * @tc.require: AR000F8QNL
+  */
+HWTEST_F(HdfLightTest, TurnOnMultiLights001, TestSize.Level1)
+{
+    // MULTI_LIGHT_MAX_NUMBER is 48 in light_controller.c; one more must be rejected.
+    const uint32_t MULTI_LIGHT_OVER_MAX = 49;
+    struct LightColor color = {};
+
+    EXPECT_EQ(HDF_ERR_NOT_SUPPORT, g_lightDev->TurnOnMultiLights(LIGHT_ID_BUTT, &color, 1));
+    EXPECT_EQ(HDF_ERR_INVALID_PARAM, g_lightDev->TurnOnMultiLights(LIGHT_ID_BATTERY, nullptr, 1));
+    EXPECT_EQ(HDF_ERR_INVALID_PARAM, g_lightDev->TurnOnMultiLights(LIGHT_ID_BATTERY, &color, 0));
+    EXPECT_EQ(HDF_ERR_INVALID_PARAM,
+        g_lightDev->TurnOnMultiLights(LIGHT_ID_BATTERY, &color, MULTI_LIGHT_OVER_MAX));
+}
+
+/**
+  * @tc.name: TurnOnMultiLights002
+  * @tc.desc: Turns on a multi-color effect on every available light in the list, then turns it off.
+  *           Mirrors the existing EnableLight001 pattern but exercises the multi-light path.
+  * @tc.type: FUNC
+  * @tc.require: AR000F8QNL
+  */
+HWTEST_F(HdfLightTest, TurnOnMultiLights002, TestSize.Level1)
+{
+    if (g_lightInfo == nullptr) {
+        EXPECT_NE(nullptr, g_lightInfo);
+        return;
+    }
+
+    struct LightColor color1 = {};
+    color1.colorValue.rgbColor.r = 255;
+    color1.colorValue.rgbColor.g = 0;
+    color1.colorValue.rgbColor.b = 0;
+    struct LightColor color2 = {};
+    color2.colorValue.rgbColor.r = 0;
+    color2.colorValue.rgbColor.g = 255;
+    color2.colorValue.rgbColor.b = 0;
+    struct LightColor colors[2] = { color1, color2 };
+
+    for (uint32_t i = 0; i < g_count; ++i) {
+        int32_t ret = g_lightDev->TurnOnMultiLights(g_lightInfo[i].lightId, colors, 2);
+        EXPECT_EQ(0, ret);
+
+        OsalSleep(SHORT_WAIT_TIME);
+
+        ret = g_lightDev->TurnOffLight(g_lightInfo[i].lightId);
+        EXPECT_EQ(0, ret);
+    }
+}
