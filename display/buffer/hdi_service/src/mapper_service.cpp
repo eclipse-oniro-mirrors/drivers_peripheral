@@ -207,7 +207,7 @@ int32_t MapperService::AllocMem(const AllocInfo& info, sptr<NativeBuffer>& handl
 
     handle = new NativeBuffer();
     if (handle == nullptr) {
-        HDF_LOGE("%{public}s: new NativeBuffer failed", __func__);
+        HDF_LOGD("%{public}s: new NativeBuffer failed", __func__);
         FreeMemVdi(buffer);
         return HDF_FAILURE;
     }
@@ -237,7 +237,7 @@ int32_t MapperService::ReAllocMem(const AllocInfo& info,
 
     int32_t ec = vdiImpl_->ReAllocMem(info, *inHandle, outHandle);
     if (ec != HDF_SUCCESS) {
-        HDF_LOGE("%{public}s: ReAllocMem failed, ec = %{public}d", __func__, ec);
+        HDF_LOGD("%{public}s: ReAllocMem failed, ec = %{public}d", __func__, ec);
         return ec;
     }
 
