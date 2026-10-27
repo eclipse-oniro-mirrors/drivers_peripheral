@@ -18,6 +18,12 @@
 
 #include "wifi_driver_client.h"
 
+#ifdef __cplusplus
+#if __cplusplus
+extern "C" {
+#endif
+#endif
+
 enum PlatformServiceID {
     INTERFACE_SERVICE_ID = 0,
     BASE_SERVICE_ID,
@@ -177,10 +183,18 @@ typedef enum {
 #define BYTE_UNIT_8   8
 
 void WifiEventReport(const char *ifName, uint32_t event, void *data);
+const char *WifiGetActionReportIfName(const char *ifName);
 void Hid2dEventReport(const char *ifName, const uint8_t *msg, uint32_t msgLen);
 int32_t InitEventcallbackMutex(void);
 void DeinitEventcallbackMutex(void);
 void FreeScanResult(WifiScanResult *res);
 void FreeScanResults(WifiScanResults *res);
 int32_t InitScanResults(WifiScanResults *scanResults);
+
+#ifdef __cplusplus
+#if __cplusplus
+}
+#endif
+#endif
+
 #endif /* end of wifi_common_cmd.h */

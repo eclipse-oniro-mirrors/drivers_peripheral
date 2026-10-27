@@ -657,7 +657,11 @@ int32_t WifiChip::RemoveStaService(const std::string& ifname)
 int32_t WifiChip::CreateExtService(const std::string& ifName, sptr<IChipIface>& iface)
 {
     HDF_LOGI("enter CreateExtService");
-    WifiError status = vendorHal_.lock()->CreateVirtualInterface(ifName, HalIfaceType::HAL_TYPE_P2P);
+    HalIfaceType ifaceType = HalIfaceType::HAL_TYPE_P2P;
+    if (ifName == WDLENHANCE_NAME) {
+        ifaceType = HalIfaceType::HAL_TYPE_WDLENHANCE;
+    }
+    WifiError status = vendorHal_.lock()->CreateVirtualInterface(ifName, ifaceType);
     if (status != WifiError::HAL_SUCCESS) {
         HDF_LOGE("Failed to add interface: %{public}s, error: %{public}d", ifName.c_str(), status);
         return HDF_FAILURE;

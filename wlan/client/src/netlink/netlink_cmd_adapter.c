@@ -3362,7 +3362,8 @@ void WifiEventTxStatus(const char *ifName, struct nlattr **attr)
     }
     actionData.data = action;
     actionData.dataLen = MAX_INDEX;
-    WifiEventReport("p2p0", WIFI_EVENT_ACTION_RECEIVED, &actionData);
+    const char *reportName = WifiGetActionReportIfName(ifName);
+    WifiEventReport(reportName, WIFI_EVENT_ACTION_RECEIVED, &actionData);
 }
  
 static int32_t WifiSendActionFrameHandler(struct nl_msg *msg, void *arg)

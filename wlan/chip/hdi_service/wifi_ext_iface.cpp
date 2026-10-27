@@ -53,7 +53,12 @@ int32_t WifiExtIface::GetIfaceType(IfaceType& type)
 
 int32_t WifiExtIface::GetIfaceName(std::string& name)
 {
-    return HDF_ERR_NOT_SUPPORT;
+    if (!IsValid()) {
+        HDF_LOGE("WifiExtIface is invalid");
+        return HDF_FAILURE;
+    }
+    name = ifName_;
+    return HDF_SUCCESS;
 }
 
 int32_t WifiExtIface::GetSupportFreqs(int band, std::vector<uint32_t>& frequencies)
@@ -88,12 +93,24 @@ int32_t WifiExtIface::SetPowerMode(int32_t powerMode)
 
 int32_t WifiExtIface::RegisterChipIfaceCallBack(const sptr<IChipIfaceCallback>& chipIfaceCallback)
 {
-    return HDF_ERR_NOT_SUPPORT;
+    auto vendorHalLock = vendorHal_.lock();
+    if (vendorHalLock == nullptr) {
+        HDF_LOGE("vendorHal_ is null, cannot register callback. Line: %{public}d", __LINE__);
+        return HDF_FAILURE;
+    }
+    WifiError status = vendorHalLock->RegisterIfaceCallBack(ifName_, chipIfaceCallback);
+    return (status == HAL_SUCCESS) ? HDF_SUCCESS : HDF_FAILURE;
 }
 
 int32_t WifiExtIface::UnRegisterChipIfaceCallBack(const sptr<IChipIfaceCallback>& chipIfaceCallback)
 {
-    return HDF_ERR_NOT_SUPPORT;
+    auto vendorHalLock = vendorHal_.lock();
+    if (vendorHalLock == nullptr) {
+        HDF_LOGE("vendorHal_ is null, cannot unregister callback. Line: %{public}d", __LINE__);
+        return HDF_FAILURE;
+    }
+    WifiError status = vendorHalLock->UnRegisterIfaceCallBack(ifName_, chipIfaceCallback);
+    return (status == HAL_SUCCESS) ? HDF_SUCCESS : HDF_FAILURE;
 }
 
 int32_t WifiExtIface::StartScan(const ScanParams& scanParam)

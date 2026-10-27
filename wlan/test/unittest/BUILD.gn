@@ -172,6 +172,7 @@ if (defined(ohos_lite)) {
     module_out_path = module_output_path
     include_dirs = [
       "$TEST_ROOT_DIR/client/include",
+      "$TEST_ROOT_DIR/client/src",
       "$TEST_ROOT_DIR/hostapd/client/include",
       "$TEST_ROOT_DIR/hal/include",
       "$TEST_ROOT_DIR/interfaces/include",
@@ -185,6 +186,7 @@ if (defined(ohos_lite)) {
       "$TEST_ROOT_DIR/client/src/sbuf/sbuf_wpa_cmd_adapter.c",
       "$TEST_ROOT_DIR/hostapd/client/src/hostapd_client.c",
       "$TEST_ROOT_DIR/test/unittest/client/hdf_client_test.cpp",
+      "$TEST_ROOT_DIR/test/unittest/client/wifi_event_report_test.cpp",
       "$TEST_ROOT_DIR/wpa/client/src/wpa_client.c",
       "$TEST_ROOT_DIR/client/src/sbuf/sbuf_common_adapter.c",
       "$TEST_ROOT_DIR/client/src/wifi_driver_client.c",
@@ -257,6 +259,7 @@ if (defined(ohos_lite)) {
       "private = public",
       "protected = public",
       "P2P_NAME=\"$drivers_peripheral_wlan_p2p_name\"",
+      "WDLENHANCE_NAME=\"$drivers_peripheral_wlan_wdlenhance_name\"",
       "HAL_SO_NAME=\"$drivers_peripheral_wlan_feature_vendor\"",
     ]
 

@@ -44,7 +44,8 @@ typedef enum {
     HAL_TYPE_STA = 0,
     HAL_TYPE_AP  = 1,
     HAL_TYPE_P2P = 2,
-    HAL_TYPE_NAN = 3
+    HAL_TYPE_NAN = 3,
+    HAL_TYPE_WDLENHANCE = 4
 } HalIfaceType;
 
 typedef enum {

@@ -374,36 +374,40 @@ WifiError WifiVendorHal::SetDpiMarkRule(int32_t uid, int32_t protocol, int32_t e
 WifiError WifiVendorHal::RegisterIfaceCallBack(const std::string& ifaceName,
     const sptr<IChipIfaceCallback>& chipIfaceCallback)
 {
-    vendorHalCbHandler_.AddCallback(chipIfaceCallback);
     WifiCallbackHandler handler = {OnAsyncGscanFullResult, OnAsyncRssiReport, OnAsyncWifiNetlinkMsgReport};
     globalFuncTable_.registerIfaceCallBack(ifaceName.c_str(), handler);
+    const auto lock = AcquireGlobalLock();
+    vendorHalCbHandler_.AddCallback(chipIfaceCallback);
     return HAL_SUCCESS;
 }
 
 WifiError WifiVendorHal::UnRegisterIfaceCallBack(const std::string& ifaceName,
     const sptr<IChipIfaceCallback>& chipIfaceCallback)
 {
-    WifiCallbackHandler handler = {};
-    globalFuncTable_.registerIfaceCallBack(ifaceName.c_str(), handler);
-    vendorHalCbHandler_.Invalidate(); // instead of RemoveCallback temporarily
+    const auto lock = AcquireGlobalLock();
+    vendorHalCbHandler_.RemoveCallback(chipIfaceCallback);
+    HDF_LOGI("UnRegisterIfaceCallBack, ifaceName:%{public}s, remaining:%{public}d", ifaceName.c_str(),
+        static_cast<int32_t>(vendorHalCbHandler_.GetCallbacks().size()));
     return HAL_SUCCESS;
 }
 
 WifiError WifiVendorHal::RegisterExtIfaceCallBack(const std::string& ifaceName,
     const sptr<IChipIfaceCallback>& chipIfaceCallback)
 {
-    vendorHalExtCbHandler_.AddCallback(chipIfaceCallback);
     WifiExtCallbackHandler handler = {OnAsyncWifiNetlinkMsgReport};
     globalFuncTable_.registerExtIfaceCallBack(ifaceName.c_str(), handler);
+    const auto lock = AcquireGlobalLock();
+    vendorHalExtCbHandler_.AddCallback(chipIfaceCallback);
     return HAL_SUCCESS;
 }
 
 WifiError WifiVendorHal::UnRegisterExtIfaceCallBack(const std::string& ifaceName,
     const sptr<IChipIfaceCallback>& chipIfaceCallback)
 {
-    WifiExtCallbackHandler handler = {};
-    globalFuncTable_.registerExtIfaceCallBack(ifaceName.c_str(), handler);
-    vendorHalExtCbHandler_.Invalidate(); // instead of RemoveCallback temporarily
+    const auto lock = AcquireGlobalLock();
+    vendorHalExtCbHandler_.RemoveCallback(chipIfaceCallback);
+    HDF_LOGI("UnRegisterExtIfaceCallBack, ifaceName:%{public}s, remaining:%{public}d", ifaceName.c_str(),
+        static_cast<int32_t>(vendorHalExtCbHandler_.GetCallbacks().size()));
     return HAL_SUCCESS;
 }
 
