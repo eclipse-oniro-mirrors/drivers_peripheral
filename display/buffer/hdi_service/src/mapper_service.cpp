@@ -202,7 +202,7 @@ int32_t MapperService::AllocMem(const AllocInfo& info, sptr<NativeBuffer>& handl
         static int64_t allocMemErrorCount = 0;
         allocMemErrorCount++;
         if (allocMemErrorCount % MAX_ERROR_COUNT == 0) {
-            HDF_LOGE("%{public}s: AllocMem failed, ec = %{public}d, allocMemErrorCount:%{public}d",
+            HDF_LOGE("%{public}s: AllocMem failed, ec = %{public}d, allocMemErrorCount:%{public}lld",
                 __func__, ec, allocMemErrorCount);
         }
         return ec;
@@ -245,7 +245,7 @@ int32_t MapperService::ReAllocMem(const AllocInfo& info,
         static int64_t allocMemErrorCount = 0;
         allocMemErrorCount++;
         if (allocMemErrorCount % MAX_ERROR_COUNT == 0) {
-            HDF_LOGE("%{public}s: ReAllocMem failed, ec = %{public}d, allocMemErrorCount:%{public}d",
+            HDF_LOGE("%{public}s: ReAllocMem failed, ec = %{public}d, allocMemErrorCount:%{public}lld",
                 __func__, ec, allocMemErrorCount);
         }
         return ec;
