@@ -190,15 +190,9 @@ int32_t AllocatorService::CloneDmaBufferHandle(const sptr<NativeBuffer>& inBuffe
     if (ec != HDF_SUCCESS) {
         static int64_t cloneDmaBufferHandleErrorCount = 0;
         cloneDmaBufferHandleErrorCount++;
-<<<<<<< HEAD
         if (cloneDmaBufferHandleErrorCount % MAX_ERROR_COUNT == 0) {
             HDF_LOGE("%{public}s:CloneDmaBufferHandle failed, ec = %{public}d, cloneDmaBufferHandleErrorCount:"
                 "%{public}d", __func__, ec, cloneDmaBufferHandleErrorCount);
-=======
-        if (cloneDmaBufferHandleErrorCount % 10 == 0) {
-            HDF_LOGE("%{public}s:CloneDmaBufferHandle failed, ec = %{public}d, cloneDmaBufferHandleErrorCount:%{public}d",
-                __func__, ec, cloneDmaBufferHandleErrorCount);
->>>>>>> 41f81ceb9f8d9e987e26509684a659c36f27f9a3
         }
         return ec;
     }
