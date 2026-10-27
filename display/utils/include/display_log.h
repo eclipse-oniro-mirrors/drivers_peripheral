@@ -32,6 +32,10 @@ extern "C" {
 #undef LOG_DOMAIN
 #define LOG_DOMAIN 0xD002515
 
+#ifndef MAX_ERROR_COUNT
+#define MAX_ERROR_COUNT 10
+#endif
+
 #ifndef DISPLAY_UNUSED
 #define DISPLAY_UNUSED(x) (void)(x)
 #endif
