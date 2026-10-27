@@ -199,7 +199,12 @@ int32_t MapperService::AllocMem(const AllocInfo& info, sptr<NativeBuffer>& handl
     HdfTrace traceOne("AllocMem-VDI", "HDI:VDI:");
     int32_t ec = vdiImpl_->AllocMem(info, buffer);
     if (ec != HDF_SUCCESS) {
-        HDF_LOGE("%{public}s: AllocMem failed, ec = %{public}d", __func__, ec);
+        static uint32_t allocMemErrorCount = 0;
+        allocMemErrorCount++;
+        if (allocMemErrorCount % HDF_BUFFER_MAX_ERROR_COUNT == 0) {
+            HDF_LOGE("%{public}s: AllocMem failed, ec = %{public}d, allocMemErrorCount:%{public}u",
+                __func__, ec, allocMemErrorCount);
+        }
         return ec;
     }
 
@@ -237,7 +242,12 @@ int32_t MapperService::ReAllocMem(const AllocInfo& info,
 
     int32_t ec = vdiImpl_->ReAllocMem(info, *inHandle, outHandle);
     if (ec != HDF_SUCCESS) {
-        HDF_LOGE("%{public}s: ReAllocMem failed, ec = %{public}d", __func__, ec);
+        static uint32_t allocMemErrorCount = 0;
+        allocMemErrorCount++;
+        if (allocMemErrorCount % HDF_BUFFER_MAX_ERROR_COUNT == 0) {
+            HDF_LOGE("%{public}s: ReAllocMem failed, ec = %{public}d, allocMemErrorCount:%{public}u",
+                __func__, ec, allocMemErrorCount);
+        }
         return ec;
     }
 
