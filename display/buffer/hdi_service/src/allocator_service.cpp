@@ -148,7 +148,7 @@ int32_t AllocatorService::AllocMem(const AllocInfo& info, sptr<NativeBuffer>& ha
             static int64_t allocMemErrorCount = 0;
             allocMemErrorCount++;
             if (allocMemErrorCount % MAX_ERROR_COUNT == 0) {
-                HDF_LOGE("%{public}s: AllocMem failed, ec = %{public}d, allocMemErrorCount:%{public}d",
+                HDF_LOGE("%{public}s: AllocMem failed, ec = %{public}d, allocMemErrorCount:%{public}lld",
                     __func__, ec, allocMemErrorCount);
             }
             return ec;
@@ -192,7 +192,7 @@ int32_t AllocatorService::CloneDmaBufferHandle(const sptr<NativeBuffer>& inBuffe
         cloneDmaBufferHandleErrorCount++;
         if (cloneDmaBufferHandleErrorCount % MAX_ERROR_COUNT == 0) {
             HDF_LOGE("%{public}s:CloneDmaBufferHandle failed, ec = %{public}d, cloneDmaBufferHandleErrorCount:"
-                "%{public}d", __func__, ec, cloneDmaBufferHandleErrorCount);
+                "%{public}lld", __func__, ec, cloneDmaBufferHandleErrorCount);
         }
         return ec;
     }
