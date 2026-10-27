@@ -73,6 +73,7 @@ static WpaSsidField g_wpaSsidFields[] = {
     {DEVICE_CONFIG_WAPI_USER_CERT, "wapi_user_sel_cert", QUOTATION_MARKS_FLAG_YES},
     {DEVICE_CONFIG_WAPI_PSK_KEY_TYPE, "psk_key_type", QUOTATION_MARKS_FLAG_NO},
     {DEVICE_CONFIG_WAPI_PSK, "wapi_psk", QUOTATION_MARKS_FLAG_YES},
+    {DEVICE_CONFIG_SCAN_FREQ, "scan_freq", QUOTATION_MARKS_FLAG_NO},
 };
 
 int CalcQuotationMarksFlag(int pos, const char value[WIFI_NETWORK_CONFIG_VALUE_LENGTH])
