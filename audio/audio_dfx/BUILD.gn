@@ -64,4 +64,5 @@ ohos_static_library("libaudio_dfx_static") {
 
   part_name = "drivers_peripheral_audio"
   subsystem_name = "hdf"
+  branch_protector_ret = "pac_ret"
 }

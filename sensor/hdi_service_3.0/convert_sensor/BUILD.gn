@@ -46,4 +46,5 @@ ohos_shared_library("libsensor_convert_interfaces_service_1.0") {
   subsystem_name = "hdf"
   innerapi_tags = [ "passthrough" ]
   part_name = "drivers_peripheral_sensor"
+  branch_protector_ret = "pac_ret"
 }

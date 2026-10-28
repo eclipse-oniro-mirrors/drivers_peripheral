@@ -51,6 +51,7 @@ if (defined(ohos_lite)) {
     ]
     subsystem_name = "hdf"
     part_name = "drivers_peripheral_vibrator"
+    branch_protector_ret = "pac_ret"
   }
 } else {
   config("libhdi_vibrator_pub_config") {
@@ -83,6 +84,7 @@ if (defined(ohos_lite)) {
 
     subsystem_name = "hdf"
     part_name = "drivers_peripheral_vibrator"
+    branch_protector_ret = "pac_ret"
     if (is_standard_system) {
       external_deps = [
         "bounds_checking_function:libsec_shared",
