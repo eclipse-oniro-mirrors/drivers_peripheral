@@ -249,14 +249,99 @@ ohos_benchmarktest("hdf_usb_benchmark_getcontroltransferdata_test") {
   module_out_path = module_output_path
 }
 
+ohos_benchmarktest("hdf_usb_benchmark_port_test") {
+  module_out_path = module_output_path
+
+  include_dirs = [ "../UsbSubscriberTest" ]
+
+  sources = [ "usb_benchmark_port_test.cpp" ]
+
+  deps = [
+    "${usb_driver_path}/hdi_service:libusb_interface_service_1.2",
+    "${usb_driver_path}/hdi_service:libusb_port_interface_service_2.0",
+  ]
+
+  if (is_standard_system) {
+    external_deps = [
+      "drivers_interface_usb:libusb_proxy_1.0",
+      "drivers_interface_usb:libusb_proxy_2.0",
+      "hdf_core:libhdf_host",
+      "hdf_core:libhdf_utils",
+      "hilog:libhilog",
+      "ipc:ipc_single",
+    ]
+    if (usb_c_utils_enable) {
+      external_deps += [ "c_utils:utils" ]
+    }
+  } else {
+    external_deps = [ "hilog:libhilog" ]
+  }
+  external_deps += [ "ipc:ipc_single" ]
+  external_deps += [
+    "benchmark:benchmark",
+    "googletest:gtest_main",
+  ]
+}
+
+ohos_benchmarktest("hdf_usb_benchmark_serial_test") {
+  module_out_path = module_output_path
+
+  sources = [ "usb_benchmark_serial_test.cpp" ]
+
+  deps = [ "${usb_driver_path}/serial:libserial_interface_service_1.0" ]
+
+  if (is_standard_system) {
+    external_deps = [
+      "drivers_interface_usb:libserial_proxy_1.0",
+      "hdf_core:libhdf_host",
+      "hdf_core:libhdf_utils",
+      "hilog:libhilog",
+      "ipc:ipc_single",
+    ]
+    if (usb_c_utils_enable) {
+      external_deps += [ "c_utils:utils" ]
+    }
+  } else {
+    external_deps = [ "hilog:libhilog" ]
+  }
+  external_deps += [ "ipc:ipc_single" ]
+  external_deps += [
+    "benchmark:benchmark",
+    "googletest:gtest_main",
+  ]
+}
+
+ohos_benchmarktest("hdf_usb_benchmark_ddk_test") {
+  module_out_path = module_output_path
+
+  include_dirs = [ "../../utils/include" ]
+
+  sources = [ "usb_benchmark_ddk_test.cpp" ]
+
+  deps = [ "./../../ddk_service/usb_service:usb_ddk_target" ]
+
+  external_deps = [
+    "benchmark:benchmark",
+    "c_utils:utils",
+    "drivers_interface_usb:libusb_ddk_proxy_1.2",
+    "googletest:gtest_main",
+    "hdf_core:libhdi_base",
+    "hdf_core:libpub_utils",
+    "hilog:libhilog",
+  ]
+}
+
 group("hdf_usb_benchmark") {
   testonly = true
   deps = [
     ":hdf_usb_benchmark_authorize_test",
+    ":hdf_usb_benchmark_ddk_test",
     ":hdf_usb_benchmark_device_test",
     ":hdf_usb_benchmark_function_test",
     ":hdf_usb_benchmark_getcontroltransferdata_test",
+    ":hdf_usb_benchmark_port_test",
     ":hdf_usb_benchmark_request_test",
+    ":hdf_usb_benchmark_serial_test",
     ":hdf_usb_benchmark_transfer_test",
   ]
 }
