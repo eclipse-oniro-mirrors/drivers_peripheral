@@ -92,6 +92,9 @@ if (!defined(ohos_lite)) {
     install_images = [ chipset_base_dir ]
     subsystem_name = "hdf"
     part_name = "drivers_peripheral_camera"
+    if (!use_clang_coverage) {
+      version_script = "libperipheral_camera_metadata_manager.versionscript"
+    }
   }
 
   ohos_shared_library("camera_example_vendor_tag_impl") {
