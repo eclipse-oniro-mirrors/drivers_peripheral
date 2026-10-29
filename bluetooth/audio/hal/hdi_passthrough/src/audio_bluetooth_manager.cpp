@@ -16,6 +16,9 @@
 #include <map>
 #include <hdf_log.h>
 #include <atomic>
+#include <map>
+#include <mutex>
+#include <string>
 #include "audio_internal.h"
 #include "i_bluetooth_a2dp_src.h"
 #include "i_bluetooth_host.h"
@@ -41,6 +44,21 @@ using namespace OHOS::bluetooth::audio;
 static const char *g_bluetoothAudioDeviceSoPath = HDF_LIBRARY_FULL_PATH("libbluetooth_audio_session");
 static void *g_ptrAudioDeviceHandle = NULL;
 std::atomic_bool g_allowAudioStart = true;
+#ifdef MULTI_A2DP_ENABLED
+static std::mutex g_allowAudioStartByAddrMutex;
+static std::map<std::string, bool> g_allowAudioStartByAddr;
+static bool IsAudioStartAllowed(const std::string &addr)
+{
+    std::lock_guard<std::mutex> guard(g_allowAudioStartByAddrMutex);
+    auto it = g_allowAudioStartByAddr.find(addr);
+    return (it == g_allowAudioStartByAddr.end()) ? true : it->second;
+}
+static void SetAudioStartAllowed(const std::string &addr, bool allowed)
+{
+    std::lock_guard<std::mutex> guard(g_allowAudioStartByAddrMutex);
+    g_allowAudioStartByAddr[addr] = allowed;
+}
+#endif
 
 SetUpFunc setUpFunc;
 TearDownFunc tearDownFunc;
@@ -78,6 +96,18 @@ StartHearingAidFunc startHearingAidFunc;
 SuspendPlayingFunc suspendHearingAidFunc;
 StopPlayingFunc stopHearingAidFunc;
 WriteFrameFunc writeFrameHearingAidFunc;
+#ifdef MULTI_A2DP_ENABLED
+SetUpByAddrFunc setUpByAddrFunc;
+TearDownByAddrFunc tearDownByAddrFunc;
+StartPlayingByAddrFunc startPlayingByAddrFunc;
+SuspendPlayingByAddrFunc suspendPlayingByAddrFunc;
+StopPlayingByAddrFunc stopPlayingByAddrFunc;
+WriteFrameByAddrFunc writeFrameByAddrFunc;
+GetStateByAddrFunc getStateByAddrFunc;
+GetLatencyByAddrFunc getLatencyByAddrFunc;
+SuspendPlayingFromParamByAddrFunc suspendPlayingFromParamByAddrFunc;
+UnBlockStartByAddrFunc unBlockStartByAddrFunc;
+#endif
 #endif
 
 sptr<IBluetoothA2dpSrc> g_proxy_ = nullptr;
@@ -229,6 +259,68 @@ static bool InitHearingAidDevice()
     return true;
 }
 
+static bool InitBasicAudioSyms()
+{
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SetUpFunc, setUpFunc, "SetUp");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, TearDownFunc, tearDownFunc, "TearDown");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetStateFunc, getStateFunc, "GetState");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StartPlayingFunc, startPlayingFunc, "StartPlaying");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SuspendPlayingFunc, suspendPlayingFunc, "SuspendPlaying");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StopPlayingFunc, stopPlayingFunc, "StopPlaying");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, WriteFrameFunc, writeFrameFunc, "WriteFrame");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetLatencyFunc, getLatencyFunc, "GetLatency");
+    return true;
+}
+
+static bool InitFastAudioSyms()
+{
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SetUpFunc, fastSetUpFunc, "FastSetUp");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, TearDownFunc, fastTearDownFunc, "FastTearDown");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetStateFunc, fastGetStateFunc, "FastGetState");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StartPlayingFunc, fastStartPlayingFunc, "FastStartPlaying");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SuspendPlayingFunc, fastSuspendPlayingFunc, "FastSuspendPlaying");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StopPlayingFunc, fastStopPlayingFunc, "FastStopPlaying");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, ReqMmapBufferFunc, fastReqMmapBufferFunc, "FastReqMmapBuffer");
+    GET_SYM_ERRPR_RET(
+        g_ptrAudioDeviceHandle, ReadMmapPositionFunc, fastReadMmapPositionFunc, "FastReadMmapPosition");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetLatencyFunc, fastGetLatencyFunc, "FastGetLatency");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetRealStateFunc, getRealStateFunc, "GetRealState");
+    GET_SYM_ERRPR_RET(
+        g_ptrAudioDeviceHandle, GetRenderMixerStateFunc, getRenderMixerStateFunc, "GetRenderMixerState");
+    return true;
+}
+
+static bool InitCaptureAudioSyms()
+{
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SetUpFunc, setUpCaptureFunc, "SetUpCapture");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, TearDownFunc, tearDownCaptureFunc, "TearDownCapture");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetStateFunc, getCaptureStateFunc, "GetCaptureState");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StartCaptureFunc, startCaptureFunc, "StartCapture");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SuspendPlayingFunc, suspendCaptureFunc, "SuspendCapture");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StopPlayingFunc, stopCaptureFunc, "StopCapture");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, ReadFrameFunc, readFrameFunc, "ReadFrame");
+    return true;
+}
+
+#ifdef MULTI_A2DP_ENABLED
+static bool InitPerAddrAudioSyms()
+{
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SetUpByAddrFunc, setUpByAddrFunc, "SetUpByAddr");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, TearDownByAddrFunc, tearDownByAddrFunc, "TearDownByAddr");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StartPlayingByAddrFunc, startPlayingByAddrFunc, "StartPlayingByAddr");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SuspendPlayingByAddrFunc,
+        suspendPlayingByAddrFunc, "SuspendPlayingByAddr");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StopPlayingByAddrFunc, stopPlayingByAddrFunc, "StopPlayingByAddr");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, WriteFrameByAddrFunc, writeFrameByAddrFunc, "WriteFrameByAddr");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetStateByAddrFunc, getStateByAddrFunc, "GetStateByAddr");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetLatencyByAddrFunc, getLatencyByAddrFunc, "GetLatencyByAddr");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SuspendPlayingFromParamByAddrFunc,
+        suspendPlayingFromParamByAddrFunc, "SuspendPlayingFromParamByAddr");
+    GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, UnBlockStartByAddrFunc, unBlockStartByAddrFunc, "UnBlockStartByAddr");
+    return true;
+}
+#endif
+
 static bool InitAudioDeviceSoHandle(const char *path)
 {
     if (path == NULL) {
@@ -245,40 +337,26 @@ static bool InitAudioDeviceSoHandle(const char *path)
             HDF_LOGE("%{public}s: open lib so fail, reason:%{public}s ", __func__, dlerror());
             return false;
         }
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SetUpFunc, setUpFunc, "SetUp");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, TearDownFunc, tearDownFunc, "TearDown");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetStateFunc, getStateFunc, "GetState");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StartPlayingFunc, startPlayingFunc, "StartPlaying");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SuspendPlayingFunc, suspendPlayingFunc, "SuspendPlaying");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StopPlayingFunc, stopPlayingFunc, "StopPlaying");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, WriteFrameFunc, writeFrameFunc, "WriteFrame");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetLatencyFunc, getLatencyFunc, "GetLatency");
+        if (!InitBasicAudioSyms()) {
+            return false;
+        }
 
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SetUpFunc, fastSetUpFunc, "FastSetUp");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, TearDownFunc, fastTearDownFunc, "FastTearDown");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetStateFunc, fastGetStateFunc, "FastGetState");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StartPlayingFunc, fastStartPlayingFunc, "FastStartPlaying");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SuspendPlayingFunc, fastSuspendPlayingFunc, "FastSuspendPlaying");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StopPlayingFunc, fastStopPlayingFunc, "FastStopPlaying");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, ReqMmapBufferFunc, fastReqMmapBufferFunc, "FastReqMmapBuffer");
-        GET_SYM_ERRPR_RET(
-            g_ptrAudioDeviceHandle, ReadMmapPositionFunc, fastReadMmapPositionFunc, "FastReadMmapPosition");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetLatencyFunc, fastGetLatencyFunc, "FastGetLatency");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetRealStateFunc, getRealStateFunc, "GetRealState");
-        GET_SYM_ERRPR_RET(
-            g_ptrAudioDeviceHandle, GetRenderMixerStateFunc, getRenderMixerStateFunc, "GetRenderMixerState");
+        if (!InitFastAudioSyms()) {
+            return false;
+        }
 
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SetUpFunc, setUpCaptureFunc, "SetUpCapture");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, TearDownFunc, tearDownCaptureFunc, "TearDownCapture");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, GetStateFunc, getCaptureStateFunc, "GetCaptureState");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StartCaptureFunc, startCaptureFunc, "StartCapture");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, SuspendPlayingFunc, suspendCaptureFunc, "SuspendCapture");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, StopPlayingFunc, stopCaptureFunc, "StopCapture");
-        GET_SYM_ERRPR_RET(g_ptrAudioDeviceHandle, ReadFrameFunc, readFrameFunc, "ReadFrame");
+        if (!InitCaptureAudioSyms()) {
+            return false;
+        }
 
         if (!InitHearingAidDevice()) {
             return false;
         }
+#ifdef MULTI_A2DP_ENABLED
+        if (!InitPerAddrAudioSyms()) {
+            return false;
+        }
+#endif
     }
     return true;
 }
@@ -288,7 +366,11 @@ bool SetUp()
     bool ret = false;
     ret = InitAudioDeviceSoHandle(g_bluetoothAudioDeviceSoPath);
     if (ret == true) {
+#ifdef MULTI_A2DP_ENABLED
+        HDF_LOGE("%{public}s: multi A2DP mode, skip global renderMixer init", __func__);
+#else
         ret = setUpFunc();
+#endif
     }
     if (ret == false) {
         HDF_LOGE("%{public}s failed!", __func__);
@@ -322,7 +404,11 @@ bool SetUpHearingAid()
 
 void TearDown()
 {
+#ifdef MULTI_A2DP_ENABLED
+    HDF_LOGI("%{public}s: multi A2DP mode, skip global TearDown", __func__);
+#else
     tearDownFunc();
+#endif
 }
 
 void TearDownCapture()
@@ -539,6 +625,90 @@ int StopHearingAid()
     }
     return HDF_SUCCESS;
 }
+
+#ifdef MULTI_A2DP_ENABLED
+bool SetUpByAddr(const char* addr)
+{
+    HDF_LOGI("%{public}s", __func__);
+    SetAudioStartAllowed(addr, true);
+    return setUpByAddrFunc(addr);
+}
+
+void TearDownByAddr(const char* addr)
+{
+    HDF_LOGI("%{public}s", __func__);
+    tearDownByAddrFunc(addr);
+}
+
+int StartPlayingByAddr(const char* addr)
+{
+    HDF_LOGI("%{public}s", __func__);
+    return HDF_SUCCESS;
+}
+
+int SuspendPlayingByAddr(const char* addr)
+{
+    HDF_LOGI("%{public}s", __func__);
+    int retval = 0;
+    BTAudioStreamState state = getStateByAddrFunc(addr);
+    HDF_LOGI("%{public}s: state=%{public}hhu", __func__, state);
+    if (state == BTAudioStreamState::STARTED) {
+        retval = (suspendPlayingByAddrFunc(addr) ? HDF_SUCCESS : HDF_FAILURE);
+    } else {
+        HDF_LOGE("%{public}s: state=%{public}hhu is bad state", __func__, state);
+    }
+    return retval;
+}
+
+int StopPlayingByAddr(const char* addr)
+{
+    HDF_LOGI("%{public}s", __func__);
+    BTAudioStreamState state = getStateByAddrFunc(addr);
+    HDF_LOGI("%{public}s: state=%{public}hhu", __func__, state);
+    if (state != BTAudioStreamState::INVALID) {
+        stopPlayingByAddrFunc(addr);
+    }
+    return HDF_SUCCESS;
+}
+
+int WriteFrameByAddr(const char* addr, const uint8_t *data, uint32_t size,
+    const HDI::Audio_Bluetooth::AudioSampleAttributes *attrs)
+{
+    HDF_LOGD("%{public}s", __func__);
+    BTAudioStreamState state = getStateByAddrFunc(addr);
+    if (!IsAudioStartAllowed(addr)) {
+        HDF_LOGE("%{public}s: not allow to start normal render, state=%{public}hhu", __func__, state);
+        return HDF_FAILURE;
+    } else if (state != BTAudioStreamState::STARTED) {
+        if (!startPlayingByAddrFunc(addr, attrs->sampleRate, attrs->channelCount,
+            static_cast<uint32_t>(attrs->format))) {
+            HDF_LOGE("%{public}s: fail to startPlaying by addr", __func__);
+            return HDF_FAILURE;
+        }
+    }
+    return writeFrameByAddrFunc(addr, data, size);
+}
+
+int GetLatencyByAddr(const char* addr, uint32_t &latency)
+{
+    HDF_LOGI("%{public}s", __func__);
+    return (getLatencyByAddrFunc(addr, latency) ? HDF_SUCCESS : HDF_FAILURE);
+}
+
+int SuspendPlayingFromParamByAddr(const char* addr)
+{
+    HDF_LOGI("%{public}s", __func__);
+    SetAudioStartAllowed(addr, false);
+    return suspendPlayingFromParamByAddrFunc(addr);
+}
+
+void UnBlockStartByAddr(const char* addr)
+{
+    HDF_LOGI("%{public}s", __func__);
+    SetAudioStartAllowed(addr, true);
+    unBlockStartByAddrFunc(addr);
+}
+#endif
 
 #endif
 

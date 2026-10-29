@@ -20,7 +20,7 @@
 namespace OHOS::HDI::Audio_Bluetooth {
 int32_t HdiServiceCreateCapture(const struct HdfDeviceIoClient *client,
     struct HdfSBuf *data, struct HdfSBuf *reply);
-int32_t HdiServiceCaptureDestory(const struct HdfDeviceIoClient *client,
+int32_t HdiServiceCaptureDestroy(const struct HdfDeviceIoClient *client,
     struct HdfSBuf *data, struct HdfSBuf *reply);
 int32_t HdiServiceCaptureStart(const struct HdfDeviceIoClient *client,
     struct HdfSBuf *data, struct HdfSBuf *reply);

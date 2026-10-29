@@ -348,54 +348,88 @@ int32_t AudioProxyAdapterCreateCaptureSplit(const struct AudioHwAdapter *hwAdapt
     return HDF_SUCCESS;
 }
 
-int32_t AudioProxyAdapterCreateRender(struct AudioAdapter *adapter, const struct AudioDeviceDescriptor *desc,
-                                      const struct AudioSampleAttributes *attrs, struct AudioRender **render)
+static int32_t CreateProxyHwRender(struct AudioHwAdapter *hwAdapter, const struct AudioDeviceDescriptor *desc,
+    const struct AudioSampleAttributes *attrs, struct AudioHwRender **hwRender)
 {
-    HDF_LOGI("%{public}s, ", __func__);
-    struct HdfSBuf *data = NULL;
-    struct HdfSBuf *reply = NULL;
-    struct AudioHwAdapter *hwAdapter = reinterpret_cast<struct AudioHwAdapter *>(adapter);
-    if (hwAdapter == NULL || hwAdapter->proxyRemoteHandle == NULL || desc == NULL || attrs == NULL || render == NULL) {
-        return AUDIO_HAL_ERR_INVALID_PARAM;
-    }
-    struct AudioHwRender *hwRender = reinterpret_cast<struct AudioHwRender *>(calloc(1, sizeof(*hwRender)));
-    if (hwRender == NULL) {
+    *hwRender = reinterpret_cast<struct AudioHwRender *>(calloc(1, sizeof(**hwRender)));
+    if (*hwRender == nullptr) {
         HDF_LOGE("hwRender is NULL!");
         return AUDIO_HAL_ERR_MALLOC_FAIL;
     }
-    hwRender->proxyRemoteHandle = hwAdapter->proxyRemoteHandle;
-    if (GetAudioProxyRenderFunc(hwRender) < 0) {
-        AudioMemFree(reinterpret_cast<void **>(&hwRender));
+    (*hwRender)->proxyRemoteHandle = hwAdapter->proxyRemoteHandle;
+    if (GetAudioProxyRenderFunc(*hwRender) < 0) {
+        AudioMemFree(reinterpret_cast<void **>(hwRender));
         return AUDIO_HAL_ERR_INTERNAL;
     }
     /* Fill hwRender para */
-    if (InitHwRenderParam(hwRender, desc, attrs) < 0) {
-        AudioMemFree(reinterpret_cast<void **>(&hwRender));
+    if (InitHwRenderParam(*hwRender, desc, attrs) < 0) {
+        AudioMemFree(reinterpret_cast<void **>(hwRender));
         return AUDIO_HAL_ERR_INTERNAL;
     }
+#ifdef MULTI_A2DP_ENABLED
+    const char *peerAddress = desc->desc;
+    const bool hasPeer = peerAddress != nullptr && IsValidA2dpMac(peerAddress, strlen(peerAddress) + 1);
+    if (hasPeer && strncpy_s((*hwRender)->peerAddress, sizeof((*hwRender)->peerAddress), peerAddress,
+        strlen(peerAddress)) != EOK) {
+        AudioMemFree(reinterpret_cast<void **>(hwRender));
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+#endif
+    return AUDIO_HAL_SUCCESS;
+}
+
+static int32_t SendCreateRenderRequest(struct AudioHwAdapter *hwAdapter, const struct AudioDeviceDescriptor *desc,
+    const struct AudioSampleAttributes *attrs)
+{
+    struct HdfSBuf *data = nullptr;
+    struct HdfSBuf *reply = nullptr;
     if (AudioProxyPreprocessSBuf(&data, &reply) < 0) {
-        AudioMemFree(reinterpret_cast<void **>(&hwRender));
         return AUDIO_HAL_ERR_INTERNAL;
     }
     if (!HdfRemoteServiceWriteInterfaceToken(hwAdapter->proxyRemoteHandle, data)) {
         AudioProxyBufReplyRecycle(data, reply);
-        AudioMemFree(reinterpret_cast<void **>(&hwRender));
         return AUDIO_HAL_ERR_INTERNAL;
     }
     if (AudioProxyCommonInitCreateData(data, hwAdapter, desc, attrs) < 0) {
         HDF_LOGE("Failed to obtain reply");
         AudioProxyBufReplyRecycle(data, reply);
-        AudioMemFree(reinterpret_cast<void **>(&hwRender));
         return AUDIO_HAL_ERR_INTERNAL;
     }
-    int32_t ret = AudioProxyDispatchCall(hwRender->proxyRemoteHandle, AUDIO_HDI_RENDER_CREATE_RENDER, data, reply);
+#ifdef MULTI_A2DP_ENABLED
+    const char *peerAddress = desc->desc;
+    const bool hasPeer = peerAddress != nullptr && IsValidA2dpMac(peerAddress, strlen(peerAddress) + 1);
+    if (!HdfSbufWriteString(data, hasPeer ? peerAddress : "")) {
+        AudioProxyBufReplyRecycle(data, reply);
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+#endif
+    int32_t ret = AudioProxyDispatchCall(hwAdapter->proxyRemoteHandle, AUDIO_HDI_RENDER_CREATE_RENDER, data, reply);
     if (ret < 0) {
         HDF_LOGE("Send Server fail!");
-        AudioProxyBufReplyRecycle(data, reply);
+    }
+    AudioProxyBufReplyRecycle(data, reply);
+    return ret;
+}
+
+int32_t AudioProxyAdapterCreateRender(struct AudioAdapter *adapter, const struct AudioDeviceDescriptor *desc,
+                                      const struct AudioSampleAttributes *attrs, struct AudioRender **render)
+{
+    HDF_LOGI("%{public}s, ", __func__);
+    struct AudioHwAdapter *hwAdapter = reinterpret_cast<struct AudioHwAdapter *>(adapter);
+    if (hwAdapter == nullptr || hwAdapter->proxyRemoteHandle == nullptr || desc == nullptr ||
+        attrs == nullptr || render == nullptr) {
+        return AUDIO_HAL_ERR_INVALID_PARAM;
+    }
+    struct AudioHwRender *hwRender = nullptr;
+    int32_t ret = CreateProxyHwRender(hwAdapter, desc, attrs, &hwRender);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = SendCreateRenderRequest(hwAdapter, desc, attrs);
+    if (ret < 0) {
         AudioMemFree(reinterpret_cast<void **>(&hwRender));
         return ret;
     }
-    AudioProxyBufReplyRecycle(data, reply);
     if (AudioProxyAdapterCreateRenderSplit(hwAdapter, hwRender) < 0) {
         AudioMemFree(reinterpret_cast<void **>(&hwRender));
         return AUDIO_HAL_ERR_INTERNAL;

@@ -749,6 +749,31 @@ int32_t BitsToFormat(AudioFormat *format, long formatBits)
     }
 }
 
+#ifdef MULTI_A2DP_ENABLED
+constexpr size_t A2DP_MAC_STR_LEN = 18;
+constexpr int32_t A2DP_MAC_SEGMENT_NUM = 6;
+constexpr int32_t A2DP_MAC_SEGMENT_LEN = 3;
+constexpr int32_t A2DP_MAC_HEX_LEN = 2;
+
+bool IsValidA2dpMac(const char *mac, size_t capacity)
+{
+    if (mac == nullptr || capacity < A2DP_MAC_STR_LEN) {
+        return false;
+    }
+    for (int32_t i = 0; i < A2DP_MAC_SEGMENT_NUM; i++) {
+        const char *segment = mac + i * A2DP_MAC_SEGMENT_LEN;
+        if (!isxdigit(static_cast<unsigned char>(segment[0])) ||
+            !isxdigit(static_cast<unsigned char>(segment[1]))) {
+            return false;
+        }
+        if (i < A2DP_MAC_SEGMENT_NUM - 1 && segment[A2DP_MAC_HEX_LEN] != ':') {
+            return false;
+        }
+    }
+    return mac[A2DP_MAC_STR_LEN - 1] == '\0';
+}
+#endif
+
 int32_t CheckAttrRoute(long param)
 {
     if (param < DEEP_BUFF || param > LOW_LATRNCY) {

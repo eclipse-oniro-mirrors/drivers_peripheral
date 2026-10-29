@@ -318,11 +318,18 @@ struct ErrorLog {
     struct ErrorDump errorDump[ERROR_LOG_MAX_NUM];
 };
 
+#ifdef MULTI_A2DP_ENABLED
+#define A2DP_MAC_LEN 18 /* "XX:XX:XX:XX:XX:XX" + terminator */
+#endif
+
 struct AudioHwRender {
     struct AudioRender common;
     struct AudioHwRenderParam renderParam;
     struct HdfRemoteService *proxyRemoteHandle; // proxyRemoteHandle
     struct ErrorLog errorLog;
+#ifdef MULTI_A2DP_ENABLED
+    char peerAddress[A2DP_MAC_LEN]; /* peer address of the multi a2dp session */
+#endif
 };
 
 struct AudioHwCapture {

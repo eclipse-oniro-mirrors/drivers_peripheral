@@ -14,7 +14,8 @@
     "subsystem": "hdf",
     "features": [
       "drivers_peripheral_bluetooth_a2dp_hdi",
-      "drivers_peripheral_bluetooth_mac_update"
+      "drivers_peripheral_bluetooth_mac_update",
+      "drivers_peripheral_bluetooth_multi_a2dp_enabled"
     ],
     "adapted_system_type": ["standard"],
     "rom": "615KB",

@@ -14,6 +14,7 @@
  */
 #include <hdf_log.h>
 #include "audio_internal.h"
+#include "audio_bluetooth_manager.h"
 #include "audio_adapter_info_common.h"
 #include "audio_adapter.h"
 #include "fast_audio_render.h"
@@ -472,6 +473,22 @@ int32_t AudioAdapterCreateRenderPre(struct AudioHwRender *hwRender, const struct
     if (InitHwRenderParam(hwRender, desc, attrs) < 0) {
         return HDF_FAILURE;
     }
+#ifdef MULTI_A2DP_ENABLED
+    const char *peerAddress = desc->desc;
+    if (peerAddress != nullptr && IsValidA2dpMac(peerAddress, strlen(peerAddress) + 1)) {
+        if (!OHOS::Bluetooth::SetUpByAddr(peerAddress)) {
+            HDF_LOGE("%{public}s: SetUpByAddr failed, session is not ready", __func__);
+            return HDF_FAILURE;
+        }
+        if (strncpy_s(hwRender->peerAddress, sizeof(hwRender->peerAddress), peerAddress, strlen(peerAddress)) != EOK) {
+            HDF_LOGE("%{public}s: copy peerAddress failed", __func__);
+            return HDF_FAILURE;
+        }
+    } else {
+        HDF_LOGE("%{public}s: bt_a2dp render without peerAddress", __func__);
+        return HDF_FAILURE;
+    }
+#endif
 
     if (GetAudioRenderFunc(hwRender, hwAdapter->adapterDescriptor.adapterName) < 0) {
         return HDF_FAILURE;
@@ -535,10 +552,14 @@ int32_t AudioAdapterCreateRender(struct AudioAdapter *adapter, const struct Audi
     if (hwAdapter == NULL || desc == NULL || attrs == NULL || render == NULL) {
         return AUDIO_HAL_ERR_INVALID_PARAM;
     }
+#ifdef MULTI_A2DP_ENABLED
+    HDF_LOGI("Multi A2DP: allow multiple renders");
+#else
     if (hwAdapter->adapterMgrRenderFlag > 0) {
         HDF_LOGE("Create render repeatedly!");
         return AUDIO_HAL_ERR_INTERNAL;
     }
+#endif
     struct AudioHwRender *hwRender = reinterpret_cast<struct AudioHwRender *>(calloc(1, sizeof(*hwRender)));
     if (hwRender == NULL) {
         HDF_LOGE("hwRender is NULL!");
@@ -604,6 +625,16 @@ int32_t AudioAdapterDestroyRender(struct AudioAdapter *adapter, struct AudioRend
         }
     }
     AudioReleaseRenderHandle(hwRender);
+#ifdef MULTI_A2DP_ENABLED
+    {
+        const char *mac = hwRender->peerAddress;
+        if (mac != nullptr && mac[0] != '\0') {
+            OHOS::Bluetooth::TearDownByAddr(mac);
+        } else {
+            HDF_LOGE("%{public}s: macAddress is empty, per-peer mixer not torn down", __func__);
+        }
+    }
+#endif
     AudioMemFree(reinterpret_cast<void **>(&hwRender->renderParam.frameRenderMode.buffer));
     AudioMemFree(reinterpret_cast<void **>(&render));
     HDF_LOGI("AudioAdapterDestroyRender cleaned.");

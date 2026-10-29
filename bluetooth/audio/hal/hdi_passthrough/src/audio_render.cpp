@@ -88,7 +88,17 @@ int32_t AudioRenderStop(AudioHandle handle)
         OHOS::Bluetooth::StopPlaying();
     }
 #else
+#ifdef MULTI_A2DP_ENABLED
+    const char *mac = hwRender->peerAddress;
+    if (mac != nullptr && mac[0] != '\0') {
+        OHOS::Bluetooth::StopPlayingByAddr(mac);
+    } else {
+        HDF_LOGE("%{public}s: macAddress is empty, cannot stop by addr", __func__);
+        return AUDIO_HAL_ERR_INVALID_PARAM;
+    }
+#else
     OHOS::Bluetooth::StopPlaying();
+#endif
 #endif
 
     hwRender->renderParam.renderMode.ctlParam.pause = false;
@@ -116,7 +126,17 @@ int32_t AudioRenderPause(AudioHandle handle)
         OHOS::Bluetooth::SuspendPlaying();
     }
 #else
+#ifdef MULTI_A2DP_ENABLED
+    const char *mac = hwRender->peerAddress;
+    if (mac != nullptr && mac[0] != '\0') {
+        OHOS::Bluetooth::SuspendPlayingByAddr(mac);
+    } else {
+        HDF_LOGE("%{public}s: macAddress is empty, cannot suspend by addr", __func__);
+        return AUDIO_HAL_ERR_INVALID_PARAM;
+    }
+#else
     OHOS::Bluetooth::SuspendPlaying();
+#endif
 #endif
 
     hwRender->renderParam.renderMode.ctlParam.pause = true;
@@ -140,6 +160,18 @@ int32_t AudioRenderResume(AudioHandle handle)
     if (OHOS::Bluetooth::GetPlayingState() == false) {
         OHOS::Bluetooth::StartPlaying();
     }
+#else
+#ifdef MULTI_A2DP_ENABLED
+    const char *mac = hwRender->peerAddress;
+    if (mac != nullptr && mac[0] != '\0') {
+        OHOS::Bluetooth::StartPlayingByAddr(mac);
+    } else {
+        HDF_LOGE("%{public}s: macAddress is empty, cannot resume by addr", __func__);
+        return AUDIO_HAL_ERR_INVALID_PARAM;
+    }
+#else
+    OHOS::Bluetooth::StartPlaying();
+#endif
 #endif
 
     hwRender->renderParam.renderMode.ctlParam.pause = false;
@@ -300,7 +332,17 @@ int32_t AudioRenderGetLatency(struct AudioRender *render, uint32_t *ms)
     *ms = periodMs;
 #ifdef A2DP_HDI_SERVICE
     uint32_t latency = 0;
+#ifdef MULTI_A2DP_ENABLED
+    const char *mac = impl->peerAddress;
+    if (mac != nullptr && mac[0] != '\0') {
+        OHOS::Bluetooth::GetLatencyByAddr(mac, latency);
+    } else {
+        HDF_LOGE("%{public}s: macAddress is empty, cannot get latency by addr", __func__);
+        return AUDIO_HAL_ERR_INVALID_PARAM;
+    }
+#else
     OHOS::Bluetooth::GetLatency(latency);
+#endif
     *ms = latency;
 #endif
     return AUDIO_HAL_SUCCESS;
@@ -311,21 +353,9 @@ int32_t AudioRenderRenderFramSplit(struct AudioHwRender *hwRender)
     return HDF_SUCCESS;
 }
 
-int32_t AudioRenderRenderFrame(struct AudioRender *render, const void *frame,
-                               uint64_t requestBytes, uint64_t *replyBytes)
+static int32_t PrepareRenderFrameBuffer(struct AudioHwRender *hwRender, const void *frame, uint64_t requestBytes,
+    uint64_t *replyBytes)
 {
-    HITRACE_METER_FMT(HITRACE_TAG_BLUETOOTH, "renderFrame:%d", requestBytes);
-    HDF_LOGD("AudioRenderRenderFrame");
-    struct AudioHwRender *hwRender = reinterpret_cast<struct AudioHwRender *>(render);
-    if (hwRender == NULL || frame == NULL || replyBytes == NULL ||
-        hwRender->renderParam.frameRenderMode.buffer == NULL) {
-        HDF_LOGE("Render Frame Paras is NULL!");
-        return AUDIO_HAL_ERR_INVALID_PARAM;
-    }
-    if (FRAME_DATA < requestBytes) {
-        HDF_LOGE("Out of FRAME_DATA size!");
-        return AUDIO_HAL_ERR_INTERNAL;
-    }
     int32_t ret = memcpy_s(hwRender->renderParam.frameRenderMode.buffer, FRAME_DATA, frame,
         static_cast<uint32_t>(requestBytes));
     if (ret != EOK) {
@@ -354,11 +384,42 @@ int32_t AudioRenderRenderFrame(struct AudioRender *render, const void *frame,
         HDF_LOGE("Frame is NULL");
         return AUDIO_HAL_ERR_INTERNAL;
     }
+    return AUDIO_HAL_SUCCESS;
+}
+
+int32_t AudioRenderRenderFrame(struct AudioRender *render, const void *frame,
+                               uint64_t requestBytes, uint64_t *replyBytes)
+{
+    HITRACE_METER_FMT(HITRACE_TAG_BLUETOOTH, "renderFrame:%d", requestBytes);
+    HDF_LOGD("AudioRenderRenderFrame");
+    struct AudioHwRender *hwRender = reinterpret_cast<struct AudioHwRender *>(render);
+    if (hwRender == NULL || frame == NULL || replyBytes == NULL ||
+        hwRender->renderParam.frameRenderMode.buffer == NULL) {
+        HDF_LOGE("Render Frame Paras is NULL!");
+        return AUDIO_HAL_ERR_INVALID_PARAM;
+    }
+    if (FRAME_DATA < requestBytes) {
+        HDF_LOGE("Out of FRAME_DATA size!");
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+    int32_t ret = PrepareRenderFrameBuffer(hwRender, frame, requestBytes, replyBytes);
+    if (ret != AUDIO_HAL_SUCCESS) {
+        return ret;
+    }
 
     LOGV("%s, WriteFrame", __func__);
     const uint8_t *data = reinterpret_cast<const uint8_t *>(frame);
     AudioSampleAttributes *attrs = &hwRender->renderParam.frameRenderMode.attrs;
+#ifdef MULTI_A2DP_ENABLED
+    const char *mac = hwRender->peerAddress;
+    if (mac == nullptr || mac[0] == '\0') {
+        HDF_LOGE("%{public}s: macAddress is NULL or empty", __func__);
+        return AUDIO_HAL_ERR_INVALID_PARAM;
+    }
+    return OHOS::Bluetooth::WriteFrameByAddr(mac, data, static_cast<uint32_t>(requestBytes), attrs);
+#else
     return OHOS::Bluetooth::WriteFrame(data, static_cast<uint32_t>(requestBytes), attrs);
+#endif
 }
 
 int32_t AudioRenderGetRenderPosition(struct AudioRender *render, uint64_t *frames, struct AudioTimeStamp *time)
@@ -430,10 +491,30 @@ int32_t SetValue(struct ExtraParams mExtraParams, struct AudioHwRender *render)
 #ifdef A2DP_HDI_SERVICE
     if (mExtraParams.audioStreamCtl == 1) {
         HDF_LOGI("SetValue, try to suspendPlaying=1");
+#ifdef MULTI_A2DP_ENABLED
+        const char *mac = render->peerAddress;
+        if (mac != nullptr && mac[0] != '\0') {
+            OHOS::Bluetooth::SuspendPlayingFromParamByAddr(mac);
+        } else {
+            HDF_LOGE("%{public}s: macAddress is empty, cannot suspend by addr", __func__);
+            return HDF_FAILURE;
+        }
+#else
         OHOS::Bluetooth::SuspendPlayingFromParam();
+#endif
     } else if (mExtraParams.audioStreamCtl == 0) {
         HDF_LOGI("SetValue, try to suspendPlaying=0");
+#ifdef MULTI_A2DP_ENABLED
+        const char *mac = render->peerAddress;
+        if (mac != nullptr && mac[0] != '\0') {
+            OHOS::Bluetooth::UnBlockStartByAddr(mac);
+        } else {
+            HDF_LOGE("%{public}s: macAddress is empty, cannot unblock by addr", __func__);
+            return HDF_FAILURE;
+        }
+#else
         OHOS::Bluetooth::UnBlockStart();
+#endif
     }
 #endif
     return HDF_SUCCESS;

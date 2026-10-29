@@ -121,7 +121,7 @@ int32_t HdiServiceCreateCapture(const struct HdfDeviceIoClient *client,
     if (!HdfSbufReadUint32(data, &capturePid)) {
         return AUDIO_HAL_ERR_INTERNAL;
     }
-    HDF_LOGE("HdiServiceCreatRender: capturePid = %{public}u", capturePid);
+    HDF_LOGE("HdiServiceCreateRender: capturePid = %{public}u", capturePid);
     int32_t ret = GetInitCapturePara(data, &devDesc, &attrs);
     if (ret < 0) {
         HDF_LOGE("%{public}s: GetInitCapturePara fail", __func__);
@@ -154,7 +154,7 @@ int32_t HdiServiceCreateCapture(const struct HdfDeviceIoClient *client,
     return AUDIO_HAL_SUCCESS;
 }
 
-int32_t HdiServiceCaptureDestory(const struct HdfDeviceIoClient *client,
+int32_t HdiServiceCaptureDestroy(const struct HdfDeviceIoClient *client,
     struct HdfSBuf *data, struct HdfSBuf *reply)
 {
     if (client == nullptr || data == nullptr || reply == nullptr) {
