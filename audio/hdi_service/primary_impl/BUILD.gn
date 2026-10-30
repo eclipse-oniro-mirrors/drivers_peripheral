@@ -45,6 +45,10 @@ ohos_shared_library("audio_primary_impl_vendor") {
       defines += [ "ALSA_LIB_MODE" ]
     }
 
+    if (defined(is_emulator) && is_emulator) {
+      defines += [ "EMULATOR_ENABLED" ]
+    }
+
     if (drivers_peripheral_audio_feature_p7885) {
       defines += [ "AUDIO_HAL_P7885" ]
     }

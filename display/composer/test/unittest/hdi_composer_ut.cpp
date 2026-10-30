@@ -48,6 +48,11 @@ static bool g_isOnHwcEventCalled = false;
 static bool g_threadCtrl = false;
 static constexpr int32_t VALID_HDI_FD = 1;
 static constexpr int32_t INVALID_HDI_FD = -1;
+// The composer host may be restarted on demand right before the test runs; the display list
+// is filled asynchronously through the hotplug callback. Retry for a bounded time before
+// giving up, so that display enumeration does not race with the host restart.
+static constexpr int32_t DISPLAY_WAIT_RETRY_TIMES = 50;
+static constexpr int32_t DISPLAY_WAIT_INTERVAL_MS = 200;
 
 static inline std::shared_ptr<HdiTestDisplay> GetFirstDisplay()
 {
@@ -213,6 +218,11 @@ void DeviceTest::SetUpTestCase()
     ASSERT_TRUE(g_gralloc != nullptr);
 
     g_displayIds = HdiTestDevice::GetInstance().GetDevIds();
+    for (int32_t i = 0; i < DISPLAY_WAIT_RETRY_TIMES && g_displayIds.empty(); i++) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(DISPLAY_WAIT_INTERVAL_MS));
+        HdiTestDevice::GetInstance().RefreshDisplays();
+        g_displayIds = HdiTestDevice::GetInstance().GetDevIds();
+    }
     ASSERT_TRUE(g_displayIds.size() > 0);
 }
 

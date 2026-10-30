@@ -751,6 +751,12 @@ int32_t SndConverAlsaPcmFormat(const struct AudioPcmHwParams *hwParams, snd_pcm_
 int32_t SndPcmPrepare(struct AlsaSoundCard *cardIns)
 {
     CHECK_NULL_PTR_RETURN_DEFAULT(cardIns);
+    /* The pcm may have failed to open (for example the device is busy);
+     * snd_pcm_prepare(NULL) would crash the process, so check it first. */
+    if (cardIns->pcmHandle == NULL) {
+        AUDIO_FUNC_LOGE("pcmHandle is null and return INVALID_PARAM");
+        return HDF_ERR_INVALID_PARAM;
+    }
     int32_t ret = snd_pcm_prepare(cardIns->pcmHandle);
     if (ret < 0) {
         AUDIO_FUNC_LOGE("snd_pcm_prepare fail: %{public}s", snd_strerror(ret));

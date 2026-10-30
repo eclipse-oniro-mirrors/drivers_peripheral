@@ -16,20 +16,20 @@
 #ifndef ALSA_SND_COMMON_H
 #define ALSA_SND_COMMON_H
 
-/* Master Playback Volume  */
-#define     SND_NUMID_DACL_PLAYBACK_VOL      1
-#define     SND_ELEM_DACL_PLAYBACK_VOL       "Master Playback Volume"
+/*
+ * Mixer elements of the ES1370 sound card (QEMU x86_64_virt). The card is
+ * driven by the kernel ens1370 driver whose AK4531 codec exposes these
+ * controls. Elements are looked up BY NAME: numids are card-specific (the
+ * AK4531 control table registers "Master Playback Switch" first, so its
+ * "Master Playback Volume" ends up at numid 2), while the names are stable.
+ */
 
-/* Master Playback Volume  */
-#define     SND_NUMID_DACR_PLAYBACK_VOL      1
+/* Master playback volume (AK4531 master register, 0..31). */
+#define     SND_ELEM_DACL_PLAYBACK_VOL       "Master Playback Volume"
 #define     SND_ELEM_DACR_PLAYBACK_VOL       "Master Playback Volume"
 
-/* Master Capture Volume  */
-#define     SND_NUMID_DACL_CAPTURE_VOL       1
-#define     SND_ELEM_DACL_CAPTURE_VOL        "Master Capture Volume"
-
-/* Master Capture Volume  */
-#define     SND_NUMID_DACR_CAPTURE_VOL       1
-#define     SND_ELEM_DACR_CAPTURE_VOL        "Master Capture Volume"
+/* Mic input gain (AK4531 mic register, 0..31) used as the capture volume. */
+#define     SND_ELEM_DACL_CAPTURE_VOL        "Mic Volume"
+#define     SND_ELEM_DACR_CAPTURE_VOL        "Mic Volume"
 
 #endif /* ALSA_SND_COMMON_H */

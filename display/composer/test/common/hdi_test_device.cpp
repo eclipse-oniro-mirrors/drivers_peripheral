@@ -55,6 +55,14 @@ int32_t HdiTestDevice::InitDevice()
     return DISPLAY_SUCCESS;
 }
 
+void HdiTestDevice::RefreshDisplays()
+{
+    if (displayDevice_ == nullptr) {
+        return;
+    }
+    (void)displayDevice_->RegHotPlugCallback(HotPlug, static_cast<void *>(this));
+}
+
 std::shared_ptr<HdiTestDisplay> HdiTestDevice::GetDisplayFromId(uint32_t id)
 {
     auto iter = displays_.find(id);
