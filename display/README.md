@@ -11,7 +11,7 @@
 
 This repository defines and implements the following Hardware Driver Interfaces \(HDIs\) of the display module. The HDIs are classified into the following types:
 
--   DisplayLayer: manages display layers, including creating layers, setting display attributes, and filling and flushing layers.
+-   DisplayLayer: manages display layers, including creating layers, setting layer priorities and display attributes, and filling and flushing layers.
 -   DisplayGralloc: manages memory of the display module, including memory application, release, and mapping.
 -   DisplayGfx: implements hardware acceleration, including the initialization of the hardware acceleration module, bit blit, and regular graphics drawing and filling.
 
@@ -34,7 +34,7 @@ The source code directory structure is as follows:
 
 ### Available APIs<a name="section1551164914237"></a>
 
-The display driver provides the Window Manager Service \(WMS\) with driver capability APIs that can be classified into the  **DisplayLayer**,  **DisplayGralloc**, and  **DisplayGfx**  types. By calling these APIs, you can create or destroy a layer, set layer attributes, allocate, release, map, and buffer memory, fill in rectangles, and blit bitmaps.
+The display driver provides the Window Manager Service \(WMS\) with driver capability APIs that can be classified into the  **DisplayLayer**,  **DisplayGralloc**, and  **DisplayGfx**  types. By calling these APIs, you can create or destroy a layer, set layer attributes and priorities, allocate, release, map, and buffer memory, fill in rectangles, and blit bitmaps.
 
 [Table 1](#table1513255710559)  describes major HDIs provided by the display module.
 
@@ -49,7 +49,7 @@ The display driver provides the Window Manager Service \(WMS\) with driver capab
 </th>
 </tr>
 </thead>
-<tbody><tr id="row13132357165514"><td class="cellrowborder" rowspan="9" valign="top" width="12.121212121212123%" headers="mcps1.2.4.1.1 "><p id="p829618389386"><a name="p829618389386"></a><a name="p829618389386"></a></p>
+<tbody><tr id="row13132357165514"><td class="cellrowborder" rowspan="11" valign="top" width="12.121212121212123%" headers="mcps1.2.4.1.1 "><p id="p829618389386"><a name="p829618389386"></a><a name="p829618389386"></a></p>
 <p id="p35261387384"><a name="p35261387384"></a><a name="p35261387384"></a></p>
 <p id="p776383812388"><a name="p776383812388"></a><a name="p776383812388"></a></p>
 <p id="p11950123812382"><a name="p11950123812382"></a><a name="p11950123812382"></a></p>
@@ -101,6 +101,16 @@ The display driver provides the Window Manager Service \(WMS\) with driver capab
 <tr id="row76872047153720"><td class="cellrowborder" valign="top" headers="mcps1.2.4.1.1 "><p id="p1368818472376"><a name="p1368818472376"></a><a name="p1368818472376"></a>int32_t (*GetLayerBuffer)(uint32_t devId, uint32_t layerId, LayerBuffer *buffer);</p>
 </td>
 <td class="cellrowborder" align="center" valign="top" headers="mcps1.2.4.1.2 "><p id="p144182582405"><a name="p144182582405"></a><a name="p144182582405"></a>Obtains the buffer of a layer.</p>
+</td>
+</tr>
+<tr id="row1626354624111"><td class="cellrowborder" valign="top" headers="mcps1.2.4.1.1 "><p id="p1626354624112"><a name="p1626354624112"></a><a name="p1626354624112"></a>int32_t (*GetLayerDeviceId)(uint32_t devId, uint32_t layerId, uint32_t *deviceId);</p>
+</td>
+<td class="cellrowborder" align="center" valign="top" headers="mcps1.2.4.1.2 "><p id="p1626354624113"><a name="p1626354624113"></a><a name="p1626354624113"></a>Obtains the device ID of a layer.</p>
+</td>
+</tr>
+<tr id="row1626354624114"><td class="cellrowborder" valign="top" headers="mcps1.2.4.1.1 "><p id="p1626354624115"><a name="p1626354624115"></a><a name="p1626354624115"></a>int32_t (*SetLayerPriority)(uint32_t priority);</p>
+</td>
+<td class="cellrowborder" align="center" valign="top" headers="mcps1.2.4.1.2 "><p id="p1626354624116"><a name="p1626354624116"></a><a name="p1626354624116"></a>Sets the priority of a layer.</p>
 </td>
 </tr>
 <tr id="row1513316577554"><td class="cellrowborder" rowspan="7" valign="top" width="12.121212121212123%" headers="mcps1.2.4.1.1 "><p id="p14171441118"><a name="p14171441118"></a><a name="p14171441118"></a></p>

@@ -14,15 +14,16 @@
 
 -   audio：Audio HDI接口的定义，用于管理声卡驱动的加载和卸载、创建音频播放对象及录音对象、选择音频场景、设置音频属性及音量、控制音频播放及录音的启停等，详见audio目录下的[readme](audio/README_zh.md)文档。
 -   codec：Codec HDI接口的定义，这些接口对上层服务提供媒体编解码的驱动能力，详见codec目录下的[readme](codec/README_zh.md)文档。
--   display：Display HDI 接口定义及其默认实现，对上层图形服务提供显示驱动能力，包括显示图层的管理、显示内存的管理及硬件图形加速，详见display目录下的[readme](display/README_zh.md)文档。
+-   display：Display HDI 接口定义及其默认实现，对上层图形服务提供显示驱动能力，包括显示图层的管理与优先级设置、显示内存的管理及硬件图形加速，详见display目录下的[readme](display/README_zh.md)文档。
 
 -   format：Format HDI接口定义，此类接口对上层服务提供媒体文件复用和解复用的驱动能力，详见format目录下的[readme](format/README_zh.md)文档。
--   input：Input HDI接口定义及其实现，对上层输入系统服务提供操作input设备的驱动能力，包括input设备管理、业务流控制、数据上报等，详见input目录下的[readme](input/README_zh.md)文档。
+-   input：Input HDI接口定义及其实现，对上层输入系统服务提供操作input设备的驱动能力，包括input设备管理、业务流控制、数据上报及热插拔设备的安全删除等，详见input目录下的[readme](input/README_zh.md)文档。
 -   sensor：Sensor HDI接口定义与实现，接口主要包括所有Sensor信息查询、Sensor启停、Sensor订阅/去订阅、Sensor参数配置等稳定的接口，简化服务开发，详见sensor目录下的[readme](sensor/README_zh.md)文档。
 -   wlan：WLAN HDI接口定义与实现，包括创建和销毁HAL层和WLAN驱动的通道、获取本设备支持的WLAN特性等，详见wlan目录下的[readme](wlan/README_zh.md)文档。
 -   usb：USB DDK接口定义与实现，负责提供USB Host侧和USB Device侧的设备管理、配置、数据读写等接口，详见usb目录下的[readme](usb/README_zh.md)文档。
 -   camera：Camera HDI接口定义及其实现，对上层Camera Service提供HDI的具体实现，对下管理Camera各个硬件设备等，详见camera目录下的[readme](camera/README_zh.md)文档。
 -   ril：Ril HDI接口定义及其实现，提供通话、SIM卡、短彩信、搜网、蜂窝数据相关的业务处理能力等，详见ril目录下的[readme](ril/README_zh.md)文档。
+-   huks：硬件密码引擎HDI接口定义，提供密钥材料加解密、硬件随机数生成及设备DieID获取能力，支撑HUKS硬件根密钥保护方案。
 
 ## 相关仓<a name="section1371113476307"></a>
 

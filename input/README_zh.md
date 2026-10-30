@@ -12,7 +12,7 @@
 
 该仓下主要包含Input模块HDI（Hardware Driver Interface）接口定义及其实现，对上层输入服务提供操作input设备的驱动能力接口，HDI接口主要包括如下三大类：
 
--   InputManager：管理输入设备，包括输入设备的打开、关闭、设备列表信息获取等；
+-   InputManager：管理输入设备，包括输入设备的打开、关闭、设备列表信息获取、已断开设备的删除等；
 -   InputReporter：负责输入事件的上报，包括注册、注销数据上报回调函数等；
 -   InputController：提供input设备的业务控制接口，包括获取器件信息及设备类型、设置电源状态等。
 
@@ -36,7 +36,7 @@
 
 ### 接口说明<a name="section1551164914237"></a>
 
-Input驱动提供给系统服务Input Service可直接调用的驱动能力接口，按照属性分类三类：input设备管理模块、input数据上报模块、input业务控制模块，例如提供输入设备打开及关闭接口、注册设备监听的回调接口、设备信息查询接口、电源状态控制接口等。
+Input驱动提供给系统服务Input Service可直接调用的驱动能力接口，按照属性分类三类：input设备管理模块、input数据上报模块、input业务控制模块，例如提供输入设备打开及关闭接口、注册设备监听的回调接口、设备信息查询接口、电源状态控制接口等，其中RemoveDisconnectedInputDevice接口用于热插拔场景下已断开设备的删除，由编译开关drivers_peripheral_input_feature_hotplug_safe_remove控制。
 
 提供的部分接口说明如[表1 Input HDI接口列表](#table1513255710559)所示：
 
@@ -51,7 +51,7 @@ Input驱动提供给系统服务Input Service可直接调用的驱动能力接�
 </th>
 </tr>
 </thead>
-<tbody><tr id="row13132357165514"><td class="cellrowborder" rowspan="4" align="left" valign="top" width="12.031203120312032%" headers="mcps1.2.4.1.1 "><p id="p15674038913"><a name="p15674038913"></a><a name="p15674038913"></a></p>
+<tbody><tr id="row13132357165514"><td class="cellrowborder" rowspan="5" align="left" valign="top" width="12.031203120312032%" headers="mcps1.2.4.1.1 "><p id="p15674038913"><a name="p15674038913"></a><a name="p15674038913"></a></p>
 <p id="p825185015460"><a name="p825185015460"></a><a name="p825185015460"></a>input_manager.h</p>
 <p id="p2133757135510"><a name="p2133757135510"></a><a name="p2133757135510"></a></p>
 </td>
@@ -73,6 +73,11 @@ Input驱动提供给系统服务Input Service可直接调用的驱动能力接�
 <tr id="row171330575555"><td class="cellrowborder" valign="top" headers="mcps1.2.4.1.1 "><p id="p913315573557"><a name="p913315573557"></a><a name="p913315573557"></a>int32_t (*GetInputDeviceList)(uint32_t *devNum, DeviceInfo **devList, uint32_t size);</p>
 </td>
 <td class="cellrowborder" align="center" valign="top" headers="mcps1.2.4.1.2 "><p id="p1523319466539"><a name="p1523319466539"></a><a name="p1523319466539"></a>获取所有设备列表信息</p>
+</td>
+</tr>
+<tr id="row1626354624101"><td class="cellrowborder" valign="top" headers="mcps1.2.4.1.1 "><p id="p1626354624102"><a name="p1626354624102"></a><a name="p1626354624102"></a>int32_t (*RemoveDisconnectedInputDevice)(uint32_t devIndex);</p>
+</td>
+<td class="cellrowborder" align="center" valign="top" headers="mcps1.2.4.1.2 "><p id="p1626354624103"><a name="p1626354624103"></a><a name="p1626354624103"></a>删除已断开连接的input设备</p>
 </td>
 </tr>
 <tr id="row1513316577554"><td class="cellrowborder" rowspan="3" align="left" valign="top" width="12.031203120312032%" headers="mcps1.2.4.1.1 "><p id="p14171441118"><a name="p14171441118"></a><a name="p14171441118"></a></p>
