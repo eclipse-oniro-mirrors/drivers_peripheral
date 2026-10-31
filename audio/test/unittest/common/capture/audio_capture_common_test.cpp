@@ -166,7 +166,9 @@ void AudioUtCaptureTest::SetUp()
     EXPECT_EQ(HDF_SUCCESS, manager_->LoadAdapter(manager_, &adapterDescs_[0], &adapter_));
     if (adapter_ == nullptr) {
         ReleaseAllAdapterDescs(&adapterDescs_, MAX_AUDIO_ADAPTER_NUM);
-        EXPECT_NE(adapter_, nullptr);
+        // Fatal on purpose: continuing would dereference a null adapter below and crash the
+        // whole test binary (losing the results of every suite in it).
+        ASSERT_NE(adapter_, nullptr);
     }
 
     InitCaptureDevDesc(devDesc);
@@ -181,18 +183,25 @@ void AudioUtCaptureTest::SetUp()
 
 void AudioUtCaptureTest::TearDown()
 {
-    ASSERT_NE(devDescriptorName_, nullptr);
-    free(devDescriptorName_);
-    devDescriptorName_ = nullptr;
+    // SetUp may have aborted after a partial initialization (e.g. no audio adapter on the
+    // device); clean up only what was actually created.
+    if (devDescriptorName_ != nullptr) {
+        free(devDescriptorName_);
+        devDescriptorName_ = nullptr;
+    }
 
-    ASSERT_NE(capture_, nullptr);
-    EXPECT_EQ(HDF_SUCCESS, adapter_->DestroyCapture(adapter_, captureId_));
+    if (capture_ != nullptr && adapter_ != nullptr) {
+        EXPECT_EQ(HDF_SUCCESS, adapter_->DestroyCapture(adapter_, captureId_));
+    }
 
-    ASSERT_NE(manager_, nullptr);
-    EXPECT_EQ(HDF_SUCCESS, manager_->UnloadAdapter(manager_, adapterDescs_[0].adapterName));
+    if (manager_ != nullptr && adapter_ != nullptr && adapterDescs_ != nullptr) {
+        EXPECT_EQ(HDF_SUCCESS, manager_->UnloadAdapter(manager_, adapterDescs_[0].adapterName));
+    }
     ReleaseAllAdapterDescs(&adapterDescs_, MAX_AUDIO_ADAPTER_NUM);
 
-    IAudioManagerRelease(manager_, false);
+    if (manager_ != nullptr) {
+        IAudioManagerRelease(manager_, false);
+    }
 }
 
 /* capture frame cases */

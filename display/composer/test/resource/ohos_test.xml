@@ -18,12 +18,26 @@
         <preparer>
             <option name="target" value="mount"/>
             <option name="shell" value="service_control stop render_service"/>
-            <option name="shell" value="kill -9 `pidof composer_host`"/>
-            <option name="shell" value="sleep 1"/>
+            <!-- Restart composer_host gracefully: intentional stops are not counted
+                 by init's crash-rate limiter. The former SIGKILL restart combined with
+                 the death test's killall calls exceeded the limit (4 crashes within
+                 240s), which delayed the service restart by 240s and starved the
+                 subsequent test module of a working display service. -->
+            <option name="shell" value="service_control stop composer_host"/>
+            <option name="shell" value="service_control start composer_host"/>
+            <option name="shell" value="until pidof composer_host >/dev/null; do sleep 1; done"/>
+            <option name="shell" value="sleep 2"/>
         </preparer>
+        <!-- Restart render_service gracefully: the former SIGKILL made init treat it
+             as a crash and run its on-restart job (reset foundation/allocator_host/
+             composer_host), which could trip init's crash-rate limiter on
+             allocator_host (4 crashes within 240s together with the buffer death
+             test's killall calls) and delay its restart by 240s, breaking unrelated
+             tests that allocate display buffers (e.g. codec OMX handle buffers). -->
         <cleaner>
+            <option name="shell" value="service_control stop render_service"/>
             <option name="shell" value="service_control start render_service"/>
-            <option name="shell" value="kill -9 `pidof render_service`"/>
+            <option name="shell" value="until pidof render_service >/dev/null; do sleep 1; done"/>
             <option name="shell" value="sleep 1"/>
         </cleaner>
     </target>
@@ -44,12 +58,19 @@
         <preparer>
             <option name="target" value="mount"/>
             <option name="shell" value="service_control stop render_service"/>
-            <option name="shell" value="kill -9 `pidof composer_host`"/>
-            <option name="shell" value="sleep 1"/>
+            <!-- Same rationale as composer_ut: avoid SIGKILL so the crash counter
+                 only accumulates the two killall calls made by the test body itself. -->
+            <option name="shell" value="service_control stop composer_host"/>
+            <option name="shell" value="service_control start composer_host"/>
+            <option name="shell" value="until pidof composer_host >/dev/null; do sleep 1; done"/>
+            <option name="shell" value="sleep 2"/>
         </preparer>
+        <!-- Same rationale as composer_ut: avoid SIGKILL so render_service's
+             on-restart job does not reset the whole graphics stack. -->
         <cleaner>
+            <option name="shell" value="service_control stop render_service"/>
             <option name="shell" value="service_control start render_service"/>
-            <option name="shell" value="kill -9 `pidof render_service`"/>
+            <option name="shell" value="until pidof render_service >/dev/null; do sleep 1; done"/>
             <option name="shell" value="sleep 1"/>
         </cleaner>
     </target>

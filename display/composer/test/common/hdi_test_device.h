@@ -36,6 +36,9 @@ public:
     static void HotPlug(uint32_t outputId, bool connected, void* data);
 
     int32_t InitDevice();
+    // Re-registers the hotplug callback. The composer VDI reports the currently connected
+    // displays to a newly registered callback, so this refreshes the local display list.
+    void RefreshDisplays();
 
     std::shared_ptr<IDisplayBuffer> GetGrallocInterface()
     {

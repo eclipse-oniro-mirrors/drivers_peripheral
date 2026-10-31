@@ -97,14 +97,31 @@ int32_t CheckParaDesc(const struct AudioDeviceDescriptor *desc, const char *type
 
     enum AudioPortPin pins = desc->pins;
     if (!strcmp(type, TYPE_CAPTURE)) {
+#ifdef EMULATOR_ENABLED
+        /* Emulator primary adapter provides MIC/HS_MIC capture routes only. */
+        if (pins == PIN_IN_MIC || pins == PIN_IN_HS_MIC) {
+            return HDF_SUCCESS;
+        }
+#else
         if (pins == PIN_IN_MIC || pins == PIN_IN_HS_MIC || pins == PIN_IN_LINEIN) {
             return HDF_SUCCESS;
         }
+#endif
     } else if (!strcmp(type, TYPE_RENDER)) {
+#ifdef EMULATOR_ENABLED
+        /* Emulator primary adapter provides SPEAKER/HEADSET render routes only.
+         * Pins without a route must be rejected here, otherwise the alsa data
+         * path silently falls back to the default route and leaks the stream. */
+        if (pins == PIN_OUT_SPEAKER || pins == PIN_OUT_HEADSET
+            || pins == (PIN_OUT_SPEAKER | PIN_OUT_HEADSET)) {
+            return HDF_SUCCESS;
+        }
+#else
         if (pins == PIN_OUT_SPEAKER || pins == PIN_OUT_HEADSET || pins == PIN_OUT_LINEOUT || pins == PIN_OUT_HDMI
             || pins == (PIN_OUT_SPEAKER | PIN_OUT_HEADSET)) {
             return HDF_SUCCESS;
         }
+#endif
     }
     AUDIO_FUNC_LOGE("Unknow pin!");
 

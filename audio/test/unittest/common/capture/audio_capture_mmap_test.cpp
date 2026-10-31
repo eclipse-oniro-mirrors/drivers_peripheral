@@ -38,7 +38,7 @@ public:
     struct IAudioCapture *mmapCapture_ = nullptr;
     uint32_t captureId_ = 0;
     char *devDescriptorName_ = nullptr;
-    struct AudioAdapterDescriptor adapterDescs_[MAX_AUDIO_ADAPTER_NUM];
+    struct AudioAdapterDescriptor adapterDescs_[MAX_AUDIO_ADAPTER_NUM] = {};
     uint32_t adapterSize_ = 0;
     virtual void SetUp();
     virtual void TearDown();
@@ -123,7 +123,9 @@ void AudioUtCaptureMmapTest::SetUp()
     EXPECT_EQ(HDF_SUCCESS, manager_->LoadAdapter(manager_, &adapterDescs_[0], &adapter_));
     if (adapter_ == nullptr) {
         ReleaseAllAdapterDescs(adapterDescs_, adapterSize_);
-        EXPECT_NE(adapter_, nullptr);
+        // Fatal on purpose: continuing would dereference a null adapter below and crash the
+        // whole test binary (losing the results of every suite in it).
+        ASSERT_NE(adapter_, nullptr);
     }
 
     struct AudioDeviceDescriptor devDesc = {};
@@ -140,17 +142,25 @@ void AudioUtCaptureMmapTest::SetUp()
 
 void AudioUtCaptureMmapTest::TearDown()
 {
-    ASSERT_NE(devDescriptorName_, nullptr);
-    free(devDescriptorName_);
+    // SetUp may have aborted after a partial initialization (e.g. no audio adapter on the
+    // device); clean up only what was actually created.
+    if (devDescriptorName_ != nullptr) {
+        free(devDescriptorName_);
+        devDescriptorName_ = nullptr;
+    }
 
-    ASSERT_NE(mmapCapture_, nullptr);
-    EXPECT_EQ(HDF_SUCCESS, adapter_->DestroyCapture(adapter_, captureId_));
+    if (mmapCapture_ != nullptr && adapter_ != nullptr) {
+        EXPECT_EQ(HDF_SUCCESS, adapter_->DestroyCapture(adapter_, captureId_));
+    }
 
-    ASSERT_NE(manager_, nullptr);
-    EXPECT_EQ(HDF_SUCCESS, manager_->UnloadAdapter(manager_, adapterDescs_[0].adapterName));
+    if (manager_ != nullptr && adapter_ != nullptr) {
+        EXPECT_EQ(HDF_SUCCESS, manager_->UnloadAdapter(manager_, adapterDescs_[0].adapterName));
+    }
     ReleaseAllAdapterDescs(adapterDescs_, adapterSize_);
 
-    IAudioManagerRelease(manager_, false);
+    if (manager_ != nullptr) {
+        IAudioManagerRelease(manager_, false);
+    }
 }
 
 HWTEST_F(AudioUtCaptureMmapTest, HdfAudioCaptureReqMmapBuffer001, TestSize.Level1)
