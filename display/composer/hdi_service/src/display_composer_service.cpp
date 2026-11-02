@@ -264,6 +264,8 @@ void DisplayComposerService::LoadVdiFuncPart3()
         reinterpret_cast<ClearLayerBufferFunc>(dlsym(libHandle_, "ClearLayerBuffer"));
     vdiAdapter_->SetDisplayPerFrameParameter =
         reinterpret_cast<SetDisplayPerFrameParameterFunc>(dlsym(libHandle_, "SetDisplayPerFrameParameter"));
+    vdiAdapter_->SetDisplayReadBack =
+        reinterpret_cast<SetDisplayReadBackFunc>(dlsym(libHandle_, "SetDisplayReadBack"));
     vdiAdapter_->GetDisplayIdentificationData =
         reinterpret_cast<GetDisplayIdentificationDataFunc>(dlsym(libHandle_, "GetDisplayIdentificationData"));
     vdiAdapter_->GetSupportLayerType =
@@ -333,7 +335,7 @@ int32_t DisplayComposerService::CreateResponser()
     cacheMgr_ = DeviceCacheManager::GetInstance();
     CHECK_NULLPOINTER_RETURN_VALUE(cacheMgr_, HDF_FAILURE);
     CHECK_NULLPOINTER_RETURN_VALUE(vdiAdapter_, HDF_FAILURE);
-    cmdResponser_ = V1_5::HdiDisplayCmdResponser::Create(vdiAdapter_, cacheMgr_);
+    cmdResponser_ = V1_6::HdiDisplayCmdResponser::Create(vdiAdapter_, cacheMgr_);
     CHECK_NULLPOINTER_RETURN_VALUE(cmdResponser_, HDF_FAILURE);
     DISPLAY_LOGI("%{public}s out", __func__);
     return HDF_SUCCESS;
@@ -886,9 +888,9 @@ int32_t DisplayComposerService::InitSMQInfo(uint32_t devId, const std::shared_pt
     DISPLAY_CHK_RETURN(vdiAdapter_ == nullptr, HDF_FAILURE,
         DISPLAY_LOGE("%{public}s fail, vdiAdapter_ == nullptr, devId[%{public}u]", __func__, devId));
 
-    std::shared_ptr<V1_5::HdiDisplayCmdResponser> cmdResponserCur =
+    std::shared_ptr<V1_6::HdiDisplayCmdResponser> cmdResponserCur =
         (devId == UINT32_MAX) || (cmdResponserMap_.size() == 1) ? cmdResponser_ :
-        V1_5::HdiDisplayCmdResponser::Create(vdiAdapter_, cacheMgr_);
+        V1_6::HdiDisplayCmdResponser::Create(vdiAdapter_, cacheMgr_);
     DISPLAY_CHK_RETURN(cmdResponserCur == nullptr, HDF_FAILURE,
         DISPLAY_LOGE("%{public}s fail, cmdResponserCur == nullptr, devId[%{public}u]", __func__, devId));
 
@@ -917,7 +919,7 @@ int32_t DisplayComposerService::DoCmdRequest(uint32_t devId,
     uint32_t inEleCnt, const std::vector<HdifdInfo>& inFds, uint32_t& outEleCnt, std::vector<HdifdInfo>& outFds)
 {
     int32_t ret = HDF_FAILURE;
-    std::shared_ptr<V1_5::HdiDisplayCmdResponser> respCur = GetResponser(devId);
+    std::shared_ptr<V1_6::HdiDisplayCmdResponser> respCur = GetResponser(devId);
     if (respCur != nullptr) {
         ret = respCur->CmdRequest(inEleCnt, inFds, outEleCnt, outFds);
     }
@@ -927,7 +929,7 @@ int32_t DisplayComposerService::DoCmdRequest(uint32_t devId,
     return ret;
 }
 
-std::shared_ptr<V1_5::HdiDisplayCmdResponser> DisplayComposerService::GetResponser(uint32_t devId)
+std::shared_ptr<V1_6::HdiDisplayCmdResponser> DisplayComposerService::GetResponser(uint32_t devId)
 {
     if (!isSupportParallelPresenting_) {
         return cmdResponser_;

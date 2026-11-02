@@ -31,6 +31,8 @@
 #include "v1_5/display_command/display_cmd_responser.h"
 #include "v1_5/idisplay_composer.h"
 #include "v1_5/display_composer_type.h"
+#include "v1_6/display_command/display_cmd_responser.h"
+#include "v1_6/display_composer_type.h"
 #include "common/include/display_config.h"
 #include "common/include/display_vdi_adapter_interface.h"
 #include <mutex>
@@ -39,7 +41,7 @@ namespace OHOS {
 namespace HDI {
 namespace Display {
 namespace Composer {
-using namespace OHOS::HDI::Display::Composer::V1_5;
+using namespace OHOS::HDI::Display::Composer::V1_6;
 
 class DisplayComposerService : public V1_5::IDisplayComposer {
 public:
@@ -126,7 +128,7 @@ private:
     void ExitService();
     int32_t CreateResponser();
     void BootstrapDisplayDiscovery();
-    std::shared_ptr<V1_5::HdiDisplayCmdResponser> GetResponser(uint32_t devId);
+    std::shared_ptr<V1_6::HdiDisplayCmdResponser> GetResponser(uint32_t devId);
     static void OnHotPlug(uint32_t outputId, bool connected, void* data);
     static void OnVBlank(unsigned int sequence, uint64_t ns, void* data);
     static void OnMode(uint32_t modeId, uint64_t vBlankPeriod, void* data);
@@ -149,8 +151,8 @@ private:
     sptr<IVBlankIdleCallback> VBlankIdleCb_;
     sptr<IHwcEventCallback> hwcEventCb_;
     bool isSupportParallelPresenting_;
-    std::shared_ptr<V1_5::HdiDisplayCmdResponser> cmdResponser_;
-    std::unordered_map<uint32_t, std::shared_ptr<V1_5::HdiDisplayCmdResponser>> cmdResponserMap_;
+    std::shared_ptr<V1_6::HdiDisplayCmdResponser> cmdResponser_;
+    std::unordered_map<uint32_t, std::shared_ptr<V1_6::HdiDisplayCmdResponser>> cmdResponserMap_;
 };
 } // namespace Composer
 } // namespace Display

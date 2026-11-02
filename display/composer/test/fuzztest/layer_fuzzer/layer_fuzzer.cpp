@@ -25,7 +25,7 @@ namespace OHOS {
 using namespace OHOS::HDI::Display::Buffer::V1_0;
 using namespace OHOS::HDI::Display::Composer::V1_1;
 
-static sptr<Composer::V1_5::IDisplayComposerInterface> g_composerInterface = nullptr;
+static sptr<Composer::V1_6::IDisplayComposerInterface> g_composerInterface = nullptr;
 static std::shared_ptr<IDisplayBuffer> g_bufferInterface = nullptr;
 
 static bool g_isInit = false;
@@ -376,6 +376,16 @@ int32_t TestGetLayerColor(uint32_t devId, uint32_t layerId)
     return ret;
 }
 
+int32_t TestSetDisplayReadBack(uint32_t devId, uint32_t layerId)
+{
+    bool disableReadback = GetRandBoolValue(GetData<uint32_t>());
+    int32_t ret = g_composerInterface->SetDisplayReadBackSmq(devId, disableReadback);
+    if ((ret != DISPLAY_SUCCESS) && (ret != DISPLAY_NOT_SUPPORT)) {
+        HDF_LOGE("%{public}s: failed with ret=%{public}d", __func__, ret);
+    }
+    return ret;
+}
+
 typedef int32_t (*TestFuncs[])(uint32_t, uint32_t);
 
 TestFuncs g_testFuncs = {
@@ -393,7 +403,8 @@ TestFuncs g_testFuncs = {
     TestSetLayerColor,
     TestSetLayerPerFrameParameter,
     TestSetLayerMaskInfo,
-    TestGetLayerColor
+    TestGetLayerColor,
+    TestSetDisplayReadBack
 };
 
 bool FuzzTest(const uint8_t* rawData, size_t size)
@@ -404,7 +415,7 @@ bool FuzzTest(const uint8_t* rawData, size_t size)
 
     if (!g_isInit) {
         g_isInit = true;
-        g_composerInterface = Composer::V1_5::IDisplayComposerInterface::Get();
+        g_composerInterface = Composer::V1_6::IDisplayComposerInterface::Get();
         if (g_composerInterface == nullptr) {
             HDF_LOGE("%{public}s: get IDisplayComposerInterface failed", __func__);
             return false;
