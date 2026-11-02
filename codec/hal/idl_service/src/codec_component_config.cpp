@@ -19,6 +19,7 @@
 #include <map>
 #include "codec_log_wrapper.h"
 #include "codec_hcb_util.h"
+#include "codec_omx_ext.h"
 #define CODEC_CONFIG_NAME "media_codec_capabilities"
 
 namespace {
@@ -72,6 +73,7 @@ namespace {
     constexpr char CODEC_CONFIG_KEY_MAX_LTR_FRAME_NUM[] = "maxLTRFrameNum";
     constexpr char CODEC_CONFIG_KEY_IS_SUPPORT_B_FRAME[] = "isSupportBFrame";
     constexpr char CODEC_CONFIG_KEY_MAX_SUPPORT_B_FRAME_CNT[] = "maxSupportBFrameCnt";
+    constexpr char CODEC_CONFIG_KEY_IS_SUPPORT_ONLY_I_FRAME[] = "isSupportOnlyIFrame";
 
     constexpr char CODEC_CONFIG_KEY_SAMPLE_FORMATS[] = "sampleFormats";
     constexpr char CODEC_CONFIG_KEY_SAMPLE_RATE[] = "sampleRate";
@@ -420,6 +422,8 @@ void CodecComponentConfig::GetVideoPortFeature(const struct DeviceResourceIface 
         { VIDEO_FEATURE_WATERMARK,          CODEC_CONFIG_KEY_IS_SUPPORT_WATERMARK          },
         { VIDEO_FEATURE_SEEK_WITHOUT_FLUSH, CODEC_CONFIG_KEY_IS_SUPPORT_SEEK_WITHOUT_FLUSH },
         { VIDEO_FEATURE_QP_MAP,             CODEC_CONFIG_KEY_IS_SUPPORT_QP_MAP             },
+        { static_cast<VideoFeatureKey>(CODEC_VIDEO_FEATURE_ONLY_I_FRAME),
+          CODEC_CONFIG_KEY_IS_SUPPORT_ONLY_I_FRAME},
     };
     for (auto key: boolKeys) {
         bool support = iface.GetBool(&childNode, key.second.c_str());
