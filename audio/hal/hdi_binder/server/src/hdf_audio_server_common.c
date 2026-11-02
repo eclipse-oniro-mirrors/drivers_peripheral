@@ -1249,8 +1249,14 @@ static bool AudioRouteSinksBlockUnmarshalling(
         HDF_LOGE("%{public}s: read sourcesOrSinksNum failed!", __func__);
         return false;
     }
+    const uint32_t NUM_MAX = 100;
+    if (*sourcesOrSinksNum > NUM_MAX) {
+        HDF_LOGE("%{public}s: sourcesOrSinksNum %{public}u exceeds max", __func__, *sourcesOrSinksNum);
+        return false;
+    }
     if (*sourcesOrSinksNum > 0) {
-        *sourcesOrSinksCp = (struct AudioRouteNode*)OsalMemCalloc(sizeof(struct AudioRouteNode) * (*sourcesOrSinksNum));
+        size_t allocSize = sizeof(struct AudioRouteNode) * (*sourcesOrSinksNum);
+        *sourcesOrSinksCp = (struct AudioRouteNode*)OsalMemCalloc(allocSize);
         if (*sourcesOrSinksCp == NULL) {
             return false;
         }
@@ -1613,6 +1619,10 @@ static int32_t HdiServiceAdapterGetExtraParams(const struct HdfDeviceIoClient *c
 
     if (!HdfSbufReadInt32(data, &length)) {
         AUDIO_FUNC_LOGE("HdiServiceAdapterGetExtraParams FAIL! length is 0.");
+        return AUDIO_HAL_ERR_INTERNAL;
+    }
+    if (length <= 0 || length > STR_MAX - 1) {
+        AUDIO_FUNC_LOGE("HdiServiceAdapterGetExtraParams FAIL! length invalid.");
         return AUDIO_HAL_ERR_INTERNAL;
     }
 

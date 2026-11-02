@@ -161,8 +161,8 @@ static int32_t AudioEffectParseItem(const cJSON *cJSONObj, const char *item, con
         return HDF_ERR_MALLOC_FAIL;
     }
 
-    if (memcpy_s((void *)(*dest), HDF_EFFECT_NAME_LEN, itemName, strlen(itemName)) != EOK) {
-        HDF_LOGE("%{public}s: memcpy_s effect name fail! Item is %{public}s", __func__, item);
+    if (strncpy_s((char *)(*dest), HDF_EFFECT_NAME_LEN, itemName, HDF_EFFECT_NAME_LEN - 1) != EOK) {
+        HDF_LOGE("%{public}s: strncpy_s effect name fail! Item is %{public}s", __func__, item);
         OsalMemFree((void *)(*dest));
         *dest = NULL;
         return HDF_FAILURE;
