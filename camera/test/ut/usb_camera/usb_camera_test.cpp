@@ -1858,6 +1858,9 @@ TEST_F(UtestUSBCameraTest, camera_usb_0054)
 
     std::cout << "cancel capture video" <<  std::endl;
     CAMERA_LOGE("cancel capture video");
+    streamCustomerVideo->ReceiveFrameOff();
+    cameraBase_->streamCustomerPreview_->ReceiveFrameOff();
+
     cameraBase_->rc = (CamRetCode)cameraBase_->streamOperator->CancelCapture(captureIdVideo);
     EXPECT_EQ(true, cameraBase_->rc == HDI::Camera::V1_0::NO_ERROR);
     cameraBase_->rc = (CamRetCode)cameraBase_->streamOperator->CancelCapture(cameraBase_->CAPTURE_ID_PREVIEW);
@@ -1885,6 +1888,7 @@ TEST_F(UtestUSBCameraTest, camera_usb_0054)
     sleep(1);
 
     streamCustomerVideo->ReceiveFrameOff();
+    cameraBase_->streamCustomerPreview_->ReceiveFrameOff();
 
     cameraBase_->rc = (CamRetCode)cameraBase_->streamOperator->CancelCapture({captureIdVideo});
     EXPECT_EQ(true, cameraBase_->rc == HDI::Camera::V1_0::NO_ERROR);
@@ -1969,6 +1973,9 @@ TEST_F(UtestUSBCameraTest, camera_usb_0055)
 
     std::cout << "cancel capture video" <<  std::endl;
     CAMERA_LOGE("cancel capture video");
+    streamCustomerVideo->ReceiveFrameOff();
+    cameraBase_->streamCustomerPreview_->ReceiveFrameOff();
+
     cameraBase_->rc = (CamRetCode)cameraBase_->streamOperator->CancelCapture(captureIdVideo);
     EXPECT_EQ(true, cameraBase_->rc == HDI::Camera::V1_0::NO_ERROR);
     cameraBase_->rc = (CamRetCode)cameraBase_->streamOperator->CancelCapture(cameraBase_->CAPTURE_ID_PREVIEW);
@@ -1996,6 +2003,7 @@ TEST_F(UtestUSBCameraTest, camera_usb_0055)
     sleep(1);
 
     streamCustomerVideo->ReceiveFrameOff();
+    cameraBase_->streamCustomerPreview_->ReceiveFrameOff();
 
     cameraBase_->rc = (CamRetCode)cameraBase_->streamOperator->CancelCapture({captureIdVideo});
     EXPECT_EQ(true, cameraBase_->rc == HDI::Camera::V1_0::NO_ERROR);

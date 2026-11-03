@@ -67,6 +67,7 @@ ohos_shared_library("libmotion_interface_service_1.1") {
   install_images = [ chipset_base_dir ]
   subsystem_name = "hdf"
   part_name = "drivers_peripheral_motion"
+  branch_protector_ret = "pac_ret"
 }
 
 ohos_shared_library("libmotion_driver") {
@@ -108,6 +109,7 @@ ohos_shared_library("libmotion_driver") {
   install_images = [ chipset_base_dir ]
   subsystem_name = "hdf"
   part_name = "drivers_peripheral_motion"
+  branch_protector_ret = "pac_ret"
 }
 
 group("hdi_motion_service") {
