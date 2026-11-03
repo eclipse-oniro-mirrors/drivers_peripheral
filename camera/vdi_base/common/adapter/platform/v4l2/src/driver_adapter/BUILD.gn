@@ -124,4 +124,7 @@ ohos_shared_library("peripheral_camera_v4l2_adapter") {
   install_images = [ chipset_base_dir ]
   subsystem_name = "hdf"
   part_name = "drivers_peripheral_camera"
+  if (!use_clang_coverage) {
+    version_script = "libperipheral_camera_v4l2_adapter.versionscript"
+  }
 }

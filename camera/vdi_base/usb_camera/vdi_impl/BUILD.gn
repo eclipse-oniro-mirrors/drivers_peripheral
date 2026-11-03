@@ -146,6 +146,9 @@ ohos_shared_library("camera_external_usb_camera") {
   install_images = [ chipset_base_dir ]
   subsystem_name = "hdf"
   part_name = "drivers_peripheral_camera"
+  if (!use_clang_coverage) {
+    version_script = "libcamera_external_usb_camera.versionscript"
+  }
 }
 
 ohos_static_library("camera_daemon_static") {
