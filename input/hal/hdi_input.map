@@ -1,0 +1,50 @@
+# Copyright (c) 2026 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+/*
+ * hdi_input.map — Version Script for libhdi_input.z.so
+ *
+ * SO type: innerapi (passthrough_indirect) — manual version_script required
+ * Mode: whitelist (global lists KEEP symbols, local: * hides the rest)
+ *
+ * Source: hal/src/input_manager.c, input_controller.c, input_reporter.c
+ * Publice API (input_manager.h): GetInputInterface / ReleaseInputInterface
+ *
+ * KEEP: 2
+ * HIDE: GetDevManager / InstanceReporterHdi / InstanceControllerHdi / 
+ *       UpdateDevFullInfo / g_devManager / _init / _fini and others
+ */
+
+{
+   global:
+    /* Public C API — declared in interfaces/include/input_manager.h */
+    GetInputInterface;
+    ReleaseInputInterface;
+
+   local:
+    /* Internal cross-TU helpers (non-static, would otherwise be exported) */
+    GetDevManager;
+    InstanceReporterHdi;
+    InstanceControllerHdi;
+    UpdateDevFullInfo;
+
+    /* Internal global state */
+    g_devManager;
+
+    /* Linker-generated */
+    _init;
+    _fini;
+
+    /* Catch-all: hide everything else */
+    *;
+};
