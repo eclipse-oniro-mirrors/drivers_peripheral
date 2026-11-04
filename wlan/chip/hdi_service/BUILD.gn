@@ -45,6 +45,7 @@ ohos_shared_library("libchip_controller_chip_interface_service_2.0") {
 
   defines = [
     "P2P_NAME=\"$drivers_peripheral_wlan_p2p_name\"",
+    "WDLENHANCE_NAME=\"$drivers_peripheral_wlan_wdlenhance_name\"",
     "HAL_SO_NAME=\"$drivers_peripheral_wlan_feature_vendor\"",
   ]
 

@@ -18,6 +18,7 @@
 #include <securec.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
 #include <net/if.h>
 #include <linux/nl80211.h>
 #include <netlink/genl/ctrl.h>
@@ -448,32 +449,13 @@ static int HandleEvent(struct nl_sock *sock)
     return ret;
 }
 
-static int32_t CtrlNoSeqCheck(struct nl_msg *msg, void *arg)
+static void CtrlReportRxActionFrame(const char *ifName,
+    struct nlattr **attr, uint8_t *tempData, uint32_t dataLen)
 {
-    struct genlmsghdr *hdr = nlmsg_data(nlmsg_hdr(msg));
-    struct nlattr *attr[NL80211_ATTR_MAX + 1];
-
-    nla_parse(attr, NL80211_ATTR_MAX, genlmsg_attrdata(hdr, 0),
-        genlmsg_attrlen(hdr, 0), NULL);
-    
-    if (hdr->cmd != NL80211_CMD_FRAME) {
-        return NL_OK;
-    }
-    if (attr[NL80211_ATTR_FRAME] == NULL) {
-        HILOG_ERROR(LOG_CORE, "%s: failed to get frame data", __FUNCTION__);
-        return NL_OK;
-    }
-    uint32_t dataLen = (uint32_t)nla_len(attr[NL80211_ATTR_FRAME]);
-    if (dataLen == 0 || dataLen > BUFSIZE) {
-        return NL_OK;
-    }
-    uint8_t *tempData = OsalMemCalloc(dataLen + 1);
-    if (tempData == NULL) {
-        return NL_OK;
-    }
-    (void)memset_s(tempData, dataLen + 1, 0, dataLen + 1);
+    const char *reportName = WifiGetActionReportIfName(ifName);
     do {
         if (memcpy_s(tempData, dataLen + 1, nla_data(attr[NL80211_ATTR_FRAME]), dataLen) != EOK) {
+            HILOG_ERROR(LOG_CORE, "%{public}s: CtrlNoSeqCheck failed to send data, memcpy_s fail", "CtrlNoSeqCheck");
             break;
         }
         uint32_t rssi = 0;
@@ -485,10 +467,62 @@ static int32_t CtrlNoSeqCheck(struct nl_msg *msg, void *arg)
         WifiActionData actionData;
         actionData.data = tempData;
         actionData.dataLen = dataLen + 1;
-        HILOG_INFO(LOG_CORE, "%s: receive data len = %{public}d, rssi = %{public}d", __FUNCTION__,
-            actionData.dataLen, rssi);
-        WifiEventReport("p2p0", WIFI_EVENT_ACTION_RECEIVED, &actionData);
+        HILOG_INFO(LOG_CORE, "%{public}s: receive data on %{public}s, len=%{public}u, rssi=%{public}u",
+            "CtrlNoSeqCheck", ifName, actionData.dataLen, rssi);
+        WifiEventReport(reportName, WIFI_EVENT_ACTION_RECEIVED, &actionData);
     } while (0);
+}
+
+static int32_t CtrlNoSeqCheck(struct nl_msg *msg, void *arg)
+{
+    struct genlmsghdr *hdr = nlmsg_data(nlmsg_hdr(msg));
+    struct nlattr *attr[NL80211_ATTR_MAX + 1];
+
+    nla_parse(attr, NL80211_ATTR_MAX, genlmsg_attrdata(hdr, 0),
+        genlmsg_attrlen(hdr, 0), NULL);
+    
+    if (hdr->cmd != NL80211_CMD_FRAME) {
+        HILOG_ERROR(LOG_CORE, "%s: CtrlNoSeqCheck failed to send data, hdr->cmd != NL80211_CMD_FRAME", __FUNCTION__);
+        return NL_OK;
+    }
+    if (attr[NL80211_ATTR_FRAME] == NULL) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: CtrlNoSeqCheck failed to get frame data", __FUNCTION__);
+        return NL_OK;
+    }
+
+    /* 提取 ifindex 确定接口名（区分 p2p0 / wdlenhance0） */
+    const char *ifName = "p2p0";  /* 默认 p2p0（兼容旧行为） */
+    char ifNameBuf[IFNAMSIZ] = {0}; /* hoisted to function scope: must outlive the
+                                     * OsalMemCalloc/memset_s/memcpy_s calls below, otherwise ifName
+                                     * dangles and WifiEventReport receives a garbage ifName */
+    if (attr[NL80211_ATTR_IFINDEX]) {
+        uint32_t ifindex = nla_get_u32(attr[NL80211_ATTR_IFINDEX]);
+        if (if_indextoname(ifindex, ifNameBuf) != NULL) {
+            ifName = ifNameBuf;
+        } else {
+            HILOG_WARN(LOG_CORE,
+                       "%{public}s: if_indextoname failed, ifindex=%{public}u, fallback to p2p0",
+                       __FUNCTION__, ifindex);
+        }
+    } else {
+        HILOG_WARN(LOG_CORE, "%{public}s: NL80211_ATTR_IFINDEX missing, fallback to p2p0", __FUNCTION__);
+    }
+
+    uint32_t dataLen = (uint32_t)nla_len(attr[NL80211_ATTR_FRAME]);
+    HILOG_INFO(LOG_CORE, "%{public}s: CtrlNoSeqCheck send data, ifName=%{public}s, dataLen=%{public}u",
+               __FUNCTION__, ifName, dataLen);
+    if (dataLen == 0 || dataLen > BUFSIZE) {
+        HILOG_ERROR(
+            LOG_CORE, "%{public}s: CtrlNoSeqCheck failed to send data, dataLen %{public}u", __FUNCTION__, dataLen);
+        return NL_OK;
+    }
+    uint8_t *tempData = OsalMemCalloc(dataLen + 1);
+    if (tempData == NULL) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: CtrlNoSeqCheck failed to send data, tempData == NULL", __FUNCTION__);
+        return NL_OK;
+    }
+    (void)memset_s(tempData, dataLen + 1, 0, dataLen + 1);
+    CtrlReportRxActionFrame(ifName, attr, tempData, dataLen);
     OsalMemFree(tempData);
     tempData = NULL;
     return NL_OK;

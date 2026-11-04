@@ -80,6 +80,15 @@ void WifiEventReport(const char *ifName, uint32_t event, void *data)
     HDF_LOGD("hal exit %{public}s", __FUNCTION__);
 }
 
+const char *WifiGetActionReportIfName(const char *ifName)
+{
+    const char *prefix = "wdlenhance";
+    if (ifName == NULL) {
+        return "p2p0";
+    }
+    return (strncmp(ifName, prefix, strlen(prefix)) == 0) ? ifName : "p2p0";
+}
+
 int32_t WifiRegisterEventCallback(OnReceiveFunc onRecFunc, uint32_t eventType, const char *ifName)
 {
     uint32_t i;

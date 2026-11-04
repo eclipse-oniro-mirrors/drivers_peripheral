@@ -17,6 +17,7 @@
 #include <hdf_log.h>
 #include "../../../chip/hdi_service/iface_tool.h"
 #include "../../../chip/hdi_service/wifi_chip.h"
+#include "../../../chip/hdi_service/wifi_ext_iface.h"
 #include "wifi_hal_fn.h"
 
 using namespace testing::ext;
@@ -156,6 +157,122 @@ HWTEST_F(WifiChipTest, CreateStaIfaceTest, TestSize.Level0)
     wifiChip->RemoveStaService(ifname1);
     EXPECT_TRUE(wifiChip->GetStaServiceIfNames(ifnames) == HDF_FAILURE);
     EXPECT_TRUE(wifiChip->GetStaService(ifname1, staIface) == HDF_FAILURE);
+}
+
+static HalIfaceType g_lastCreatedIfaceType = HalIfaceType::HAL_TYPE_STA;
+
+static WifiError RecordCreateIface(wifiHandle handle, const char* ifname, HalIfaceType ifaceType)
+{
+    (void)handle;
+    (void)ifname;
+    g_lastCreatedIfaceType = ifaceType;
+    return HAL_SUCCESS;
+}
+
+static std::string g_lastRegisteredIfname;
+static int g_registerIfaceCallBackCalls = 0;
+
+static WifiError RecordRegisterIfaceCallBack(const char* ifname, WifiCallbackHandler handler)
+{
+    (void)handler;
+    ++g_registerIfaceCallBackCalls;
+    g_lastRegisteredIfname = ifname;
+    return HAL_SUCCESS;
+}
+
+/**
+ * @tc.name: CreateExtServiceWdlenhanceTest
+ * @tc.desc: CreateExtService maps wdlenhance0 to HAL_TYPE_WDLENHANCE and other names to HAL_TYPE_P2P
+ * @tc.type: FUNC
+ * @tc.require:
+ */
+HWTEST_F(WifiChipTest, CreateExtServiceWdlenhanceTest, TestSize.Level1)
+{
+    HDF_LOGI("CreateExtServiceWdlenhanceTest started");
+    WifiHalFn fn;
+    InitWifiHalFuncTable(&fn);
+    fn.vendorHalCreateIface = RecordCreateIface;
+    auto vendorHal = std::make_shared<WifiVendorHal>(ifaceTool, fn, true);
+    sptr<WifiChip> chip = new (std::nothrow) WifiChip(0, true, vendorHal,
+        std::make_shared<IfaceUtil>(ifaceTool), HandlerMock);
+    ASSERT_NE(chip, nullptr);
+
+    sptr<IChipIface> wdlenhanceIface = nullptr;
+    ASSERT_EQ(chip->CreateExtService(WDLENHANCE_NAME, wdlenhanceIface), HDF_SUCCESS);
+    ASSERT_NE(wdlenhanceIface, nullptr);
+    EXPECT_EQ(g_lastCreatedIfaceType, HalIfaceType::HAL_TYPE_WDLENHANCE);
+
+    sptr<IChipIface> p2pIface = nullptr;
+    ASSERT_EQ(chip->CreateExtService("p2p1", p2pIface), HDF_SUCCESS);
+    ASSERT_NE(p2pIface, nullptr);
+    EXPECT_EQ(g_lastCreatedIfaceType, HalIfaceType::HAL_TYPE_P2P);
+
+    sptr<IChipIface> fetched = nullptr;
+    EXPECT_EQ(chip->GetExtService(WDLENHANCE_NAME, fetched), HDF_SUCCESS);
+    EXPECT_NE(fetched, nullptr);
+}
+
+/**
+ * @tc.name: ExtIfaceNameAndCallbackForwardingTest
+ * @tc.desc: WifiExtIface GetIfaceName returns wdlenhance0 and forwards register/unregister
+ *           callbacks into the vendor HAL fn table with the right ifname
+ * @tc.type: FUNC
+ * @tc.require:
+ */
+HWTEST_F(WifiChipTest, ExtIfaceNameAndCallbackForwardingTest, TestSize.Level1)
+{
+    HDF_LOGI("ExtIfaceNameAndCallbackForwardingTest started");
+    WifiHalFn fn;
+    InitWifiHalFuncTable(&fn);
+    fn.registerIfaceCallBack = RecordRegisterIfaceCallBack;
+    auto vendorHal = std::make_shared<WifiVendorHal>(ifaceTool, fn, true);
+    sptr<WifiChip> chip = new (std::nothrow) WifiChip(0, true, vendorHal,
+        std::make_shared<IfaceUtil>(ifaceTool), HandlerMock);
+    ASSERT_NE(chip, nullptr);
+
+    sptr<IChipIface> extIface = nullptr;
+    ASSERT_EQ(chip->CreateExtService(WDLENHANCE_NAME, extIface), HDF_SUCCESS);
+    ASSERT_NE(extIface, nullptr);
+
+    std::string ifname;
+    ASSERT_EQ(extIface->GetIfaceName(ifname), HDF_SUCCESS);
+    EXPECT_EQ(ifname, WDLENHANCE_NAME);
+
+    sptr<IChipIfaceCallback> ifaceCallback;
+    g_registerIfaceCallBackCalls = 0;
+    g_lastRegisteredIfname.clear();
+    ASSERT_EQ(extIface->RegisterChipIfaceCallBack(ifaceCallback), HDF_SUCCESS);
+    EXPECT_EQ(g_registerIfaceCallBackCalls, 1);
+    EXPECT_EQ(g_lastRegisteredIfname, WDLENHANCE_NAME);
+
+    ASSERT_EQ(extIface->UnRegisterChipIfaceCallBack(ifaceCallback), HDF_SUCCESS);
+    EXPECT_EQ(g_registerIfaceCallBackCalls, 1);
+}
+
+/**
+ * @tc.name: ExtIfaceInvalidStatesTest
+ * @tc.desc: WifiExtIface with empty vendorHal fails callbacks; Invalidate blocks GetIfaceName
+ * @tc.type: FUNC
+ * @tc.require:
+ */
+HWTEST_F(WifiChipTest, ExtIfaceInvalidStatesTest, TestSize.Level1)
+{
+    HDF_LOGI("ExtIfaceInvalidStatesTest started");
+    std::weak_ptr<WifiVendorHal> emptyVendorHal;
+    auto ifaceUtil = std::make_shared<IfaceUtil>(ifaceTool);
+    sptr<WifiExtIface> extIface = new (std::nothrow) WifiExtIface(WDLENHANCE_NAME, emptyVendorHal, ifaceUtil);
+    ASSERT_NE(extIface, nullptr);
+
+    std::string ifname;
+    EXPECT_EQ(extIface->GetIfaceName(ifname), HDF_SUCCESS);
+    EXPECT_EQ(ifname, WDLENHANCE_NAME);
+
+    sptr<IChipIfaceCallback> ifaceCallback;
+    EXPECT_EQ(extIface->RegisterChipIfaceCallBack(ifaceCallback), HDF_FAILURE);
+    EXPECT_EQ(extIface->UnRegisterChipIfaceCallBack(ifaceCallback), HDF_FAILURE);
+
+    extIface->Invalidate();
+    EXPECT_EQ(extIface->GetIfaceName(ifname), HDF_FAILURE);
 }
 }
 
