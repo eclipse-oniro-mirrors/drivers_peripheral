@@ -657,11 +657,16 @@ int32_t WifiChip::RemoveStaService(const std::string& ifname)
 int32_t WifiChip::CreateExtService(const std::string& ifName, sptr<IChipIface>& iface)
 {
     HDF_LOGI("enter CreateExtService");
+    auto vendorHalLock = vendorHal_.lock();
+    if (vendorHalLock == nullptr) {
+        HDF_LOGE("vendorHal_ is null, cannot create virtual AP interface . Line: %{public}d", __LINE__);
+        return HDF_FAILURE;
+    }
     HalIfaceType ifaceType = HalIfaceType::HAL_TYPE_P2P;
     if (ifName == WDLENHANCE_NAME) {
         ifaceType = HalIfaceType::HAL_TYPE_WDLENHANCE;
     }
-    WifiError status = vendorHal_.lock()->CreateVirtualInterface(ifName, ifaceType);
+    WifiError status = vendorHalLock->CreateVirtualInterface(ifName, ifaceType);
     if (status != WifiError::HAL_SUCCESS) {
         HDF_LOGE("Failed to add interface: %{public}s, error: %{public}d", ifName.c_str(), status);
         return HDF_FAILURE;
@@ -671,7 +676,6 @@ int32_t WifiChip::CreateExtService(const std::string& ifName, sptr<IChipIface>& 
     iface = ifa;
     return HDF_SUCCESS;
 }
-
 int32_t WifiChip::GetExtService(const std::string& ifName, sptr<IChipIface>& iface)
 {
     iface = FindExtUsingName(extIfaces_, ifName);
