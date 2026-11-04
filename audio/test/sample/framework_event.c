@@ -90,6 +90,9 @@ static int AudioGetServiceStatus(const struct ServiceStatus *svcStatus)
         .deviceType = HDF_AUDIO_DEVICE_UNKOWN,
     };
     char strTemp[AUDIO_PNP_MSG_LEN_MAX] = {0};
+    if (strlen((char *)svcStatus->info) >= AUDIO_PNP_MSG_LEN_MAX) {
+        return HDF_FAILURE;
+    }
     if (memcpy_s(strTemp, AUDIO_PNP_MSG_LEN_MAX, (char *)svcStatus->info, strlen((char *)svcStatus->info))) {
         return HDF_FAILURE;
     }
@@ -181,6 +184,9 @@ static int AudioGetLoadStatus(struct ServiceStatus *svcStatus)
         .deviceType = HDF_AUDIO_DEVICE_UNKOWN,
     };
     char strTemp[AUDIO_PNP_MSG_LEN_MAX] = {0};
+    if (strlen((char *)svcStatus->info) >= AUDIO_PNP_MSG_LEN_MAX) {
+        return HDF_FAILURE;
+    }
     if (memcpy_s(strTemp, AUDIO_PNP_MSG_LEN_MAX, (char *)svcStatus->info, strlen((char *)svcStatus->info))) {
         return HDF_FAILURE;
     }
@@ -260,6 +266,9 @@ static int AudioGetUsbPnpStatus(struct ServiceStatus *svcStatus)
         .deviceType = HDF_AUDIO_DEVICE_UNKOWN,
     };
     char strTemp[AUDIO_PNP_MSG_LEN_MAX] = {0};
+    if (strlen((char *)svcStatus->info) >= AUDIO_PNP_MSG_LEN_MAX) {
+        return HDF_FAILURE;
+    }
     if (memcpy_s(strTemp, AUDIO_PNP_MSG_LEN_MAX, (char *)svcStatus->info, strlen((char *)svcStatus->info))) {
         return HDF_FAILURE;
     }
