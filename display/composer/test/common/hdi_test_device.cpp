@@ -30,6 +30,14 @@ HdiTestDevice& HdiTestDevice::GetInstance()
     return device;
 }
 
+HdiTestDevice::~HdiTestDevice()
+{
+    // Members are destroyed in reverse declaration order, so gralloc_ would be released
+    // before displays_. Clear displays_ here (while gralloc_ is still valid) so the
+    // gralloc buffers held by the client layer can be unmapped and freed correctly.
+    displays_.clear();
+}
+
 void HdiTestDevice::HotPlug(uint32_t outputId, bool connected, void* data)
 {
     DISPLAY_TEST_LOGD("outputId %{public}u connected %{public}d", outputId, connected);
