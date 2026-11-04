@@ -33,6 +33,7 @@ using namespace OHOS::HDI::Display::Composer::V1_4;
 class HdiTestDevice {
 public:
     static HdiTestDevice& GetInstance();
+    ~HdiTestDevice();
     static void HotPlug(uint32_t outputId, bool connected, void* data);
 
     int32_t InitDevice();

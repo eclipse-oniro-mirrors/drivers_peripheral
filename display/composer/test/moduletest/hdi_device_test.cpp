@@ -324,7 +324,9 @@ static std::vector<std::shared_ptr<HdiTestLayer>> CreateLayers(std::vector<Layer
 {
     DISPLAY_TEST_LOGD("settings %{public}zd", settings.size());
     std::vector<std::shared_ptr<HdiTestLayer>> layers;
-    DisplayModeInfo mode = GetFirstDisplay()->GetCurrentMode();
+    std::shared_ptr<HdiTestDisplay> display = GetFirstDisplay();
+    DISPLAY_TEST_CHK_RETURN((display == nullptr), layers, DISPLAY_TEST_LOGE("can not get display"));
+    DisplayModeInfo mode = display->GetCurrentMode();
     AdjustLayerSettings(settings, mode.width, mode.height);
     for (uint32_t i = 0; i < settings.size(); i++) {
         LayerSettings setting = settings[i];
@@ -389,9 +391,6 @@ void DeviceTest::TearDown()
 void DeviceLayerDisplay::TearDown()
 {
     HdiTestDevice::GetInstance().Clear();
-#ifndef DISPLAY_COMMUNITY
-    HdiTestDevice::GetInstance().GetFirstDisplay()->ResetClientLayer();
-#endif
 }
 
 void VblankCtr::NotifyVblank(unsigned int sequence, uint64_t ns, const void* data)

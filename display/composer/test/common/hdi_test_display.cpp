@@ -174,6 +174,8 @@ int32_t HdiTestDisplay::Commit()
     int ret;
     HdiGrallocBuffer* buffer = nullptr;
     if (needFlushFb_) {
+        DISPLAY_TEST_CHK_RETURN((clientLayer_ == nullptr), DISPLAY_FAILURE,
+            DISPLAY_TEST_LOGE("the client layer is not created, can not flush framebuffer display id %{public}u", id_));
         ret = clientLayer_->SwapFrontToBackQ();
         DISPLAY_TEST_CHK_RETURN((ret != DISPLAY_SUCCESS), DISPLAY_FAILURE,
             DISPLAY_TEST_LOGE("has no front buffer display id %{public}u", id_));
