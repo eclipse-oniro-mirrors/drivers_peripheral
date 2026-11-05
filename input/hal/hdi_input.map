@@ -18,10 +18,10 @@
  * Mode: whitelist (global lists KEEP symbols, local: * hides the rest)
  *
  * Source: hal/src/input_manager.c, input_controller.c, input_reporter.c
- * Publice API (input_manager.h): GetInputInterface / ReleaseInputInterface
+ * Public API (input_manager.h): GetInputInterface / ReleaseInputInterface
  *
  * KEEP: 2
- * HIDE: GetDevManager / InstanceReporterHdi / InstanceControllerHdi / 
+ * HIDE: GetDevManager / InstanceReporterHdi / InstanceControllerHdi /
  *       UpdateDevFullInfo / g_devManager / _init / _fini and others
  */
 

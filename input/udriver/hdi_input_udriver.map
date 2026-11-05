@@ -19,13 +19,13 @@
  *
  * Source: udriver/src/input_manager.cpp, input_device_manager.cpp
  * Public API (input_manager.h): GetInputInterface / ReleaseInputInterface
- * Class InputDeviceManager is used only inside the SO;its vtable/typeinfo are
- * conservatively kept (REVIEW) because inner_kit header exposes the class
- * definition. All other class member symbols are hidden.
+ * Class InputDeviceManager is used only inside the SO; its vtable/typeinfo and
+ * all member methods are hidden because the public API never exposes an
+ * InputDeviceManager* across the SO boundary (no cross-DSO dynamic_cast/RTTI).
  *
  * KEEP: 2 (GetInputInterface / ReleaseInputInterface)
- * REVIEW (kept): 2 (_ZTV / _ZTI for InputDeviceManager)
- * HIDE: ~35+ (member methods, _ZTS, thunks, guard vars, std inlines, _init/_fini)
+ * HIDE: ~37+ (member methods, _ZTV/_ZTI/_ZTS, thunks, guard vars,
+ *        std inlines, _init/_fini)
  *
  * Principle: thunk offsets (_ZTv0_n<offset>_ / _ZThn<offset>_) are compiler-ABI
  * dependent and must not be hardcoded. Use _ZTv0_* / _ZThn*_ wildcards to cover
@@ -38,16 +38,13 @@
     GetInputInterface;
     ReleaseInputInterface;
 
-    /* REVIEW (conservatively kept): inner_kit header input_device_manager.h
-     * exposes the class definition;vendor udriver adapters could in theory
-     * dynamic_cast an InputDeviceManager*. Remove these two lines in a later
-     * round once it is confirmed no vendor adapter uses dynamic_cast. */
-    _ZTVN5OHOS5Input17InputDeviceManagerE;
-    _ZTIN5OHOS5Input17InputDeviceManagerE;
-
    local:
     /* InputDeviceManager member methods (SO-internal only) */
     _ZN5OHOS5Input17InputDeviceManager*;
+
+    /* vtable / typeinfo (SO-internal only; no cross-DSO dynamic_cast/RTTI) */
+    _ZTVN5OHOS5Input17InputDeviceManagerE;
+    _ZTIN5OHOS5Input17InputDeviceManagerE;
 
     /* typeinfo name (no cross-DSO reference) */
     _ZTSN5OHOS5Input17InputDeviceManagerE;
