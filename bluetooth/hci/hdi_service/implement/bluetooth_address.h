@@ -16,6 +16,7 @@
 #ifndef OHOS_HDI_BLUETOOTH_HCI_BLUETOOTH_ADDRESS_H
 #define OHOS_HDI_BLUETOOTH_HCI_BLUETOOTH_ADDRESS_H
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,6 +32,7 @@ public:
     ~BluetoothAddress() = default;
     static std::shared_ptr<BluetoothAddress> GetDeviceAddress(const std::string &path = BT_DEVICE_ADDRESS_PATH);
     static std::shared_ptr<BluetoothAddress> GenerateDeviceAddress(const std::string &prefix = "");
+    static bool GetSecondaryBtAddress(uint8_t *bdaddr);
     void ReadAddress(std::vector<uint8_t> &address) const;
     void ReadAddress(std::string &address) const;
 

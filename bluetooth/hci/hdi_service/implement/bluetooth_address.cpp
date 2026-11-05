@@ -117,6 +117,44 @@ bool BluetoothAddress::GetConstantAddress(char *address, int len)
     return (ret == 0);
 }
 
+bool BluetoothAddress::GetSecondaryBtAddress(uint8_t *bdaddr)
+{
+    const uint8_t invalidBdaddr[ADDRESS_SIZE] = {0};
+    if (bdaddr == nullptr) {
+        HDF_LOGE("bdaddr is nullptr");
+        return false;
+    }
+
+    int addrFd = open(BT_DEVICE_SECONDARY_ADDRESS_PATH, O_RDONLY);
+    if (addrFd < 0) {
+        HDF_LOGI("no preset secondary bdaddr file %{public}s.", BT_DEVICE_SECONDARY_ADDRESS_PATH);
+        return false;
+    }
+
+    char addressStr[ADDRESS_STR_LEN + 1] = {0};
+    bool readSucc = read(addrFd, addressStr, ADDRESS_STR_LEN) == ADDRESS_STR_LEN;
+    close(addrFd);
+    addressStr[ADDRESS_STR_LEN] = '\0';
+    if (!readSucc || !CheckAddress(addressStr, ADDRESS_STR_LEN + 1)) {
+        HDF_LOGE("read %{public}s failed", BT_DEVICE_SECONDARY_ADDRESS_PATH);
+        return false;
+    }
+
+    auto ptr = std::make_shared<BluetoothAddress>();
+    if (ptr->ParseAddressFromString(addressStr) != ADDRESS_SIZE ||
+        memcmp(ptr->address_.data(), invalidBdaddr, ADDRESS_SIZE) == 0) {
+        HDF_LOGE("Got Invalid bdaddr from %{public}s", BT_DEVICE_SECONDARY_ADDRESS_PATH);
+        return false;
+    }
+
+    for (int i = 0; i < ADDRESS_SIZE; i++) {
+        bdaddr[i] = ptr->address_[i];
+    }
+    HDF_LOGI("Got secondary bt address from %{public}s: %{public}s", BT_DEVICE_SECONDARY_ADDRESS_PATH,
+        GetEncryptAddr(std::string(addressStr)).c_str());
+    return true;
+}
+
 bool BluetoothAddress::CheckAddress(char *address, int len)
 {
     if (address == nullptr || len < ADDRESS_STR_LEN) {

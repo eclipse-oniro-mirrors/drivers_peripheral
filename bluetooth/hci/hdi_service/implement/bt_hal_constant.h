@@ -27,6 +27,7 @@ namespace Hci {
 constexpr const char *BT_VENDOR_NAME = "libbt_vendor.z.so";
 constexpr const char *BT_VENDOR_INTERFACE_SYMBOL_NAME = "BLUETOOTH_VENDOR_LIB_INTERFACE";
 constexpr const char *BT_DEVICE_ADDRESS_PATH = "/data/vendor/bluetooth/btmac.txt";
+constexpr const char *BT_DEVICE_SECONDARY_ADDRESS_PATH = "/data/vendor/bluetooth/btmac2.txt";
 constexpr int BT_THREAD_POLICY = SCHED_RR;
 constexpr int BT_THREAD_PRIORITY = 1;
 }  // namespace Hci
