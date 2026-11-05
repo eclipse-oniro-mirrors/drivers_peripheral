@@ -18,8 +18,8 @@
 #include <map>
 #include <memory>
 #include "v1_0/include/idisplay_buffer.h"
-#include "v1_5/include/idisplay_composer_interface.h"
-#include "v1_5/display_composer_type.h"
+#include "v1_6/include/idisplay_composer_interface.h"
+#include "v1_6/display_composer_type.h"
 #include "hdi_test_device_common.h"
 #include "hdi_test_display.h"
 #include "hdi_test_layer.h"
@@ -46,7 +46,7 @@ public:
         return gralloc_;
     }
 
-    sptr<Composer::V1_5::IDisplayComposerInterface> &GetDeviceInterface()
+    sptr<Composer::V1_6::IDisplayComposerInterface> &GetDeviceInterface()
     {
         return displayDevice_;
     }
@@ -59,7 +59,7 @@ private:
     std::shared_ptr<HdiTestDisplay> FindDisplayOrCreate(uint32_t id);
 
     std::map<uint32_t, std::shared_ptr<HdiTestDisplay>> displays_;
-    sptr<Composer::V1_5::IDisplayComposerInterface> displayDevice_;
+    sptr<Composer::V1_6::IDisplayComposerInterface> displayDevice_;
     std::shared_ptr<IDisplayBuffer> gralloc_ = nullptr;
     std::vector<uint32_t> displayIds_;
 };

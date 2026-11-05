@@ -18,8 +18,8 @@
 #include <chrono>
 #include <cinttypes>
 #include <algorithm>
-#include "v1_5/include/idisplay_composer_interface.h"
-#include "v1_5/display_composer_type.h"
+#include "v1_6/include/idisplay_composer_interface.h"
+#include "v1_6/display_composer_type.h"
 #include "v1_0/display_buffer_type.h"
 #include "display_test.h"
 #include "display_test_utils.h"
@@ -36,7 +36,7 @@ using namespace OHOS::HDI::Display::Composer::V1_4;
 using namespace OHOS::HDI::Display::TEST;
 using namespace testing::ext;
 
-static sptr<Composer::V1_5::IDisplayComposerInterface> g_composerDevice = nullptr;
+static sptr<Composer::V1_6::IDisplayComposerInterface> g_composerDevice = nullptr;
 static std::shared_ptr<IDisplayBuffer> g_gralloc = nullptr;
 static std::vector<uint32_t> g_displayIds;
 const int SLEEP_CONT_10 = 10;
@@ -1358,4 +1358,32 @@ HWTEST_F(DeviceTest, test_GetLayerColor, TestSize.Level1)
         result = DISPLAY_SUCCESS;
     }
     EXPECT_EQ(DISPLAY_SUCCESS, result);
+}
+
+HWTEST_F(DeviceTest, test_SetDisplayReadBack, TestSize.Level1)
+{
+    std::vector<LayerSettings> settings = {
+        {
+            .rectRatio = {0, 0, 1.0f, 1.0f},
+            .color = BLUE
+        }
+    };
+
+    std::vector<std::shared_ptr<HdiTestLayer>> layers = CreateLayers(settings);
+    ASSERT_TRUE((layers.size() > 0));
+
+    auto layer = layers[0];
+
+    bool disableReadback = true;
+    int32_t result = DISPLAY_FAILURE;
+    auto ret = g_composerDevice->SetDisplayReadBackSmq(g_displayIds[0], disableReadback);
+    if (ret == DISPLAY_SUCCESS || ret == DISPLAY_NOT_SUPPORT) {
+        result = DISPLAY_SUCCESS;
+    }
+    EXPECT_EQ(DISPLAY_SUCCESS, result);
+
+    PrepareAndCommit();
+    HdiTestDevice::GetInstance().Clear();
+    
+    DestroyLayer(layer);
 }
