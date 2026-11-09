@@ -487,6 +487,25 @@ int32_t AllInOneImpl::Abandon(uint64_t scheduleId, uint64_t templateId, const st
     return HDF_SUCCESS;
 }
 
+int32_t AllInOneImpl::SetDataExt(uint64_t scheduleId, uint64_t authSubType, const std::vector<HdiPinData> &pinDatas,
+    uint32_t pinLength, int32_t resultCode)
+{
+    IAM_LOGI("start");
+    static_cast<void>(scheduleId);
+    static_cast<void>(authSubType);
+    static_cast<void>(pinDatas);
+    static_cast<void>(pinLength);
+    static_cast<void>(resultCode);
+    return HDF_SUCCESS;
+}
+
+int32_t AllInOneImpl::DeleteExt(uint64_t templateId, const std::vector<uint8_t> &extraInfo)
+{
+    IAM_LOGI("start");
+    static_cast<void>(extraInfo);
+    return Delete(templateId);
+}
+
 bool AllInOneImpl::ScheduleList::AddScheduleInfo(const ScheduleInfo &scheduleInfo)
 {
     IAM_LOGI("start");

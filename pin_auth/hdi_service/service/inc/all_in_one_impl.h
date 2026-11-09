@@ -52,6 +52,9 @@ public:
         const sptr<HdiIExecutorCallback> &callbackObj) override;
     int32_t Abandon(uint64_t scheduleId, uint64_t templateId, const std::vector<uint8_t> &extraInfo,
         const sptr<HdiIExecutorCallback> &callbackObj) override;
+    int32_t SetDataExt(uint64_t scheduleId, uint64_t authSubType, const std::vector<HdiPinData> &pinDatas,
+        uint32_t pinLength, int32_t resultCode) override;
+    int32_t DeleteExt(uint64_t templateId, const std::vector<uint8_t> &extraInfo) override;
 
 private:
     struct ScheduleInfo {

@@ -67,6 +67,12 @@ public:
         return onMessageResult_;
     }
 
+    int32_t OnGetDataExt(const std::vector<HdiPinAlgoParameter>& algoParameters, uint64_t authSubType,
+        const std::vector<uint8_t>& challenge, const std::string& complexityReg) override
+    {
+        return onGetDataResult_;
+    }
+
 private:
     int32_t onResultResult_;
     int32_t onGetDataResult_;
