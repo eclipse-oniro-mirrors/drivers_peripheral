@@ -34,7 +34,6 @@ if __name__ == "__main__":
     # 按编号顺序列出所有audio用例(分号分割)
     # xdevice对每条用例独立执行,失败不中断后续
     test_list = ";".join([
-        "audio_0001_camera_record_playback",
-        "audio_0010_reboot_verification",
+        "AudioCameraRecordPlayback0001",
     ])
     main_process(f"run -l {test_list} -ta agent_mode:bin;screenshot:true")

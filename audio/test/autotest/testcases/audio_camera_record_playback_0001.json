@@ -1,0 +1,15 @@
+{
+    "description": "Config for AudioCameraRecordPlayback0001",
+    "environment": [
+      {
+        "type": "device",
+        "label": "phone"
+      }
+    ],
+    "driver": {
+      "type": "DeviceTest",
+      "py_file": [
+        "audio_camera_record_playback_0001.py.py"
+      ]
+    }
+  }
