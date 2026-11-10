@@ -2684,6 +2684,24 @@ HWTEST_F(AudioAdapterInterfaceImpTest, SetExtraParams_TriggerTokenId_002, TestSi
     std::string value = "no_token_ids";
     EXPECT_EQ(HDF_FAILURE, AdapterTest_->SetExtraParams(key, condition, value));
 }
+
+/**
+ * @tc.name: NotifyForDestruct_001
+ * @tc.desc: Verify the NotifyForDestruct function with multiple devices simultaneously.
+ * @tc.type: FUNC
+ * @tc.require: AR000H0E6H
+ */
+HWTEST_F(AudioAdapterInterfaceImpTest, NotifyForDestruct_001, TestSize.Level1)
+{
+    AudioAdapterDescriptor adaDesc;
+    AdapterTest_ = std::make_shared<AudioAdapterInterfaceImpl>(adaDesc);
+
+    EXPECT_FALSE(AdapterTest_->spkNotifyFlag_);
+    EXPECT_FALSE(AdapterTest_->micNotifyFlag_);
+    AdapterTest_->NotifyForDestruct();
+    EXPECT_TRUE(AdapterTest_->spkNotifyFlag_);
+    EXPECT_TRUE(AdapterTest_->micNotifyFlag_);
+}
 } // namespace V2_0
 } // namespace Audio
 } // namespace DistributedAudio

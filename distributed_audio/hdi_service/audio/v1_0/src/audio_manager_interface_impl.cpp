@@ -58,6 +58,22 @@ AudioManagerInterfaceImpl::AudioManagerInterfaceImpl()
 AudioManagerInterfaceImpl::~AudioManagerInterfaceImpl()
 {
     isDestruct_.store(true);
+    {
+        DHLOGI("NotifyForDestruct.");
+        std::lock_guard<std::mutex> adpLck(adapterMapMtx_);
+        for (auto &pair : mapAudioAdapter_) {
+            if (pair.second != nullptr) {
+                pair.second->NotifyForDestruct();
+            }
+        }
+    }
+    DHLOGI("AllDone wait_for.");
+    std::unique_lock<std::mutex> lck(destructMtx_);
+    bool allDone = destructCond_.wait_for(lck, std::chrono::milliseconds(DESTRUCT_WAIT_MS),
+        [this]() { return activeOpCount_.load() <= 0; });
+    if (!allDone) {
+        DHLOGE("Wait for active operations timeout(%{public}d)ms", DESTRUCT_WAIT_MS);
+    }
     DHLOGI("Distributed audio manager destructed.");
 }
 
@@ -204,6 +220,7 @@ int32_t AudioManagerInterfaceImpl::RemoveAudioDevice(const std::string &adpName,
 {
     DHLOGI("Remove audio device name: %{public}s, device: %{public}d.", GetAnonyString(adpName).c_str(), dhId);
     CHECK_AND_RETURN_RET_LOG(dhId == LOW_LATENCY_RENDER_ID, DH_SUCCESS, "Not support low latency id");
+    activeOpCount_.fetch_add(1);
     DAudioDevEvent event = { adpName, dhId, HDF_AUDIO_DEVICE_REMOVE, 0, 0, 0 };
     if (dhId == OFFLOAD_RENDER_ID) {
         event.dhId = DEFAULT_RENDER_ID;
@@ -218,11 +235,14 @@ int32_t AudioManagerInterfaceImpl::RemoveAudioDevice(const std::string &adpName,
         mapAddFlags_.erase(key);
     }
     auto adapter = GetAdapterFromMap(adpName);
-    CHECK_NULL_RETURN(adapter, ERR_DH_AUDIO_HDF_INVALID_OPERATION);
-
+    if (adapter == nullptr) {
+        ReleaseActiveOp();
+        return ERR_DH_AUDIO_HDF_INVALID_OPERATION;
+    }
     int32_t ret = adapter->RemoveAudioDevice(dhId);
     if (ret != DH_SUCCESS) {
         DHLOGE("Remove audio device failed, adapter return: %{public}d.", ret);
+        ReleaseActiveOp();
         return ret;
     }
     {
@@ -239,7 +259,18 @@ int32_t AudioManagerInterfaceImpl::RemoveAudioDevice(const std::string &adpName,
         }
         DHLOGI("Remove audio device success, mapAudioAdapter size() is: %{public}zu .", mapAudioAdapter_.size());
     }
+    ReleaseActiveOp();
     return DH_SUCCESS;
+}
+
+void AudioManagerInterfaceImpl::ReleaseActiveOp()
+{
+    DHLOGI("ReleaseActiveOp in.");
+    if (activeOpCount_.fetch_sub(1) == 1) {
+        DHLOGI("DestructCond_ notify.");
+        std::lock_guard<std::mutex> lck(destructMtx_);
+        destructCond_.notify_one();
+    }
 }
 
 sptr<AudioAdapterInterfaceImpl> AudioManagerInterfaceImpl::GetAdapterFromMap(const std::string &adpName)

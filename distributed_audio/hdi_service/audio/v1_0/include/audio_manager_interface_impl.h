@@ -16,9 +16,12 @@
 #ifndef OHOS_AUDIO_MANAGER_INTERFACE_IMPL_H
 #define OHOS_AUDIO_MANAGER_INTERFACE_IMPL_H
 
+#include <atomic>
+#include <condition_variable>
 #include <map>
 #include <mutex>
 #include <string>
+#include <chrono>
 
 #include "hdf_device_desc.h"
 #include "iremote_object.h"
@@ -95,6 +98,7 @@ private:
     int32_t RemoveClearRegisterRecipient(sptr<IRemoteObject> &remote,
         const std::string &deviceId, uint32_t dhId);
     void HandleCaps(const std::string &capability, std::string &info, std::string &caps);
+    void ReleaseActiveOp();
 
 private:
     class Deletor {
@@ -153,6 +157,10 @@ private:
     std::map<std::string, sptr<IDAudioHdfCallback>> mapAudioHdfCallback_;
     uint32_t triggerFirstTokenId_ = 0;
     std::atomic<bool> isDestruct_ = false;
+    std::atomic<int32_t> activeOpCount_{0};
+    std::mutex destructMtx_;
+    std::condition_variable destructCond_;
+    static constexpr int32_t DESTRUCT_WAIT_MS = 8000;
 };
 } // V2_0
 } // Audio

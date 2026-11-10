@@ -109,6 +109,7 @@ public:
     uint32_t GetVolumeGroup(const uint32_t devId);
     uint32_t GetInterruptGroup(const uint32_t devId);
     bool IsPortsNoReg();
+    void NotifyForDestruct();
 
 private:
     int32_t SetStreamStatusChange(const std::string &condition, const std::string &value);
