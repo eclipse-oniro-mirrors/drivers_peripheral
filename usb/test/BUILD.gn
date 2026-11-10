@@ -57,7 +57,7 @@ if (defined(ohos_lite)) {
       "fuzztest/usbserialsettimeout_fuzzer:fuzztest",
       "fuzztest/usbserialwrite_fuzzer:fuzztest",
       "fuzztest/usbddkclaiminterface_fuzzer:fuzztest",
-      "fuzztest/usbddkgetdevicemmapfd_fuzzer:fuzztest",
+      "fuzztest/usbddkgetdevicememmapfd_fuzzer:fuzztest",
       "fuzztest/usbddkinit_fuzzer:fuzztest",
       "fuzztest/usbddksendpiperequest_fuzzer:fuzztest",
       "fuzztest/usbddkreleaseinterface_fuzzer:fuzztest",

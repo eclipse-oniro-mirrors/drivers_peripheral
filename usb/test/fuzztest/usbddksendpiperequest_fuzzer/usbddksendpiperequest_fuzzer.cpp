@@ -25,9 +25,19 @@ using namespace OHOS::HDI::Usb::Ddk::V1_0;
 
 namespace OHOS {
 namespace UsbDdk {
-/* pipe(16 bytes: 8 + 4 + 1 + 3 padding) + size(4) + offset(4) + length(4) */
+/* pipe + size(4) + offset(4) + length(4) */
 constexpr size_t MIN_DATA_SIZE = sizeof(UsbRequestPipe) + sizeof(uint32_t) * 3;
-constexpr size_t PIPE_PADDING = 3;
+
+template <typename T>
+bool ReadField(const uint8_t *data, size_t size, size_t &pos, T &field, const char *fieldName)
+{
+    if (pos + sizeof(T) > size || memcpy_s(&field, sizeof(T), data + pos, sizeof(T)) != EOK) {
+        HDF_LOGE("%{public}s: read %{public}s failed", __func__, fieldName);
+        return false;
+    }
+    pos += sizeof(T);
+    return true;
+}
 
 bool UsbDdkSendPipeRequestFuzzTest(const uint8_t *data, size_t size)
 {
@@ -43,38 +53,18 @@ bool UsbDdkSendPipeRequestFuzzTest(const uint8_t *data, size_t size)
     }
 
     UsbRequestPipe pipe = {};
-    size_t pos = 0;
-    if (memcpy_s(&pipe.interfaceHandle, sizeof(pipe.interfaceHandle), data + pos,
-        sizeof(pipe.interfaceHandle)) != EOK) {
-        HDF_LOGE("%{public}s: read interfaceHandle failed", __func__);
+    if (memcpy_s(&pipe, sizeof(pipe), data, sizeof(pipe)) != EOK) {
+        HDF_LOGE("%{public}s: read pipe failed", __func__);
         return false;
     }
-    pos += sizeof(pipe.interfaceHandle);
-    if (memcpy_s(&pipe.timeout, sizeof(pipe.timeout), data + pos, sizeof(pipe.timeout)) != EOK) {
-        HDF_LOGE("%{public}s: read timeout failed", __func__);
-        return false;
-    }
-    pos += sizeof(pipe.timeout);
-    if (memcpy_s(&pipe.endpoint, sizeof(pipe.endpoint), data + pos, sizeof(pipe.endpoint)) != EOK) {
-        HDF_LOGE("%{public}s: read endpoint failed", __func__);
-        return false;
-    }
-    pos += sizeof(pipe.endpoint) + PIPE_PADDING;
+    size_t pos = sizeof(pipe);
+
     uint32_t bufferSize = 0;
-    if (memcpy_s(&bufferSize, sizeof(bufferSize), data + pos, sizeof(bufferSize)) != EOK) {
-        HDF_LOGE("%{public}s: read bufferSize failed", __func__);
-        return false;
-    }
-    pos += sizeof(bufferSize);
     uint32_t offset = 0;
-    if (memcpy_s(&offset, sizeof(offset), data + pos, sizeof(offset)) != EOK) {
-        HDF_LOGE("%{public}s: read offset failed", __func__);
-        return false;
-    }
-    pos += sizeof(offset);
     uint32_t length = 0;
-    if (memcpy_s(&length, sizeof(length), data + pos, sizeof(length)) != EOK) {
-        HDF_LOGE("%{public}s: read length failed", __func__);
+    if (!ReadField(data, size, pos, bufferSize, "bufferSize") ||
+        !ReadField(data, size, pos, offset, "offset") ||
+        !ReadField(data, size, pos, length, "length")) {
         return false;
     }
 

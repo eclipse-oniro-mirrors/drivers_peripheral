@@ -19,7 +19,7 @@
 
 #include "hdf_log.h"
 #include "securec.h"
-#include "usbddkgetdevicemmapfd_fuzzer.h"
+#include "usbddkgetdevicememmapfd_fuzzer.h"
 #include "v1_0/iusb_ddk.h"
 
 using namespace OHOS::HDI::Usb::Ddk::V1_0;
