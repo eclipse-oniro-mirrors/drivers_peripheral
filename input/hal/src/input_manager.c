@@ -93,7 +93,7 @@ static int32_t GetInputDeviceList(uint32_t *devNum, InputDeviceInfo **deviceList
     uint32_t tempSize = 0;
     InputDeviceInfo **tempList = NULL;
 
-    if (devNum == NULL || deviceList == NULL) {
+    if (devNum == NULL || deviceList == NULL || size == 0) {
         HDF_LOGE("%s: invalid param", __func__);
         return INPUT_INVALID_PARAM;
     }

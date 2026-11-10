@@ -778,7 +778,7 @@ int32_t InputDeviceManager::GetDeviceList(uint32_t *devNum, InputDeviceInfo **de
     auto ret = INPUT_FAILURE;
 
     auto scanCount = (size >= inputDevList_.size() ? inputDevList_.size() : size);
-    if ((devNum == nullptr) || (deviceList == nullptr) || inputDevList_.size() == 0 || *deviceList != nullptr) {
+    if ((devNum == nullptr) || (deviceList == nullptr) || inputDevList_.size() == 0 || *deviceList != nullptr || size == 0) {
         HDF_LOGE("%{public}s: param is wrong", __func__);
         return ret;
     }
