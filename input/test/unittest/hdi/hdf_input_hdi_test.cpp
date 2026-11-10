@@ -88,11 +88,6 @@ static bool IsOnlineDev(uint32_t devIndex)
     return ret;
 }
 
-#define SKIP_IF_NO_ONLINE_DEVICE() \
-    if (!IsOnlineDev(TOUCH_INDEX)) { \
-        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")"; \
-    }
-
 static void OpenOnlineDev(std::vector<DevDesc> sta)
 {
     int32_t ret = g_inputInterfaces->ScanInputDevice(sta);
@@ -189,7 +184,9 @@ HWTEST_F(HdfInputHdiTest, OpenInputDevice001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [Hdi-Input] OpenInputDevice001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
 
     int32_t ret = g_inputInterfaces->OpenInputDevice(TOUCH_INDEX);
     if (ret != INPUT_SUCCESS) {
@@ -227,7 +224,9 @@ HWTEST_F(HdfInputHdiTest, CloseInputDevice001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] CloseInputDevice001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
 
     int32_t ret = g_inputInterfaces->CloseInputDevice(TOUCH_INDEX);
     if (ret != INPUT_SUCCESS) {
@@ -265,7 +264,9 @@ HWTEST_F(HdfInputHdiTest, GetInputDevice001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] GetInputDevice001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     struct DeviceInfo dev;
 
     int32_t ret = g_inputInterfaces->OpenInputDevice(TOUCH_INDEX);
@@ -327,7 +328,9 @@ HWTEST_F(HdfInputHdiTest, GetDeviceType001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] GetDeviceType001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
     uint32_t devType = INIT_DEFAULT_VALUE;
 
@@ -351,7 +354,9 @@ HWTEST_F(HdfInputHdiTest, GetChipInfo001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] GetChipInfo001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
     std::string chipInfo;
 
@@ -376,7 +381,9 @@ HWTEST_F(HdfInputHdiTest, GetInputDevice002, TestSize.Level1)
     ASSERT_NE(nullptr, g_inputInterfaces);
 
     HDF_LOGI("%s: [hdi-input] GetInputDevice002 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     struct DeviceInfo dev;
 
     int32_t ret = g_inputInterfaces->GetInputDevice(TOUCH_INDEX, dev);
@@ -420,7 +427,9 @@ HWTEST_F(HdfInputHdiTest, SetPowerStatus001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] SetPowerStatus001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
     uint32_t setStatus = INPUT_LOW_POWER;
 
@@ -461,7 +470,9 @@ HWTEST_F(HdfInputHdiTest, GetPowerStatus001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] GetPowerStatus001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
     uint32_t getStatus = 0;
 
@@ -506,7 +517,9 @@ HWTEST_F(HdfInputHdiTest, GetVendorName001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] GetVendorName001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
     std::string vendorName;
 
@@ -551,7 +564,9 @@ HWTEST_F(HdfInputHdiTest, GetChipName001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] GetChipName001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
     std::string chipName;
 
@@ -596,7 +611,9 @@ HWTEST_F(HdfInputHdiTest, SetGestureMode001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] SetGestureMode001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
     uint32_t gestureMode = 1;
 
@@ -637,7 +654,9 @@ HWTEST_F(HdfInputHdiTest, RunCapacitanceTest001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] RunCapacitanceTest001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
     std::string result;
     uint32_t testType = MMI_TEST;
@@ -659,7 +678,9 @@ HWTEST_F(HdfInputHdiTest, RunExtraCommand001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] RunExtraCommand001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
     struct ExtraCmd extraCmd;
     extraCmd.cmdCode = "WakeUpMode";
@@ -682,7 +703,9 @@ HWTEST_F(HdfInputHdiTest, RegisterCallbackAndReportData001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] RegisterCallbackAndReportData001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
 
     ret = g_inputInterfaces->RegisterReportCallback(TOUCH_INDEX, g_callback);
@@ -705,7 +728,9 @@ HWTEST_F(HdfInputHdiTest, UnregisterReportCallback001, TestSize.Level1)
 {
     ASSERT_NE(nullptr, g_inputInterfaces);
     HDF_LOGI("%s: [hdi-input] UnregisterReportCallback001 enter", __func__);
-    SKIP_IF_NO_ONLINE_DEVICE();
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
 
     ret  = g_inputInterfaces->UnregisterReportCallback(TOUCH_INDEX);
