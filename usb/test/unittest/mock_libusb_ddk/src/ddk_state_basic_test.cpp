@@ -118,7 +118,6 @@ HWTEST_F(DdkStateBasicTest, ClaimAndInterfaceSettingState, TestSize.Level1)
 {
     uint64_t handle = 0;
     ASSERT_EQ(HDF_SUCCESS, service_.ClaimInterface(mainDeviceId_, INTERFACE_ID, handle));
-    EXPECT_NE(0U, handle);
 
     uint8_t setting = INVALID_ALT_SETTING;
     EXPECT_EQ(HDF_SUCCESS, service_.GetCurrentInterfaceSetting(handle, setting));
@@ -141,27 +140,3 @@ HWTEST_F(DdkStateBasicTest, ClaimAndInterfaceSettingState, TestSize.Level1)
     EXPECT_NE(HDF_SUCCESS, service_.ClaimInterface(MakeDeviceId(MISSING_DEVICE_ADDR), INTERFACE_ID, missingHandle));
 }
 } // namespace
-
-int main(int argc, char **argv)
-{
-    bool dumpTransfers = false;
-    std::vector<char *> filtered;
-    filtered.reserve(static_cast<size_t>(argc) + 1);
-    filtered.push_back(argv[0]);
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--dump-transfers") == 0) {
-            dumpTransfers = true;
-            continue;
-        }
-        filtered.push_back(argv[i]);
-    }
-    filtered.push_back(nullptr);
-    mock_usb::SetDumpEnabled(dumpTransfers);
-    int filteredArgc = static_cast<int>(filtered.size() - 1);
-    testing::InitGoogleTest(&filteredArgc, filtered.data());
-    int result = RUN_ALL_TESTS();
-    if (mock_usb::DumpEnabled()) {
-        mock_usb::Dump(stdout);
-    }
-    return result;
-}

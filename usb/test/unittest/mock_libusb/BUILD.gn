@@ -49,7 +49,7 @@ ohos_unittest("test_libusb_adapter_mock") {
       "c_utils:utils",
       "drivers_interface_usb:libusb_proxy_1.2",
       "drivers_interface_usb:libusb_proxy_2.0",
-      "googletest:gtest",
+      "googletest:gtest_main",
       "hdf_core:libhdf_host",
       "hdf_core:libhdf_utils",
       "hilog:libhilog",
