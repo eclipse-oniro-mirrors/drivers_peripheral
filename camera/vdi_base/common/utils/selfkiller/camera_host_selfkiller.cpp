@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Huawei Device Co., Ltd.
+ * Copyright (c) 2025-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -39,14 +39,14 @@ void CameraHostSelfkiller::Init(std::function<bool(void)> canBeKilledFn, std::fu
     canBeKilledFn_ = canBeKilledFn;
     selfKillParamName_ = selfKillParamName;
     cameraServiceName_ = cameraServiceName;
-    selfKillerThreadLoopFlag_ = true;
+    selfKillerThreadLoopFlag_.store(true, std::memory_order_release);
     selfKillerThread_ = new std::thread([this] { CameraHostSelfkillerHandler(); });
 }
 
 void CameraHostSelfkiller::DeInit()
 {
     CAMERA_LOGD("CameraHostSelfkiller::DeInit");
-    selfKillerThreadLoopFlag_ = false;
+    selfKillerThreadLoopFlag_.store(false, std::memory_order_release);
     if (selfKillerThread_ != nullptr && selfKillerThread_->joinable()) {
         selfKillerThread_->join();
         selfKillerThread_ = nullptr;
@@ -83,7 +83,7 @@ void CameraHostSelfkiller::CameraHostSelfkillerHandler()
     }
 
     CAMERA_LOGI("CameraHostSelfkillerHandler Begin");
-    while (selfKillerThreadLoopFlag_) {
+    while (selfKillerThreadLoopFlag_.load(std::memory_order_acquire)) {
         sleep(sleepInterval_);
         if (canBeKilledFn_ == nullptr) {
             CAMERA_LOGW("canBeKilledFn_ is nullptr, just break");
@@ -113,16 +113,17 @@ void CameraHostSelfkiller::CameraHostSelfkillerHandler()
 void CameraHostSelfkiller::WaitForBootComplete()
 {
     constexpr const char *bootCompleteParamName = "bootevent.boot.completed";
-    static bool isBootComplete = false;
-    if (isBootComplete) {
+    static std::atomic<bool> isBootComplete{false};
+    if (isBootComplete.load(std::memory_order_acquire)) {
         CAMERA_LOGD("isBootComplete is true, just return");
         return;
     }
     CAMERA_LOGI("Wait isBootComplete begin");
-    isBootComplete = OHOS::system::GetBoolParameter(bootCompleteParamName, false);
-    while (!isBootComplete) {
-        isBootComplete = OHOS::system::GetBoolParameter(bootCompleteParamName, false);
-        if (isBootComplete) {
+    isBootComplete.store(OHOS::system::GetBoolParameter(bootCompleteParamName, false), std::memory_order_release);
+    while (!isBootComplete.load(std::memory_order_acquire)) {
+        isBootComplete.store(OHOS::system::GetBoolParameter(bootCompleteParamName, false),
+            std::memory_order_release);
+        if (isBootComplete.load(std::memory_order_acquire)) {
             CAMERA_LOGI("Get %{public}s true, sleep 1s and then continue", bootCompleteParamName);
             sleep(1);
             break;

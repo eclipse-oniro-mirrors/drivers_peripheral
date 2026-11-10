@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include <atomic>
 #include <mutex>
 #include <linux/netlink.h>
 #include <poll.h>
@@ -40,7 +41,7 @@
 constexpr int NAME_START_POS = 2;
 
 namespace OHOS::Camera {
-static bool g_uvcDetectEnable = false;
+static std::atomic<bool> g_uvcDetectEnable{false};
 static std::mutex g_uvcDetectLock;
 HosV4L2UVC::HosV4L2UVC() {}
 HosV4L2UVC::~HosV4L2UVC() {}
@@ -486,7 +487,7 @@ void HosV4L2UVC::loopUvcDevice()
                 usleep(UEVENT_POLL_WAIT_TIME);
             }
         }
-    } while (g_uvcDetectEnable);
+    } while (g_uvcDetectEnable.load(std::memory_order_acquire));
 
     fdsan_close_with_tag(socketfd, fdsan_create_owner_tag(FDSAN_OWNER_TYPE_FILE, LOG_DOMAIN));
     return;
@@ -498,7 +499,7 @@ int HosV4L2UVC::CheckBuf(unsigned int len, char *buf)
     constexpr int32_t UVC_DETECT_DISABLE = -1;
     if (len > 0 && (strstr(buf, "video4linux") != nullptr || strstr(buf, "bind") != nullptr)) {
         std::lock_guard<std::mutex> lock(g_uvcDetectLock);
-        if (!g_uvcDetectEnable) {
+        if (!g_uvcDetectEnable.load(std::memory_order_acquire)) {
             return UVC_DETECT_DISABLE;
         }
         std::string action = "";
@@ -553,7 +554,7 @@ void HosV4L2UVC::V4L2UvcDetectUnInit()
     int rc;
     constexpr uint32_t delayTime = 300000;
 
-    g_uvcDetectEnable = false;
+    g_uvcDetectEnable.store(false, std::memory_order_release);
 
     uint64_t one = 1;
     rc = write(eventFd_, &one, sizeof(one));
@@ -617,11 +618,11 @@ RetCode HosV4L2UVC::V4L2UvcDetectInit(UvcCallback cb)
     }
     fdsan_exchange_owner_tag(eventFd_, 0, fdsan_create_owner_tag(FDSAN_OWNER_TYPE_FILE, LOG_DOMAIN));
 
-    g_uvcDetectEnable = true;
+    g_uvcDetectEnable.store(true, std::memory_order_release);
     uvcDetectEnable_ = 1;
     uvcDetectThread_ = new (std::nothrow) std::thread([this] { this->loopUvcDevice(); });
     if (uvcDetectThread_ == nullptr) {
-        g_uvcDetectEnable = false;
+        g_uvcDetectEnable.store(false, std::memory_order_release);
         CAMERA_LOGE("UVC:V4L2Detect create loopUVCDevice thread error\n");
         goto error1;
     }

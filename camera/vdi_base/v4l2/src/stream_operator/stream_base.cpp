@@ -210,10 +210,15 @@ RetCode StreamBase::StopStream()
     rc = pipeline_->Stop({streamId_});
     CHECK_IF_NOT_EQUAL_RETURN_VALUE(rc, RC_OK, RC_ERROR);
 
-    if (lastRequest_ != nullptr && lastRequest_->IsContinous() && !inTransitList_.empty() && messenger_ != nullptr) {
+    std::shared_ptr<CaptureRequest> lastRequest = nullptr;
+    {
+        std::unique_lock<std::mutex> l(lastReqLock_);
+        lastRequest = lastRequest_;
+    }
+    if (lastRequest != nullptr && lastRequest->IsContinous() && !inTransitList_.empty() && messenger_ != nullptr) {
         std::shared_ptr<ICaptureMessage> endMessage =
-            std::make_shared<CaptureEndedMessage>(streamId_, lastRequest_->GetCaptureId(),
-            lastRequest_->GetEndTime(), lastRequest_->GetOwnerCount(), tunnel_->GetFrameCount());
+            std::make_shared<CaptureEndedMessage>(streamId_, lastRequest->GetCaptureId(),
+            lastRequest->GetEndTime(), lastRequest->GetOwnerCount(), tunnel_->GetFrameCount());
         CAMERA_LOGV("end of stream [%{public}d], ready to send end message", streamId_);
         messenger_->SendMessage(endMessage);
     }
@@ -430,7 +435,10 @@ void StreamBase::HandleResult(std::shared_ptr<IBuffer>& buffer)
     request->AttachBuffer(buffer);
     // To synchronize multiple stream, bottom-layer device stream need be synchronized first.
     request->OnResult(streamId_);
-    lastRequest_ = request;
+    {
+        std::unique_lock<std::mutex> l(lastReqLock_);
+        lastRequest_ = request;
+    }
 }
 
 RetCode StreamBase::OnFrame(const std::shared_ptr<CaptureRequest>& request)

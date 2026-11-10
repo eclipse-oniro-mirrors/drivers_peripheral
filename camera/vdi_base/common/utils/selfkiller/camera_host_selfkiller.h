@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Huawei Device Co., Ltd.
+ * Copyright (c) 2025-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,6 +16,7 @@
 #ifndef CAMERA_HOST_SELFKILL_H
 #define CAMERA_HOST_SELFKILL_H
 #include "thread"
+#include "atomic"
 #include "cstdint"
 #include "functional"
 #include "string"
@@ -34,7 +35,7 @@ public:
 
 private:
     std::thread *selfKillerThread_ = nullptr;
-    bool selfKillerThreadLoopFlag_ = false;
+    std::atomic<bool> selfKillerThreadLoopFlag_{false};
     std::string selfKillParamName_ = "";
     std::string cameraServiceName_ = "";
     std::function<void(void)> killerTimeoutCb_ = nullptr;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2021-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include <atomic>
 #include <mutex>
 #include <sys/prctl.h>
 #include "securec.h"
@@ -22,7 +23,7 @@
 #include "v4l2_uvc.h"
 
 namespace OHOS::Camera {
-static bool g_uvcDetectEnable = false;
+static std::atomic<bool> g_uvcDetectEnable{false};
 static std::mutex g_uvcDetectLock;
 HosV4L2UVC::HosV4L2UVC() {}
 HosV4L2UVC::~HosV4L2UVC() {}
@@ -316,7 +317,7 @@ void HosV4L2UVC::loopUvcDevice()
     FD_SET(uDevFd, &fds);
     FD_SET(eventFd, &fds);
     prctl(PR_SET_NAME, "loopUvcDevice");
-    while (g_uvcDetectEnable) {
+    while (g_uvcDetectEnable.load(std::memory_order_acquire)) {
         int rc = select(((uDevFd > eventFd) ? uDevFd : eventFd) + 1, &fds, &fds, NULL, NULL);
         if (rc > 0 && FD_ISSET(uDevFd, &fds)) {
             usleep(delayTime);
@@ -328,7 +329,7 @@ void HosV4L2UVC::loopUvcDevice()
             }
         } else {
             CAMERA_LOGI("UVC:No Device from udev_monitor_receive_device() or exit uvcDetectEnable = %{public}d\n",
-                g_uvcDetectEnable);
+                g_uvcDetectEnable.load(std::memory_order_acquire));
         }
     }
     CAMERA_LOGI("UVC: device detect thread exit");
@@ -340,7 +341,7 @@ int HosV4L2UVC::CheckBuf(unsigned int len, char *buf)
     constexpr int32_t UVC_DETECT_DISABLE = -1;
     if (len > 0 && (strstr(buf, "video4linux") != nullptr)) {
         std::lock_guard<std::mutex> lock(g_uvcDetectLock);
-        if (!g_uvcDetectEnable) {
+        if (!g_uvcDetectEnable.load(std::memory_order_acquire)) {
             return UVC_DETECT_DISABLE;
         }
         std::string action = "";
@@ -388,7 +389,7 @@ void HosV4L2UVC::V4L2UvcDetectUnInit()
     int rc;
     constexpr uint32_t delayTime = 300000;
 
-    g_uvcDetectEnable = false;
+    g_uvcDetectEnable.store(false, std::memory_order_release);
 
     uint64_t one = 1;
     rc = write(eventFd_, &one, sizeof(one));
@@ -452,11 +453,11 @@ RetCode HosV4L2UVC::V4L2UvcDetectInit(UvcCallback cb)
     }
     fdsan_exchange_owner_tag(eventFd_, 0, fdsan_create_owner_tag(FDSAN_OWNER_TYPE_FILE, LOG_DOMAIN));
 
-    g_uvcDetectEnable = true;
+    g_uvcDetectEnable.store(true, std::memory_order_release);
     uvcDetectEnable_ = 1;
     uvcDetectThread_ = new (std::nothrow) std::thread([this] {this->loopUvcDevice();});
     if (uvcDetectThread_ == nullptr) {
-        g_uvcDetectEnable = false;
+        g_uvcDetectEnable.store(false, std::memory_order_release);
         CAMERA_LOGE("UVC:V4L2Detect create loopUVCDevice thread error\n");
         goto error1;
     }
