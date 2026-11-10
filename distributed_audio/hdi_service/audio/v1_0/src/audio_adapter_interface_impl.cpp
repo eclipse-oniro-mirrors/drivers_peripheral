@@ -832,6 +832,21 @@ void AudioAdapterInterfaceImpl::ClearMicPinInUse(const uint32_t devId)
     }
 }
 
+void AudioAdapterInterfaceImpl::NotifyForDestruct()
+{
+    DHLOGI("Notify for destruct, wake up all waiting threads");
+    spkNotifyFlag_ = true;
+    micNotifyFlag_ = true;
+    {
+        std::lock_guard<std::mutex> lck(spkWaitMutex_);
+        spkWaitCond_.notify_all();
+    }
+    {
+        std::lock_guard<std::mutex> lck(micWaitMutex_);
+        micWaitCond_.notify_all();
+    }
+}
+
 int32_t AudioAdapterInterfaceImpl::RemoveAudioDevice(const uint32_t devId)
 {
     DHLOGI("Remove distributed audio device %{public}s.", GetChangeDevIdMap(static_cast<int32_t>(devId)).c_str());

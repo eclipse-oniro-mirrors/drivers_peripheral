@@ -15,6 +15,10 @@
 
 #include "audio_manager_interface_impl_test.h"
 
+#include <thread>
+#include <chrono>
+#include <atomic>
+
 #include <hdf_base.h>
 #include "hdf_device_object.h"
 #include <sstream>
@@ -323,6 +327,37 @@ HWTEST_F(AudioManagerInterfaceImplTest, SetTriggerFirstTokenId_002, TestSize.Lev
     audioManagerInterfaceImpl_->SetTriggerFirstTokenId(tokenId);
     EXPECT_EQ(tokenId, audioManagerInterfaceImpl_->GetTriggerFirstTokenId());
     audioManagerInterfaceImpl_->SetTriggerFirstTokenId(0);
+}
+
+/**
+ * @tc.name: Destruct_001
+ * @tc.desc: Verify the Destruct function.
+ * @tc.type: FUNC
+ * @tc.require: AR000H0E6H
+ */
+HWTEST_F(AudioManagerInterfaceImplTest, Destruct_001, TestSize.Level1)
+{
+    audioManagerInterfaceImpl_ = std::make_shared<AudioManagerInterfaceImpl>();
+    EXPECT_FALSE(audioManagerInterfaceImpl_->isDestruct_.load());
+    audioManagerInterfaceImpl_.reset();
+    SUCCEED();
+}
+
+/**
+ * @tc.name: Destruct_001
+ * @tc.desc: Verify the Destruct function.
+ * @tc.type: FUNC
+ * @tc.require: AR000H0E6H
+ */
+HWTEST_F(AudioManagerInterfaceImplTest, Destruct_002, TestSize.Level1)
+{
+    audioManagerInterfaceImpl_ = std::make_shared<AudioManagerInterfaceImpl>();
+    std::string adpName = "testDestructAdp";
+    AudioAdapterDescriptor desc;
+    sptr<AudioAdapterInterfaceImpl> adapter = sptr<AudioAdapterInterfaceImpl>(new AudioAdapterInterfaceImpl(desc));
+    audioManagerInterfaceImpl_->mapAudioAdapter_.insert(std::make_pair(adpName, adapter));
+    audioManagerInterfaceImpl_.reset();
+    SUCCEED();
 }
 } // V2_0
 } // Audio
