@@ -16,30 +16,32 @@
 #ifndef PIN_AUTH_HDI
 #define PIN_AUTH_HDI
 
-#include "v3_0/iall_in_one_executor.h"
-#include "v3_0/icollector.h"
-#include "v3_0/iexecutor_callback.h"
-#include "v3_0/pin_auth_interface_service.h"
-#include "v3_0/iverifier.h"
-#include "v3_0/pin_auth_types.h"
+#include "v4_0/iall_in_one_executor.h"
+#include "v4_0/icollector.h"
+#include "v4_0/iexecutor_callback.h"
+#include "v4_0/pin_auth_interface_service.h"
+#include "v4_0/iverifier.h"
+#include "v4_0/pin_auth_types.h"
 
 namespace OHOS {
 namespace HDI {
 namespace PinAuth {
-using IPinAuthInterface = OHOS::HDI::PinAuth::V3_0::IPinAuthInterface;
-using PinAuthInterfaceService = OHOS::HDI::PinAuth::V3_0::PinAuthInterfaceService;
+using IPinAuthInterface = OHOS::HDI::PinAuth::V4_0::IPinAuthInterface;
+using PinAuthInterfaceService = OHOS::HDI::PinAuth::V4_0::PinAuthInterfaceService;
 
-using HdiIAllInOneExecutor = OHOS::HDI::PinAuth::V3_0::IAllInOneExecutor;
-using HdiICollector = OHOS::HDI::PinAuth::V3_0::ICollector;
-using HdiIVerifier = OHOS::HDI::PinAuth::V3_0::IVerifier;
-using HdiIExecutorCallback = OHOS::HDI::PinAuth::V3_0::IExecutorCallback;
+using HdiIAllInOneExecutor = OHOS::HDI::PinAuth::V4_0::IAllInOneExecutor;
+using HdiICollector = OHOS::HDI::PinAuth::V4_0::ICollector;
+using HdiIVerifier = OHOS::HDI::PinAuth::V4_0::IVerifier;
+using HdiIExecutorCallback = OHOS::HDI::PinAuth::V4_0::IExecutorCallback;
 
-using HdiAuthType = OHOS::HDI::PinAuth::V3_0::AuthType;
-using HdiExecutorRole = OHOS::HDI::PinAuth::V3_0::ExecutorRole;
-using HdiExecutorSecureLevel = OHOS::HDI::PinAuth::V3_0::ExecutorSecureLevel;
-using HdiExecutorInfo = OHOS::HDI::PinAuth::V3_0::ExecutorInfo;
-using HdiGetPropertyType = OHOS::HDI::PinAuth::V3_0::GetPropertyType;
-using HdiProperty = OHOS::HDI::PinAuth::V3_0::Property;
+using HdiAuthType = OHOS::HDI::PinAuth::V4_0::AuthType;
+using HdiExecutorRole = OHOS::HDI::PinAuth::V4_0::ExecutorRole;
+using HdiExecutorSecureLevel = OHOS::HDI::PinAuth::V4_0::ExecutorSecureLevel;
+using HdiExecutorInfo = OHOS::HDI::PinAuth::V4_0::ExecutorInfo;
+using HdiGetPropertyType = OHOS::HDI::PinAuth::V4_0::GetPropertyType;
+using HdiProperty = OHOS::HDI::PinAuth::V4_0::Property;
+using HdiPinAlgoParameter = OHOS::HDI::PinAuth::V4_0::PinAlgoParameter;
+using HdiPinData = OHOS::HDI::PinAuth::V4_0::PinData;
 
 enum PinAuthExtendCommandId {
     RESTART_LOCKOUT_DURATION = 10001,
