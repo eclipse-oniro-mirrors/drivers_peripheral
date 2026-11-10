@@ -108,10 +108,14 @@ int32_t DAudioManagerInterfaceImpl::NotifyEvent(const std::string &adpName, int3
         if (json != nullptr) {
             cJSON_AddNumberToObject(json, KEY_TRIGGER_FIRST_TOKENID, static_cast<double>(triggerFirstTokenId));
             char *jsonStr = cJSON_PrintUnformatted(json);
-            std::string newContent(jsonStr);
+            if (jsonStr != nullptr) {
+                std::string newContent(jsonStr);
+                newEvent.content = newContent;
+            } else {
+                DHLOGE("cJSON_PrintUnformatted failed, keep original content.");
+            }
             cJSON_Delete(json);
             cJSON_free(jsonStr);
-            newEvent.content = newContent;
         }
         DHLOGI("[MultiUserTrigger] NotifyEvent triggerFirstTokenId=%{public}s, pass to daudio SA",
             GetAnonyString(std::to_string(triggerFirstTokenId)).c_str());
