@@ -22,7 +22,7 @@
 namespace OHOS {
 namespace HDI {
 namespace Codec {
-namespace V4_0 {
+namespace V4_1 {
 struct ComponentRemoteInfo {
     IRemoteObject *remoteObj{nullptr};
     uint32_t remotePid{0};

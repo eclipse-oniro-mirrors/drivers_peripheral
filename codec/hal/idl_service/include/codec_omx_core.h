@@ -40,6 +40,7 @@ public:
     int32_t GetHandle(OMX_HANDLETYPE &handle, std::string &compName, OMX_PTR appData,
                       const OMX_CALLBACKTYPE &callbacks);
     int32_t FreeHandle(OMX_HANDLETYPE handle);
+    int32_t QueryIfDecoderSupportThisXPS(const std::string &mime, uint8_t* xps, uint32_t len, bool& isSupport);
     int32_t ComponentNameEnum(std::string &name, uint32_t index);
     int32_t GetRolesOfComponent(const std::string &name, std::vector<std::string> &roles);
 
@@ -56,6 +57,8 @@ private:
     GetHandleFunc getHandle_ = nullptr;
     FreeHandleFunc freeHandle_ = nullptr;
     GetRolesOfComponentFunc getRoles_ = nullptr;
+    using QueryFunc = int32_t (*)(const char* mime, uint8_t* xps, uint32_t len, bool& isSupport);
+    QueryFunc query_ = nullptr;
 };
 }  // namespace Omx
 }  // namespace Codec

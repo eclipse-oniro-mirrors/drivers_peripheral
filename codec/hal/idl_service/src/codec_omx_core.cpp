@@ -66,6 +66,7 @@ int32_t CodecOMXCore::Init(const std::string &libName)
     freeHandle_ = reinterpret_cast<FreeHandleFunc>(dlsym(libHandle_, "OMX_FreeHandle"));
     getRoles_ = reinterpret_cast<GetRolesOfComponentFunc>(dlsym(libHandle_, "OMX_GetRolesOfComponent"));
     componentNameEnum_ = reinterpret_cast<ComponentNameEnumFunc>(dlsym(libHandle_, "OMX_ComponentNameEnum"));
+    query_ = reinterpret_cast<QueryFunc>(dlsym(libHandle_, "QueryIfDecoderSupportThisXPS"));
 
     if (init_ != NULL) {
         CODEC_LOGI("begin to call OMX_Init for %{public}s", libName.c_str());
@@ -161,6 +162,17 @@ int32_t CodecOMXCore::GetRolesOfComponent(const std::string &name, std::vector<s
 
     return err;
 }
+
+int32_t CodecOMXCore::QueryIfDecoderSupportThisXPS(
+    const std::string &mime, uint8_t* xps, uint32_t len, bool& isSupport)
+{
+    if (query_ == nullptr) {
+        CODEC_LOGE("query_ is null");
+        return HDF_FAILURE;
+    }
+    return query_(mime.c_str(), xps, len, isSupport);
+}
+
 }  // namespace Omx
 }  // namespace Codec
 }  // namespace OHOS

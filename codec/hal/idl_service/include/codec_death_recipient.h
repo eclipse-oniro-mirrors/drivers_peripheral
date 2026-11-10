@@ -24,7 +24,7 @@
 namespace OHOS {
 namespace HDI {
 namespace Codec {
-namespace V4_0 {
+namespace V4_1 {
 
 void CleanResourceOfDiedService(sptr<IRemoteObject> remote, wptr<CodecComponentManagerService> service);
 void RegisterDeathRecipientService(const sptr<ICodecCallback> callback, uint32_t componentId,

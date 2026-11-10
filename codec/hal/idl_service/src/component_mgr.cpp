@@ -117,6 +117,26 @@ int32_t ComponentMgr::GetRolesForComponent(const std::string &componentName, std
     return iter->core->GetRolesOfComponent(componentName, roles);
 }
 
+int32_t ComponentMgr::QueryIfDecoderSupportThisXPS(
+    const std::string& mime, uint8_t* xps, uint32_t len, bool& isSupport)
+{
+    std::shared_ptr<CodecOMXCore> targetCore;
+    {
+        std::lock_guard<std::mutex> autoLock(mutex_);
+        for (auto& [_, core] : permanentLibs_) {
+            if (core != nullptr) {
+                targetCore = core;
+                break;
+            }
+        }
+    }
+    if (targetCore == nullptr) {
+        CODEC_LOGE("can not find target core");
+        return HDF_FAILURE;
+    }
+    return targetCore->QueryIfDecoderSupportThisXPS(mime, xps, len, isSupport);
+}
+
 void ComponentMgr::AddVendorComponent()
 {
     AddComponentByLibName("libOMX_Core.z.so", true);

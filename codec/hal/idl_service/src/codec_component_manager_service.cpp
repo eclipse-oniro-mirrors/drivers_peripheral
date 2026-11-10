@@ -24,7 +24,7 @@
 namespace OHOS {
 namespace HDI {
 namespace Codec {
-namespace V4_0 {
+namespace V4_1 {
 
 std::once_flag m_serviceFlag;
 using OHOS::Codec::Omx::ComponentNode;
@@ -151,6 +151,17 @@ void CodecComponentManagerService::GetManagerMap(std::map<uint32_t, sptr<ICodecC
         }
     }
 }
+
+int32_t CodecComponentManagerService::QueryIfDecoderSupportThisXPS(const std::string& mime,
+    const sptr<OHOS::HDI::Codec::ParcelableBuffer>& xps, bool& isSupport)
+{
+    if (xps == nullptr) {
+        return HDF_ERR_INVALID_PARAM;
+    }
+    return OHOS::Codec::Omx::ComponentMgr::GetInstance().QueryIfDecoderSupportThisXPS(mime,
+        static_cast<uint8_t*>(xps->GetVirAddr()), xps->GetCapacity(), isSupport);
+}
+ 
 }  // namespace V4_0
 }  // namespace Codec
 }  // namespace HDI
