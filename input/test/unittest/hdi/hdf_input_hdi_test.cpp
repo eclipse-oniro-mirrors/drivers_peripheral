@@ -56,7 +56,10 @@ void HdfInputHdiTest::SetUpTestCase()
     if (g_inputInterfaces != nullptr) {
         g_callback = new InputCallbackImpl(g_inputInterfaces, nullptr);
         g_hotplugCb = new InputCallbackImpl(g_inputInterfaces, g_callback);
-        g_inputInterfaces->ScanInputDevice(g_sta);
+        int32_t ret = g_inputInterfaces->ScanInputDevice(g_sta);
+        if (ret != INPUT_SUCCESS) {
+            HDF_LOGE("%{public}s: ScanInputDevice failed, ret = %{public}d", __func__, ret);
+        }
     }
 }
 
