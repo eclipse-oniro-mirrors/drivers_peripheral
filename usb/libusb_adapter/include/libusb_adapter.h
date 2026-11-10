@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <thread>
 #include <list>
 #include <map>
@@ -146,6 +147,7 @@ private:
     std::atomic<int32_t> activeThreads_;
     bool shutdown_;
     std::list<sptr<V2_0::IUsbdSubscriber>> subscribers_;
+    std::shared_mutex subscribersMutex_;
     static std::shared_ptr<HotplugEventPorcess> instance_;
     static std::mutex mtx_;
     void OnProcessHotplugEvent();

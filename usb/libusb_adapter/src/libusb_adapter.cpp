@@ -3250,6 +3250,7 @@ int32_t HotplugEventPorcess::SetSubscriber(sptr<V2_0::IUsbdSubscriber> subscribe
         HDF_LOGE("%{public}s subsriber is nullptr", __func__);
         return HDF_FAILURE;
     }
+    std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
     subscribers_.push_back(subscriber);
     HDF_LOGI("%{public}s: subscriber add success", __func__);
     return HDF_SUCCESS;
@@ -3258,6 +3259,7 @@ int32_t HotplugEventPorcess::SetSubscriber(sptr<V2_0::IUsbdSubscriber> subscribe
 int32_t HotplugEventPorcess::RemoveSubscriber(sptr<V2_0::IUsbdSubscriber> subscriber)
 {
     HDF_LOGI("%{public}s: enter RemoveSubscriber.", __func__);
+    std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
     auto tempSize = subscribers_.size();
     subscribers_.remove(subscriber);
     if (tempSize == subscribers_.size()) {
@@ -3269,6 +3271,7 @@ int32_t HotplugEventPorcess::RemoveSubscriber(sptr<V2_0::IUsbdSubscriber> subscr
 
 size_t HotplugEventPorcess::GetSubscriberSize()
 {
+    std::shared_lock<std::shared_mutex> lock(subscribersMutex_);
     return subscribers_.size();
 }
 
@@ -3298,7 +3301,12 @@ void HotplugEventPorcess::OnProcessHotplugEvent()
             info.subscriberPtr->DeviceEvent(info.hotplugInfo);
             continue;
         }
-        for (auto subscriber: subscribers_) {
+        std::list<sptr<V2_0::IUsbdSubscriber>> subscribersCopy;
+        {
+            std::shared_lock<std::shared_mutex> lock(subscribersMutex_);
+            subscribersCopy = subscribers_;
+        }
+        for (auto subscriber: subscribersCopy) {
             subscriber->DeviceEvent(info.hotplugInfo);
         }
     }
