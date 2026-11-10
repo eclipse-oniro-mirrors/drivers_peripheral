@@ -49,6 +49,7 @@ public:
 
     virtual int32_t GetRolesForComponent(const std::string &componentName, std::vector<std::string> &roles);
 
+    virtual int32_t QueryIfDecoderSupportThisXPS(const std::string& mime, uint8_t* xps, uint32_t len, bool& isSupport);
 private:
     void AddVendorComponent();
     void AddSoftComponent();

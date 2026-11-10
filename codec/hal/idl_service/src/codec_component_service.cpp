@@ -43,7 +43,7 @@ CodecComponentService::~CodecComponentService()
 {
     CODEC_LOGI("enter");
     std::lock_guard<std::mutex> lock(OHOS::Codec::Omx::ComponentMgr::GetInstance().mutex_);
-    CodecComponentManagerService::GetInstance().DestroyComponentByDtor(componentId_);
+    V4_1::CodecComponentManagerService::GetInstance().DestroyComponentByDtor(componentId_);
     if (node_ != nullptr) {
         node_->ReleaseOMXResource();
         int32_t ret = node_->CloseHandle();

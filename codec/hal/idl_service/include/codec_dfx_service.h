@@ -26,7 +26,7 @@
 namespace OHOS {
 namespace HDI {
 namespace Codec {
-namespace V4_0 {
+namespace V4_1 {
 class CodecDfxService : public RefBase {
 public:
     ~CodecDfxService() = default;

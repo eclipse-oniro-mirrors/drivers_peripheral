@@ -20,7 +20,7 @@
 namespace OHOS {
 namespace HDI {
 namespace Codec {
-namespace V4_0 {
+namespace V4_1 {
 #define ARGV_FLAG 1
 #define INPUT_PORT_INDEX 0
 #define OUTPUT_PORT_INDEX 1

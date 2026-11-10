@@ -18,10 +18,10 @@
 #include <hdf_sbuf_ipc.h>
 #include "codec_component_config.h"
 #include "codec_log_wrapper.h"
-#include "v4_0/codec_component_manager_stub.h"
+#include "v4_1/codec_component_manager_stub.h"
 #include "codec_dfx_service.h"
 #include <devhost_dump_reg.h>
-using namespace OHOS::HDI::Codec::V4_0;
+using namespace OHOS::HDI::Codec;
 namespace {
     struct HdfCodecComponentManagerHost {
         struct IDeviceIoService ioService;
@@ -54,7 +54,7 @@ static int32_t CodecComponentManagerDriverDispatch(struct HdfDeviceIoClient *cli
 static int HdfCodecComponentManagerDriverInit(struct HdfDeviceObject *deviceObject)
 {
     CODEC_LOGI("HdfCodecComponentManagerDriverInit enter");
-    if (DevHostRegisterDumpHost(CodecDfxService::DevCodecHostDump) != HDF_SUCCESS) {
+    if (DevHostRegisterDumpHost(V4_1::CodecDfxService::DevCodecHostDump) != HDF_SUCCESS) {
         CODEC_LOGE("DevHostRegisterDumpHost error!");
     }
     return HDF_SUCCESS;
@@ -74,7 +74,7 @@ static int HdfCodecComponentManagerDriverBind(struct HdfDeviceObject *deviceObje
     hdfCodecComponentManagerHost->ioService.Open = NULL;
     hdfCodecComponentManagerHost->ioService.Release = NULL;
 
-    auto serviceImpl = ICodecComponentManager::Get(true);
+    auto serviceImpl = V4_1::ICodecComponentManager::Get(true);
     if (serviceImpl == nullptr) {
         CODEC_LOGE("failed to get of implement service");
         delete hdfCodecComponentManagerHost;
@@ -82,7 +82,8 @@ static int HdfCodecComponentManagerDriverBind(struct HdfDeviceObject *deviceObje
     }
 
     hdfCodecComponentManagerHost->stub =
-        OHOS::HDI::ObjectCollector::GetInstance().GetOrNewObject(serviceImpl, ICodecComponentManager::GetDescriptor());
+        OHOS::HDI::ObjectCollector::GetInstance().GetOrNewObject(serviceImpl,
+                                                                 V4_1::ICodecComponentManager::GetDescriptor());
     if (hdfCodecComponentManagerHost->stub == nullptr) {
         CODEC_LOGE("failed to get stub object");
         delete hdfCodecComponentManagerHost;
