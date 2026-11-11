@@ -1279,8 +1279,10 @@ int32_t UsbfnMtpImpl::Start()
         return ret;
     }
     mtpDev_->mtpState = MTP_STATE_READY;
-    mtpPort_->startDelayed = true;
-    mtpPort_->isActive = true;
+    if (mtpPort_ != nullptr) {
+        mtpPort_->startDelayed = true;
+        mtpPort_->isActive = true;
+    }
     pthread_rwlock_unlock(&mtpRunrwLock_);
     HDF_LOGI("%{public}s: end", __func__);
     return ret;
@@ -1303,8 +1305,10 @@ int32_t UsbfnMtpImpl::Stop()
     pthread_rwlock_wrlock(&mtpRunrwLock_);
     std::lock_guard<std::mutex> guard(startMutex_);
     (void)UsbMtpPortReleaseIo();
-    mtpPort_->startDelayed = false;
-    mtpPort_->isActive = false;
+    if (mtpPort_ != nullptr) {
+        mtpPort_->startDelayed = false;
+        mtpPort_->isActive = false;
+    }
     if (mtpDev_ != nullptr) {
         mtpDev_->mtpState = MTP_STATE_OFFLINE;
     }

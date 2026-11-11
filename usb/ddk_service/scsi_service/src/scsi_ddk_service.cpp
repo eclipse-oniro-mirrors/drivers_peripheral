@@ -314,6 +314,7 @@ int32_t ScsiDdkService::Close(const ScsiPeripheralDevice& dev)
         return SCSIPERIPHERAL_DDK_NO_PERM;
     }
 
+    std::lock_guard<std::mutex> lock(g_memMapMutex);
     int32_t ret = TrackTime([&]() {
         return fdsan_close_with_tag(dev.devFd, fdsan_create_owner_tag(FDSAN_OWNER_TYPE_FILE, LOG_DOMAIN));
     }, __func__);
@@ -354,6 +355,7 @@ int32_t ScsiDdkService::ReadCapacity10(const ScsiPeripheralDevice& dev,
     req.timeout = request.timeout;
     req.devFd = dev.devFd;
 
+    std::lock_guard<std::mutex> lock(g_memMapMutex);
     if (osAdapter_ == nullptr) {
         HDF_LOGE("%{public}s: osAdapter_ is null.", __func__);
         return SCSIPERIPHERAL_DDK_INVALID_OPERATION;
@@ -396,6 +398,7 @@ int32_t ScsiDdkService::TestUnitReady(const ScsiPeripheralDevice& dev,
     req.timeout = request.timeout;
     req.devFd = dev.devFd;
 
+    std::lock_guard<std::mutex> lock(g_memMapMutex);
     if (osAdapter_ == nullptr) {
         HDF_LOGE("%{public}s: osAdapter_ is null.", __func__);
         return SCSIPERIPHERAL_DDK_INVALID_OPERATION;
@@ -495,6 +498,7 @@ int32_t ScsiDdkService::RequestSense(const ScsiPeripheralDevice& dev,
     req.timeout = request.timeout;
     req.devFd = dev.devFd;
 
+    std::lock_guard<std::mutex> lock(g_memMapMutex);
     if (osAdapter_ == nullptr) {
         HDF_LOGE("%{public}s: osAdapter_ is null.", __func__);
         return SCSIPERIPHERAL_DDK_INVALID_OPERATION;
@@ -647,6 +651,7 @@ int32_t ScsiDdkService::Verify10(const ScsiPeripheralDevice& dev,
     req.timeout = request.timeout;
     req.devFd = dev.devFd;
 
+    std::lock_guard<std::mutex> lock(g_memMapMutex);
     if (osAdapter_ == nullptr) {
         HDF_LOGE("%{public}s: osAdapter_ is null.", __func__);
         return SCSIPERIPHERAL_DDK_INVALID_OPERATION;

@@ -249,6 +249,7 @@ static int32_t UsbdPnpEventHandler(void *priv, uint32_t id, HdfSBuf *data)
 }
 
 static HdfDevEventlistener *g_pnpListener = nullptr;
+static std::shared_mutex g_pnpListenerMutex;
 
 int32_t UsbDdkService::Init()
 {
@@ -257,18 +258,21 @@ int32_t UsbDdkService::Init()
         HDF_LOGE("%{public}s: no permission", __func__);
         return HDF_ERR_NOPERM;
     }
-    if (g_pnpListener == nullptr) {
-        g_pnpListener = new HdfDevEventlistener();
+    {
+        std::unique_lock<std::shared_mutex> lock(g_pnpListenerMutex);
         if (g_pnpListener == nullptr) {
-            HDF_LOGE("%{public}s: create listener failed", __func__);
-            return HDF_ERR_MALLOC_FAIL;
-        }
-        g_pnpListener->callBack = UsbdPnpEventHandler;
-        if (DdkListenerMgrAdd(g_pnpListener) != HDF_SUCCESS) {
-            HDF_LOGE("%{public}s: add listener failed", __func__);
-            delete g_pnpListener;
-            g_pnpListener = nullptr;
-            return HDF_FAILURE;
+            g_pnpListener = new HdfDevEventlistener();
+            if (g_pnpListener == nullptr) {
+                HDF_LOGE("%{public}s: create listener failed", __func__);
+                return HDF_ERR_MALLOC_FAIL;
+            }
+            g_pnpListener->callBack = UsbdPnpEventHandler;
+            if (DdkListenerMgrAdd(g_pnpListener) != HDF_SUCCESS) {
+                HDF_LOGE("%{public}s: add listener failed", __func__);
+                delete g_pnpListener;
+                g_pnpListener = nullptr;
+                return HDF_FAILURE;
+            }
         }
     }
 
