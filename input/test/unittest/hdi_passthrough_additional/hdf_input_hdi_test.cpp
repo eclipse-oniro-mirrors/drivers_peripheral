@@ -99,6 +99,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testScanInputDevice001, Function | MediumTes
  */
 HWTEST_F(HdfInputHdiTestAdditional, testOpenInputDevice001, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     int i = 0;
     for (i = 0; i < 1000; i++) {
@@ -161,6 +164,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testOpenInputDevice004, Function | MediumTes
  */
 HWTEST_F(HdfInputHdiTestAdditional, testCloseInputDevice001, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     int i = 0;
     for (i = 0; i < 1000; i++) {
@@ -227,6 +233,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testCloseInputDevice004, Function | MediumTe
  */
 HWTEST_F(HdfInputHdiTestAdditional, testGetInputDevice001, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     struct DeviceInfo devInfo;
     int32_t ret = 0;
     int i = 0;
@@ -296,6 +305,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testGetInputDevice004, Function | MediumTest
  */
 HWTEST_F(HdfInputHdiTestAdditional, testGetInputDeviceList001, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     int i = 0;
     uint32_t num = 0;
@@ -317,6 +329,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testGetInputDeviceList001, Function | Medium
  */
 HWTEST_F(HdfInputHdiTestAdditional, testSetPowerStatus001, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     int i = 0;
     uint32_t setStatus = INPUT_SUSPEND;
@@ -387,6 +402,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testSetPowerStatus004, Function | MediumTest
  */
 HWTEST_F(HdfInputHdiTestAdditional, testSetPowerStatus005, Function | MediumTest | Level2)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     uint32_t setStatus = INPUT_POWER_STATUS_UNKNOWN;
     ret = g_inputInterfaces->OpenInputDevice(TOUCH_INDEX);
@@ -416,6 +434,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testSetPowerStatus006, Function | MediumTest
  */
 HWTEST_F(HdfInputHdiTestAdditional, testSetPowerStatus007, Function | MediumTest | Level2)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     uint32_t setStatus = 5;
     ret = g_inputInterfaces->OpenInputDevice(TOUCH_INDEX);
@@ -432,6 +453,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testSetPowerStatus007, Function | MediumTest
  */
 HWTEST_F(HdfInputHdiTestAdditional, testSetPowerStatus008, Function | MediumTest | Level2)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     uint32_t setStatus = 0x7fffffff;
     ret = g_inputInterfaces->OpenInputDevice(TOUCH_INDEX);
@@ -448,6 +472,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testSetPowerStatus008, Function | MediumTest
  */
 HWTEST_F(HdfInputHdiTestAdditional, testGetPowerStatus001, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     int i = 0;
     uint32_t getStatus = 0;
@@ -518,6 +545,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testGetPowerStatus005, Function | MediumTest
  */
 HWTEST_F(HdfInputHdiTestAdditional, testGetDeviceType001, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     int i = 0;
     uint32_t devType = INIT_DEFAULT_VALUE;
@@ -588,6 +618,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testGetDeviceType004, Function | MediumTest 
  */
 HWTEST_F(HdfInputHdiTestAdditional, testSetGestureMode001, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     uint32_t gestureMode = 1;
     int i = 0;
@@ -658,6 +691,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testSetGestureMode004, Function | MediumTest
  */
 HWTEST_F(HdfInputHdiTestAdditional, testSetGestureMode005, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     uint32_t devIndex = TOUCH_INDEX;
     uint32_t gestureMode = 0;
@@ -674,6 +710,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testSetGestureMode005, Function | MediumTest
  */
 HWTEST_F(HdfInputHdiTestAdditional, testSetGestureMode006, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = 0;
     uint32_t devIndex = TOUCH_INDEX;
     uint32_t gestureMode = 0x7fffffff;
@@ -690,6 +729,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testSetGestureMode006, Function | MediumTest
  */
 HWTEST_F(HdfInputHdiTestAdditional, testGetChipInfo001, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
 
     ret = g_inputInterfaces->OpenInputDevice(TOUCH_INDEX);
@@ -769,6 +811,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testGetChipInfo004, Function | MediumTest | 
  */
 HWTEST_F(HdfInputHdiTestAdditional, testGetVendorName001, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
 
     ret = g_inputInterfaces->OpenInputDevice(TOUCH_INDEX);
@@ -848,6 +893,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testGetVendorName004, Function | MediumTest 
  */
 HWTEST_F(HdfInputHdiTestAdditional, testGetChipName001, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret;
 
     ret = g_inputInterfaces->OpenInputDevice(TOUCH_INDEX);
@@ -984,6 +1032,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testRunCapacitanceTest003, Function | Medium
  */
 HWTEST_F(HdfInputHdiTestAdditional, testRunCapacitanceTest004, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = INPUT_SUCCESS;
     uint32_t devIndex = TOUCH_INDEX;
     uint32_t testType = BASE_TEST;
@@ -1337,6 +1388,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testRunExtraCommand003, Function | MediumTes
  */
 HWTEST_F(HdfInputHdiTestAdditional, testRunExtraCommand004, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = INPUT_SUCCESS;
     uint32_t devIndex = TOUCH_INDEX;
     struct ExtraCmd extraCmd;
@@ -1359,6 +1413,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testRunExtraCommand004, Function | MediumTes
  */
 HWTEST_F(HdfInputHdiTestAdditional, testRunExtraCommand005, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = INPUT_SUCCESS;
     uint32_t devIndex = TOUCH_INDEX;
     struct ExtraCmd extraCmd;
@@ -1379,6 +1436,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testRunExtraCommand005, Function | MediumTes
  */
 HWTEST_F(HdfInputHdiTestAdditional, testRunExtraCommand006, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = INPUT_SUCCESS;
     uint32_t devIndex = TOUCH_INDEX;
     struct ExtraCmd extraCmd;
@@ -1399,6 +1459,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testRunExtraCommand006, Function | MediumTes
  */
 HWTEST_F(HdfInputHdiTestAdditional, testRunExtraCommand007, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = INPUT_SUCCESS;
     uint32_t devIndex = TOUCH_INDEX;
     struct ExtraCmd extraCmd;
@@ -1471,6 +1534,9 @@ HWTEST_F(HdfInputHdiTestAdditional, testRegisterReportCallback003, Function | Me
  */
 HWTEST_F(HdfInputHdiTestAdditional, testRegisterReportCallback004, Function | MediumTest | Level1)
 {
+    if (!IsOnlineDev(TOUCH_INDEX)) {
+        GTEST_SKIP() << "no online input device (devIndex = " << TOUCH_INDEX << ")";
+    }
     int32_t ret = INPUT_SUCCESS;
     uint32_t devIndex = TOUCH_INDEX;
     for (int32_t i = 0; i < 1000; i++) {
