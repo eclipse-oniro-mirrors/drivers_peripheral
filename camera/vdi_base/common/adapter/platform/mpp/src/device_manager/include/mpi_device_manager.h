@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2021-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,7 +16,9 @@
 #ifndef HOS_CAMERA_MPI_DEVICE_MANAGER_H
 #define HOS_CAMERA_MPI_DEVICE_MANAGER_H
 
+#include <atomic>
 #include <iostream>
+#include <mutex>
 #include <vector>
 #include <string>
 #include <stdlib.h>
@@ -82,8 +84,10 @@ private:
     NodeBufferCb nodeBufferCb_;
     MetaDataCb metaDataCb_;
     DeviceStatusCb deviceStatusCb_;
-    bool sysInitFlag;
-    bool metaSendflag_ = false;
+    std::mutex cbMutex_;
+    std::mutex sysInitlock_;
+    std::atomic<bool> sysInitFlag{false};
+    std::atomic<bool> metaSendflag_{false};
 };
 } // namespace Camera
 } // namespace OHOS

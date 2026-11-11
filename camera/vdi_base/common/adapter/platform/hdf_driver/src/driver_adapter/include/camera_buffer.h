@@ -16,6 +16,7 @@
 #ifndef CAMERA_BUFFER_H
 #define CAMERA_BUFFER_H
 
+#include <mutex>
 #include <unordered_map>
 #include "camera_common.h"
 
@@ -44,6 +45,7 @@ private:
     std::vector<uint32_t> offArray_;
     std::vector<uint32_t> lengthArray_;
     enum CameraMemType memoryType_;
+    std::recursive_mutex bufferMapMutex_;
 };
 } // namespace OHOS::Camera
 #endif // CAMERA_BUFFER_H

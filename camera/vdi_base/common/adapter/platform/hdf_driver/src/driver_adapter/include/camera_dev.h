@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (c) 2022-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,6 +16,8 @@
 #ifndef CAMERA_DEV_H
 #define CAMERA_DEV_H
 
+#include <atomic>
+#include <mutex>
 #include <thread>
 #include "camera_common.h"
 #include "camera_buffer.h"
@@ -82,9 +84,9 @@ private:
     int32_t SetDeviceInfo(struct CameraFeature *feature,
         const std::string &cameraId, int type, char *deviceName, bool state);
 
-    uint32_t streamNumber_ = 0;
+    std::atomic<uint32_t> streamNumber_{0};
     std::thread *streamThread_ = nullptr;
-
+    std::mutex streamMutex_;
     std::shared_ptr<CameraBuffer> myBuffers_ = nullptr;
     std::shared_ptr<CameraStreams> myStreams_ = nullptr;
     std::shared_ptr<CameraFileFormat> myFileFormat_ = nullptr;

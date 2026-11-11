@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2021-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -24,7 +24,6 @@ namespace OHOS {
 namespace Camera {
 IMPLEMENT_DEVICEMANAGER(MpiDeviceManager);
 MpiDeviceManager::MpiDeviceManager()
-    :sysInitFlag(false)
 {
 }
 
@@ -73,9 +72,12 @@ std::vector<CameraId> MpiDeviceManager::GetCameraId()
 
 RetCode MpiDeviceManager::PowerUp(CameraId cameraId)
 {
-    if (sysInitFlag == false) {
-        sysObject_->StartSys();
-        sysInitFlag = true;
+    {
+        std::lock_guard<std::mutex> l(sysInitlock_);
+        if (sysInitFlag.load(std::memory_order_acquire) == false) {
+            sysObject_->StartSys();
+            sysInitFlag.store(true, std::memory_order_release);
+        }
     }
     if (CheckCameraIdList(cameraId) == false) {
         return RC_ERROR;
@@ -102,9 +104,12 @@ RetCode MpiDeviceManager::PowerDown(CameraId cameraId)
             return RC_ERROR;
         }
     }
-    if (sysObject_ != nullptr) {
-        sysObject_->StopSys();
-        sysInitFlag = false;
+    {
+        std::lock_guard<std::mutex> l(sysInitlock_);
+        if (sysObject_ != nullptr && sysInitFlag.load(std::memory_order_acquire)) {
+            sysObject_->StopSys();
+            sysInitFlag.store(false, std::memory_order_release);
+        }
     }
     return rc;
 }
@@ -486,22 +491,33 @@ RetCode MpiDeviceManager::GetAbilityMetaData(std::shared_ptr<CameraMetadata> met
 
 void MpiDeviceManager::SetSendflag(bool flag)
 {
-    metaSendflag_ = flag;
+    metaSendflag_.store(flag, std::memory_order_release);
 }
 
 void MpiDeviceManager::BufferCallback(std::shared_ptr<FrameSpec> buffer)
 {
-    nodeBufferCb_(buffer);
+    NodeBufferCb nodeBufferCb;
+    MetaDataCb metaDataCb;
+    {
+        std::lock_guard<std::mutex> l(cbMutex_);
+        nodeBufferCb = nodeBufferCb_;
+        metaDataCb = metaDataCb_;
+    }
+    if (nodeBufferCb != nullptr) {
+        nodeBufferCb(buffer);
+    }
 
     const int ENTRY_CAPACITY = 30;
     const int DATA_CAPACITY = 2000;
     std::shared_ptr<CameraMetadata> meta =
         std::make_shared<CameraMetadata>(ENTRY_CAPACITY, DATA_CAPACITY);
     RetCode rc;
-    bool sendFlag = metaSendflag_;
+    bool sendFlag = metaSendflag_.load(std::memory_order_acquire);
     rc = GetAbilityMetaData(meta, sendFlag);
     if (rc == RC_OK && sendFlag == true) {
-        metaDataCb_(meta);
+        if (metaDataCb != nullptr) {
+            metaDataCb(meta);
+        }
     } else {
         if (rc == RC_ERROR) {
             CAMERA_LOGE("GetAbilityMetaData error");
@@ -523,12 +539,22 @@ void MpiDeviceManager::SetNodeCallBack(const NodeBufferCb cb, CameraId cameraId)
 {
     CAMERA_LOGI("entry");
     (void)cameraId;
-    nodeBufferCb_ = cb;
+    {
+        std::lock_guard<std::mutex> l(cbMutex_);
+        nodeBufferCb_ = cb;
+    }
     sysObject_->SetCallback([&](std::shared_ptr<FrameSpec> buffer) {
         BufferCallback(buffer);
     });
     sysObject_->SetDevStatusCallback([&]() {
-        deviceStatusCb_();
+        DeviceStatusCb deviceStatusCb;
+        {
+            std::lock_guard<std::mutex> l(cbMutex_);
+            deviceStatusCb = deviceStatusCb_;
+        }
+        if (deviceStatusCb != nullptr) {
+            deviceStatusCb();
+        }
     });
 }
 
@@ -544,11 +570,13 @@ void MpiDeviceManager::Configure(std::shared_ptr<CameraMetadata> meta)
 void MpiDeviceManager::SetMetaDataCallBack(const MetaDataCb cb, CameraId cameraId)
 {
     (void)cameraId;
+    std::lock_guard<std::mutex> l(cbMutex_);
     metaDataCb_ = cb;
 }
 
 void MpiDeviceManager::SetDevStatusCallBack(const DeviceStatusCb cb)
 {
+    std::lock_guard<std::mutex> l(cbMutex_);
     deviceStatusCb_ = cb;
 }
 

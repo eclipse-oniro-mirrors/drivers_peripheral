@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Huawei Device Co., Ltd.
+ * Copyright (c) 2023-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -34,11 +34,14 @@ RetCode V4L2DeviceManager::Init()
 {
     RetCode rc = RC_ERROR;
     std::vector<std::string> hardwareName;
-    hardwareList_.clear();
-    for (auto it = hardware.cbegin(); it != hardware.cend(); ++it) {
-        if (it->controllerId == DM_C_SENSOR) {
-            hardwareName.push_back(it->hardwareName);
-            hardwareList_.push_back(*it);
+    {
+        std::lock_guard<std::mutex> l(mtx_);
+        hardwareList_.clear();
+        for (auto it = hardware.cbegin(); it != hardware.cend(); ++it) {
+            if (it->controllerId == DM_C_SENSOR) {
+                hardwareName.push_back(it->hardwareName);
+                hardwareList_.push_back(*it);
+            }
         }
     }
 
@@ -68,6 +71,7 @@ RetCode V4L2DeviceManager::Init()
 
 std::vector<CameraId> V4L2DeviceManager::GetCameraId()
 {
+    std::lock_guard<std::mutex> l(mtx_);
     std::vector<CameraId> sensor_list;
     for (auto iter = hardwareList_.cbegin(); iter != hardwareList_.cend(); iter++) {
         if ((*iter).controllerId == DM_C_SENSOR) {
@@ -109,12 +113,24 @@ RetCode V4L2DeviceManager::PowerDown(CameraId cameraId)
 
 std::shared_ptr<ISensor> V4L2DeviceManager::GetSensor(CameraId cameraId)
 {
-    for (auto iter = hardwareList_.cbegin(); iter != hardwareList_.cend(); iter++) {
-        if ((*iter).controllerId == DM_C_SENSOR && (*iter).cameraId == cameraId) {
-            return (std::static_pointer_cast<SensorManager>(GetManager(DM_M_SENSOR)))->GetSensor((*iter).hardwareName);
+    std::string hardwareName;
+    {
+        std::lock_guard<std::mutex> l(mtx_);
+        for (auto iter = hardwareList_.cbegin(); iter != hardwareList_.cend(); iter++) {
+            if ((*iter).controllerId == DM_C_SENSOR && (*iter).cameraId == cameraId) {
+                hardwareName = (*iter).hardwareName;
+                break;
+            }
         }
     }
-    return nullptr;
+    if (hardwareName.empty()) {
+        return nullptr;
+    }
+    std::shared_ptr<IManager> manager = GetManager(DM_M_SENSOR);
+    if (manager == nullptr) {
+        return nullptr;
+    }
+    return (std::static_pointer_cast<SensorManager>(manager))->GetSensor(hardwareName);
 }
 
 std::shared_ptr<IManager> V4L2DeviceManager::GetManager(ManagerId managerId)
@@ -130,7 +146,12 @@ RetCode V4L2DeviceManager::CreateManager()
 {
     RetCode rc = RC_OK;
     std::shared_ptr<IManager> manager = nullptr;
-    for (auto iter = hardwareList_.cbegin(); iter != hardwareList_.cend(); iter++) {
+    std::vector<HardwareConfiguration> hardwareList;
+    {
+        std::lock_guard<std::mutex> l(mtx_);
+        hardwareList = hardwareList_;
+    }
+    for (auto iter = hardwareList.cbegin(); iter != hardwareList.cend(); iter++) {
         if (CheckManagerList((*iter).managerId) == false) {
             switch ((*iter).managerId) {
                 case DM_M_SENSOR:
@@ -169,6 +190,7 @@ CameraId V4L2DeviceManager::HardwareToCameraId(std::string hardwareName)
     CAMERA_LOGD("ReturnEnableCameraId begin : %{public}s end", hardwareName.c_str());
     hardwareName = hardwareName.substr(0, hardwareName.find("&id"));
     if (hardwareName.size() != 0) {
+        std::lock_guard<std::mutex> l(mtx_);
         for (auto iter = hardwareList_.cbegin(); iter != hardwareList_.cend(); iter++) {
             CAMERA_LOGD("ReturnEnableCameraId %{public}d : %{public}s end", (*iter).cameraId,
                 (*iter).hardwareName.c_str());
@@ -193,7 +215,12 @@ RetCode V4L2DeviceManager::CreateController(CameraId cameraId, std::shared_ptr<I
 {
     RetCode rc = RC_OK;
     (void)cameraId;
-    for (auto iter = hardwareList_.cbegin(); iter != hardwareList_.cend(); iter++) {
+    std::vector<HardwareConfiguration> hardwareList;
+    {
+        std::lock_guard<std::mutex> l(mtx_);
+        hardwareList = hardwareList_;
+    }
+    for (auto iter = hardwareList.cbegin(); iter != hardwareList.cend(); iter++) {
         if ((*iter).managerId == managerId) {
             switch (managerId) {
                 case DM_M_SENSOR:
@@ -222,6 +249,7 @@ RetCode V4L2DeviceManager::DestroyController()
 
 bool V4L2DeviceManager::CheckCameraIdList(CameraId cameraId)
 {
+    std::lock_guard<std::mutex> l(mtx_);
     auto it = std::find_if (hardwareList_.cbegin(), hardwareList_.cend(),
         [&cameraId](const HardwareConfiguration &item) -> bool {
                 return item.cameraId == cameraId;
@@ -378,22 +406,26 @@ void V4L2DeviceManager::UvcCallBack(const std::string hardwareName, std::vector<
         CameraId id = ReturnEnableCameraId(hardwareName);
         CHECK_IF_EQUAL_RETURN_VOID(id, CAMERA_MAX);
         CHECK_IF_PTR_NULL_RETURN_VOID(uvcCb_);
-        
-        for (auto iter = hardwareList_.cbegin(); iter != hardwareList_.cend();) {
-            if ((*iter).cameraId != id) {
-                iter++;
-                continue;
-            }
-            if ((*iter).hardwareName == hardwareName) {
-                std::shared_ptr<CameraMetadata> meta =
-                    std::make_shared<CameraMetadata>(ITEM_CAPACITY_SIZE, DATA_CAPACITY_SIZE);
-                CHECK_IF_PTR_NULL_RETURN_VOID(meta);
-                uvcCb_(meta, uvcState, id, hardwareName);
-            }
-            {
-                std::lock_guard<std::mutex> l(mtx_);
+
+        bool needNotify = false;
+        {
+            std::lock_guard<std::mutex> l(mtx_);
+            for (auto iter = hardwareList_.cbegin(); iter != hardwareList_.cend();) {
+                if ((*iter).cameraId != id) {
+                    iter++;
+                    continue;
+                }
+                if ((*iter).hardwareName == hardwareName) {
+                    needNotify = true;
+                }
                 iter = hardwareList_.erase(iter);
             }
+        }
+        if (needNotify) {
+            std::shared_ptr<CameraMetadata> meta =
+                std::make_shared<CameraMetadata>(ITEM_CAPACITY_SIZE, DATA_CAPACITY_SIZE);
+            CHECK_IF_PTR_NULL_RETURN_VOID(meta);
+            uvcCb_(meta, uvcState, id, hardwareName);
         }
         CAMERA_LOGI("uvc plug out %{public}s end", hardwareName.c_str());
     }
@@ -401,6 +433,7 @@ void V4L2DeviceManager::UvcCallBack(const std::string hardwareName, std::vector<
 
 CameraId V4L2DeviceManager::ReturnEnableCameraId(std::string hardwareName)
 {
+    std::lock_guard<std::mutex> l(mtx_);
     if (hardwareName.size() != 0) {
         for (auto iter = hardwareList_.cbegin(); iter != hardwareList_.cend(); iter++) {
             if (hardwareName == (*iter).hardwareName) {
