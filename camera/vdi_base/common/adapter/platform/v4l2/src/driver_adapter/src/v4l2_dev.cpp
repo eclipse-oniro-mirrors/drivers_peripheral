@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2021-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -29,6 +29,7 @@ HosV4L2Dev::~HosV4L2Dev() {}
 
 int HosV4L2Dev::GetCurrentFd(const std::string& cameraID)
 {
+    std::lock_guard<std::mutex> l(HosV4L2Dev::deviceFdLock_);
     auto itr = HosV4L2Dev::fdMatch.find(cameraID);
     if (itr == HosV4L2Dev::fdMatch.end()) {
         CAMERA_LOGE("error: GetCurrentFd no camera fd\n");
@@ -90,22 +91,23 @@ RetCode HosV4L2Dev::stop(const std::string& cameraID)
         return RC_ERROR;
     }
 
-    auto itr = HosV4L2Dev::fdMatch.find(cameraID);
-    if (itr == HosV4L2Dev::fdMatch.end()) {
-        CAMERA_LOGE("HosV4L2Dev::stop GetCurrentFd error\n");
-        return RC_ERROR;
+    {
+        std::lock_guard<std::mutex> l(HosV4L2Dev::deviceFdLock_);
+        auto itr = HosV4L2Dev::fdMatch.find(cameraID);
+        if (itr == HosV4L2Dev::fdMatch.end()) {
+            CAMERA_LOGE("HosV4L2Dev::stop GetCurrentFd error\n");
+            return RC_ERROR;
+        }
+        fd = itr->second;
+        HosV4L2Dev::fdMatch.erase(itr);
     }
 
-    fd = itr->second;
     if (fd < 0) {
         CAMERA_LOGE("HosV4L2Dev::stop fd error = %d\n", fd);
         return RC_ERROR;
     }
 
     myFileFormat_->V4L2CloseDevice(fd);
-
-    std::lock_guard<std::mutex> l(HosV4L2Dev::deviceFdLock_);
-    HosV4L2Dev::fdMatch.erase(itr);
     CAMERA_LOGI("HosV4L2Dev::stop out %{public}s\n", cameraID.c_str());
     return RC_OK;
 }
@@ -362,6 +364,7 @@ RetCode HosV4L2Dev::CreateEpoll(int fd, const unsigned int streamNumber)
 void HosV4L2Dev::EraseEpoll(int fd)
 {
     CAMERA_LOGI("EraseEpoll enter, fd = %{public}d\n", fd);
+    std::lock_guard<std::mutex> l(epollLock_);
     auto itr = std::find_if(epollEvent_.begin(), epollEvent_.end(), [fd](const epoll_event& event) {
         if (event.data.fd == fd) {
             return true;
@@ -375,7 +378,6 @@ void HosV4L2Dev::EraseEpoll(int fd)
         if (ret < 0) {
             CAMERA_LOGE("del fd=%{public}d to epoll failed, ret=%{public}d, errno=%{public}d", fd, ret, errno);
         }
-        std::lock_guard<std::mutex> l(epollLock_);
         epollEvent_.erase(itr);
     }
     CAMERA_LOGI("EraseEpoll out, fd = %{public}d\n", fd);
@@ -409,16 +411,12 @@ RetCode HosV4L2Dev::StartStream(const std::string& cameraID)
     }
 
     {
-        std::shared_lock<std::shared_mutex> lock(streamLock_);
-        rc = CreateEpoll(fd, streamNumber_);
-    }
-    if (rc == RC_ERROR) {
-        CAMERA_LOGE("StartStream: CreateEpoll error\n");
-        return RC_ERROR;
-    }
-
-    {
         std::unique_lock<std::shared_mutex> lock(streamLock_);
+        rc = CreateEpoll(fd, streamNumber_);
+        if (rc == RC_ERROR) {
+            CAMERA_LOGE("StartStream:CreateEpoll error\n");
+            return RC_ERROR;
+        }
         if (streamNumber_ == 0) {
             streamNumber_++;
             CAMERA_LOGI("go start thread loopBuffers, streamNumber_=%{public}d\n", streamNumber_);

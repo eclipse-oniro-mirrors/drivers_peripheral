@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2021-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -78,7 +78,7 @@ void MergeNode::DeliverBuffers(std::shared_ptr<FrameSpec> frameSpec)
     {
         std::unique_lock<std::mutex> lck(mtx_);
         mergeVec_.push_back(frameSpec);
-        bufferNum_++;
+        bufferNum_.fetch_add(1, std::memory_order_acq_rel);
         cv_.notify_all();
     }
     return;
@@ -94,7 +94,7 @@ void MergeNode::DealSecondBuffer(std::shared_ptr<IPort>& port)
     if (tmpFrame_2 != mergeVec_.end()) {
         tmpVec_.push_back((*tmpFrame_2));
         mergeVec_.erase(tmpFrame_2);
-        bufferNum_--;
+        bufferNum_.fetch_sub(1, std::memory_order_acq_rel);
     }
 }
 
@@ -112,7 +112,7 @@ void MergeNode::MergeBuffers()
                 }
             }
 
-            if (bufferNum_ > 0) {
+            if (bufferNum_.load(std::memory_order_acquire) > 0) {
                 auto outPorts = GetOutPorts();
                 for (auto& it : outPorts) {
                     if (tmpVec_.size() == 0) {
@@ -129,7 +129,7 @@ void MergeNode::MergeBuffers()
                         if (tmpFrame != mergeVec_.end()) {
                             tmpVec_.push_back((*tmpFrame));
                             mergeVec_.erase(tmpFrame);
-                            bufferNum_--;
+                            bufferNum_.fetch_sub(1, std::memory_order_acq_rel);
                             break;
                         }
                     } else if (tmpVec_.size() == 1) {

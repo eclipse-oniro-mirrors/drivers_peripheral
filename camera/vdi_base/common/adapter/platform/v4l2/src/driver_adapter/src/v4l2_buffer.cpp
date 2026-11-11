@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2021-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -216,7 +216,7 @@ RetCode HosV4L2Buffers::V4L2QueueBuffer(int fd, const std::shared_ptr<FrameSpec>
 void HosV4L2Buffers::MakeInqueueBuffer(struct v4l2_buffer &buf, const std::shared_ptr<FrameSpec>& frameSpec)
 {
     CAMERA_LOGI("HosV4L2Buffers::MakeInqueueBuffer in.");
-
+    std::lock_guard<std::mutex> l(bufferLock_);
     buf.index = (uint32_t)frameSpec->buffer_->GetIndex();
     buf.type = bufferType_;
     buf.memory = memoryType_;
@@ -415,7 +415,11 @@ RetCode HosV4L2Buffers::V4L2AllocBuffer(int fd, const std::shared_ptr<FrameSpec>
         CAMERA_LOGW("V4L2 buf size(%{public}u) > framework buf size(%{public}u), using min for memcpy\n",
             v4l2BufSize, frameworkBufSize);
     }
-    buffLong_ = std::min(v4l2BufSize, frameworkBufSize);
+    
+    {
+        std::lock_guard<std::mutex> l(bufferLock_);
+        buffLong_ = std::min(v4l2BufSize, frameworkBufSize);
+    }
     if (memoryType_ == V4L2_MEMORY_MMAP || memoryType_ == V4L2_MEMORY_DMABUF) {
         return SetAdapterBuffer(fd, buf, frameSpec);
     }
@@ -425,6 +429,7 @@ RetCode HosV4L2Buffers::V4L2AllocBuffer(int fd, const std::shared_ptr<FrameSpec>
 RetCode HosV4L2Buffers::SetAdapterBuffer(int fd, struct v4l2_buffer &buf, const std::shared_ptr<FrameSpec>& frameSpec)
 {
     CAMERA_LOGI("HosV4L2Buffers::SetAdapterBuffer in.");
+    std::lock_guard<std::mutex> l(bufferLock_);
     RetCode ret = 0;
     uint32_t index = static_cast<uint32_t>(frameSpec->buffer_->GetIndex());
 

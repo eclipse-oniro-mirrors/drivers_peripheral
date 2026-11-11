@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2021-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,6 +14,7 @@
 #ifndef HOS_CAMERA_MERGE_NODE_H
 #define HOS_CAMERA_MERGE_NODE_H
 
+#include <atomic>
 #include <vector>
 #include <condition_variable>
 #include "device_manager_adapter.h"
@@ -38,7 +39,7 @@ private:
     std::vector<std::shared_ptr<FrameSpec>>     mergeVec_;
     std::vector<std::shared_ptr<FrameSpec>>     tmpVec_;
     std::shared_ptr<std::thread>                mergeThread_ = nullptr;
-    uint64_t bufferNum_ = 0;
+    std::atomic<uint64_t> bufferNum_{0};
     std::atomic_bool                           streamRunning_ = false;
 };
 } // namespace OHOS::Camera

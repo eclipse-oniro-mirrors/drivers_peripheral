@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (c) 2021-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -83,9 +83,9 @@ RetCode VencController::StopVenc()
     CAMERA_LOGI("%{public}s Venc StopVenc", __FUNCTION__);
     std::lock_guard<std::mutex> l(startVenclock_);
     RetCode rc = RC_OK;
-    if (startVencState_ == false) {
+    if (startVencState_ == true) {
         vencObject_->StopVenc();
-        startVencState_ = true;
+        startVencState_ = false;
     }
     return rc;
 };

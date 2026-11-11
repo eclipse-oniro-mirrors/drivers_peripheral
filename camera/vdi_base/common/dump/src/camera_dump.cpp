@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Huawei Device Co., Ltd.
+ * Copyright (c) 2023-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -104,6 +104,7 @@ bool CameraDumper::ReadDumpConfig()
     }
 
     std::string str;
+    std::lock_guard<std::mutex> l(dumpStateLock_);
     while (!ifs.eof()) {
         if (ifs >> str) {
             istringstream istr(str);
@@ -111,6 +112,10 @@ bool CameraDumper::ReadDumpConfig()
             vector<std::string> strVector;
             while (getline(istr, strTemp, '=')) {
                 strVector.push_back(strTemp);
+            }
+            if (strVector.size() < 2) {
+                CAMERA_LOGW("invalid dump config line <%{public}s>", str.c_str());
+                continue;
             }
             g_dumpToolMap[strVector[0]] = strVector[1];
         }
@@ -150,12 +155,20 @@ bool CameraDumper::DumpBuffer(std::string name, std::string type, const std::sha
         "]_width[" << defaultWidth << "]_height[" << defaultHeight;
 
     int32_t previewInterval = 1;
-    std::istringstream ssPreview(g_dumpToolMap[PREVIEW_INTERVAL]);
-    ssPreview >> previewInterval;
-
     int32_t captureInterval = 1;
-    std::istringstream ssVideo(g_dumpToolMap[CAPTURE_INTERVAL]);
-    ssVideo >> captureInterval;
+    {
+        std::lock_guard<std::mutex> l(dumpStateLock_);
+        auto previewIt = g_dumpToolMap.find(PREVIEW_INTERVAL);
+        if (previewIt != g_dumpToolMap.end()) {
+            std::istringstream ssPreview(previewIt->second);
+            ssPreview >> previewInterval;
+        }
+        auto captureIt = g_dumpToolMap.find(CAPTURE_INTERVAL);
+        if (captureIt != g_dumpToolMap.end()) {
+            std::istringstream ssVideo(captureIt->second);
+            ssVideo >> captureInterval;
+        }
+    }
 
     ++dumpCount_;
     if (buffer->GetEncodeType() == VDI::Camera::V1_0::ENCODE_TYPE_JPEG) {
