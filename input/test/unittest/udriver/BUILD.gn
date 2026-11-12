@@ -59,16 +59,10 @@ ohos_unittest("input_udriver_unittest") {
     "$hdi_input_base_path/udriver/include",
   ]
 
-  cflags = [
-    "-Wall",
-    "-Wextra",
-    "-Werror",
-    "-Wno-inconsistent-missing-override",
-  ]
+  deps = [ "$hdi_input_base_path/udriver:hdi_input_udriver" ]
 
   if (is_standard_system) {
     external_deps = [
-      "bounds_checking_function:libsec_shared",
       "c_utils:utils",
       "hdf_core:libhdf_ipc_adapter",
       "hdf_core:libhdf_utils",
