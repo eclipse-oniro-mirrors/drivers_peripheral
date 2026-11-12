@@ -2737,6 +2737,7 @@ void LibusbAdapter::BulkFeedbackToBase(struct libusb_transfer *transfer)
     HDF_LOGI("%{public}s: enter, actual_length=%{public}d", __func__, transfer->actual_length);
     LibusbBulkTransfer *bulkTransfer = reinterpret_cast<LibusbBulkTransfer *>(transfer->user_data);
     sptr<V2_0::IUsbdBulkCallback> callback = bulkTransfer->bulkCbRef;
+    bulkTransfer->isTransferring = false;
 
     int32_t ret = 0;
     if ((transfer->endpoint & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_IN) {
@@ -2748,7 +2749,6 @@ void LibusbAdapter::BulkFeedbackToBase(struct libusb_transfer *transfer)
         HDF_LOGE("%{public}s: feedback callback failed", __func__);
         return;
     }
-    bulkTransfer->isTransferring = false;
     HDF_LOGI("%{public}s: call feedback callback success", __func__);
 }
 
@@ -2789,6 +2789,11 @@ void LIBUSB_CALL LibusbAdapter::HandleBulkResult(struct libusb_transfer *transfe
 
     if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
         HDF_LOGE("%{public}s: bulk transfer has been canceled", __func__);
+        if (transfer->buffer != nullptr) {
+            OsalMemFree(transfer->buffer);
+            transfer->buffer = nullptr;
+        }
+        bulkTransfer->isTransferring = false;
         return;
     }
     if (transfer->status != LIBUSB_TRANSFER_COMPLETED && transfer->actual_length <= 0) {
@@ -2808,6 +2813,10 @@ void LIBUSB_CALL LibusbAdapter::HandleBulkResult(struct libusb_transfer *transfe
     }
 
     BulkFeedbackToBase(transfer);
+    if (transfer->buffer != nullptr) {
+        OsalMemFree(transfer->buffer);
+        transfer->buffer = nullptr;
+    }
     HDF_LOGI("%{public}s: handle bulk transfer success", __func__);
 }
 
@@ -2833,6 +2842,10 @@ int32_t LibusbAdapter::BulkRead(const UsbDev &dev, const UsbPipe &pipe, const sp
         HDF_LOGE("%{public}s: create libusb bulk transfer failed", __func__);
         return HDF_FAILURE;
     }
+    if (bulkTransfer->isTransferring) {
+        HDF_LOGE("%{public}s: bulk transfer is transferring, submit rejected", __func__);
+        return LIBUSB_ERROR_BUSY;
+    }
     int32_t length = libusb_get_max_packet_size(libusb_get_device(devHandle), pipe.endpointId);
     unsigned char *buffer = AllocBulkBuffer(pipe, length, ashmem);
     if (buffer == nullptr) {
@@ -2846,6 +2859,10 @@ int32_t LibusbAdapter::BulkRead(const UsbDev &dev, const UsbPipe &pipe, const sp
     ret = libusb_submit_transfer(bulkTransfer->bulkTransferRef);
     if (ret < 0) {
         HDF_LOGE("%{public}s: libusb submit transfer failed, ret: %{public}d", __func__, ret);
+        if (bulkTransfer->bulkTransferRef->buffer != nullptr) {
+            OsalMemFree(bulkTransfer->bulkTransferRef->buffer);
+            bulkTransfer->bulkTransferRef->buffer = nullptr;
+        }
         return ret;
     }
     bulkTransfer->isTransferring = true;
@@ -2873,6 +2890,10 @@ int32_t LibusbAdapter::BulkWrite(const UsbDev &dev, const UsbPipe &pipe, const s
         HDF_LOGE("%{public}s: create libusb bulk transfer failed", __func__);
         return HDF_FAILURE;
     }
+    if (bulkTransfer->isTransferring) {
+        HDF_LOGE("%{public}s: bulk transfer is transferring, submit rejected", __func__);
+        return LIBUSB_ERROR_BUSY;
+    }
     int32_t length = libusb_get_max_packet_size(libusb_get_device(devHandle), pipe.endpointId);
     unsigned char *buffer = AllocBulkBuffer(pipe, length, ashmem);
     if (buffer == nullptr) {
@@ -2886,6 +2907,10 @@ int32_t LibusbAdapter::BulkWrite(const UsbDev &dev, const UsbPipe &pipe, const s
     ret = libusb_submit_transfer(bulkTransfer->bulkTransferRef);
     if (ret < 0) {
         HDF_LOGE("%{public}s: libusb submit transfer failed, ret: %{public}d", __func__, ret);
+        if (bulkTransfer->bulkTransferRef->buffer != nullptr) {
+            OsalMemFree(bulkTransfer->bulkTransferRef->buffer);
+            bulkTransfer->bulkTransferRef->buffer = nullptr;
+        }
         return ret;
     }
     bulkTransfer->isTransferring = true;
@@ -2930,13 +2955,7 @@ int32_t LibusbAdapter::BulkCancel(const UsbDev &dev, const UsbPipe &pipe)
         HDF_LOGE("%{public}s: libusb cancel transfer fail ret=%{public}d", __func__, ret);
         return HDF_FAILURE;
     }
-    if (transferCancle->bulkTransferRef->buffer != nullptr) {
-        OsalMemFree(transferCancle->bulkTransferRef->buffer);
-        transferCancle->bulkTransferRef->buffer = nullptr;
-    }
-    wrapper->bulkTransferList.erase(transferCancle);
-    delete transferCancle;
-    transferCancle = nullptr;
+    HDF_LOGI("%{public}s: cancel submitted, cleanup deferred to completion callback", __func__);
     return HDF_SUCCESS;
 }
 

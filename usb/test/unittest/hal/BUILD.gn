@@ -557,6 +557,7 @@ ohos_unittest("test_asyncBulkTransfer") {
   if (is_standard_system) {
     external_deps = [
       "drivers_interface_usb:libusb_proxy_1.2",
+      "drivers_interface_usb:libusb_proxy_2.0",
       "googletest:gtest_main",
       "hdf_core:libhdf_utils",
       "hilog:libhilog",
