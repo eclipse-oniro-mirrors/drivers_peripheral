@@ -15,13 +15,16 @@
 
 #include "libusb_adapter_test.h"
 
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <thread>
 #include <vector>
 
 #include "hdf_log.h"
+#include "usbd_type.h"
 #include "v1_2/usb_types.h"
+#include "v2_0/iusbd_subscriber.h"
 #include "libusb_adapter.h"
 
 using namespace testing::ext;
@@ -39,6 +42,30 @@ UsbDev LibusbAdapterTest::dev_ = {0, 0};
 
 std::shared_ptr<LibusbAdapter> g_libusbAdapter = nullptr;
 
+class UsbDeviceSubscriber : public OHOS::HDI::Usb::V2_0::IUsbdSubscriber {
+public:
+    int32_t DeviceEvent(const OHOS::HDI::Usb::V2_0::USBDeviceInfo &info) override
+    {
+        if (info.status != ACT_DEVUP) {
+            return 0;
+        }
+        UsbDev dev = {static_cast<uint8_t>(info.busNum), static_cast<uint8_t>(info.devNum)};
+        std::vector<uint8_t> descriptor;
+        int32_t ret = LibusbAdapter::GetInstance()->GetDeviceDescriptor(dev, descriptor);
+        if (ret == 0 && descriptor.size() > 4 && descriptor[4] != LIBUSB_CLASS_HUB) {
+            LibusbAdapterTest::dev_ = dev;
+        }
+        return 0;
+    }
+
+    int32_t PortChangedEvent(const OHOS::HDI::Usb::V2_0::PortInfo &info) override
+    {
+        return 0;
+    }
+};
+
+sptr<UsbDeviceSubscriber> g_subscriber = nullptr;
+
 void LibusbAdapterTest::SetUpTestCase(void)
 {
     g_libusbAdapter = LibusbAdapter::GetInstance();
@@ -46,11 +73,21 @@ void LibusbAdapterTest::SetUpTestCase(void)
         HDF_LOGE("%{public}s: LibusbAdapter::GetInstance() failed", __func__);
         exit(0);
     }
-    std::cout << "please connect device, press enter to continue" << std::endl;
+    g_subscriber = new UsbDeviceSubscriber();
+    g_libusbAdapter->SetSubscriber(g_subscriber);
+    for (int i = 0; i < 30 && (dev_.busNum == 0 || dev_.devAddr == 0); i++) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    HDF_LOGI("LibusbAdapterTest::dev_ = {%{public}d, %{public}d}",
+        static_cast<int>(dev_.busNum), static_cast<int>(dev_.devAddr));
 }
 
 void LibusbAdapterTest::TearDownTestCase(void)
 {
+    if (g_subscriber != nullptr && g_libusbAdapter != nullptr) {
+        g_libusbAdapter->RemoveSubscriber(g_subscriber);
+        g_subscriber = nullptr;
+    }
     g_libusbAdapter = nullptr;
 }
 
@@ -299,10 +336,14 @@ HWTEST_F(LibusbAdapterTest, LibusbAdapterGetConfigDescriptor002, TestSize.Level1
 HWTEST_F(LibusbAdapterTest, LibusbAdapterGetStringDescriptor001, TestSize.Level1)
 {
     struct UsbDev dev = dev_;
+    auto ret = g_libusbAdapter->OpenDevice(dev);
+    HDF_LOGI("LibusbAdapterTest:: Line:%{public}d OpenDevice result=%{public}d", __LINE__, ret);
+    ASSERT_EQ(0, ret);
     std::vector<uint8_t> descriptor;
-    auto ret = g_libusbAdapter->GetStringDescriptor(dev, 1, descriptor);
+    ret = g_libusbAdapter->GetStringDescriptor(dev, 1, descriptor);
     HDF_LOGI("LibusbAdapterTest:: Line:%{public}d GetStringDescriptor result=%{public}d", __LINE__, ret);
     EXPECT_EQ(0, ret);
+    g_libusbAdapter->CloseDevice(dev);
 }
 
 /**
@@ -542,38 +583,42 @@ HWTEST_F(LibusbAdapterTest, LibusbAdapterGetDeviceSpeed002, TestSize.Level1)
 }
 
 /**
- * @tc.name: LibusbAdapterGetFileDescriptor001
- * @tc.desc: Test functions to GetFileDescriptor
- * @tc.desc: int32_t GetFileDescriptor(const UsbDev &dev, int32_t &fd);
+ * @tc.name: LibusbAdapterGetDeviceFileDescriptor001
+ * @tc.desc: Test functions to GetDeviceFileDescriptor
+ * @tc.desc: int32_t GetDeviceFileDescriptor(const UsbDev &dev, int32_t &fd);
  * @tc.desc: Positive test: parameters correctly
  * @tc.type: FUNC
  */
-HWTEST_F(LibusbAdapterTest, LibusbAdapterGetFileDescriptor001, TestSize.Level1)
+HWTEST_F(LibusbAdapterTest, LibusbAdapterGetDeviceFileDescriptor001, TestSize.Level1)
 {
     struct UsbDev dev = dev_;
+    auto ret = g_libusbAdapter->OpenDevice(dev);
+    HDF_LOGI("LibusbAdapterTest:: Line:%{public}d OpenDevice result=%{public}d", __LINE__, ret);
+    ASSERT_EQ(0, ret);
     int32_t fd = -1;
-    auto ret = g_libusbAdapter->GetFileDescriptor(dev, fd);
-    HDF_LOGI("LibusbAdapterTest:: GetFileDescriptor result=%{public}d, fd=%{public}d", ret, fd);
+    ret = g_libusbAdapter->GetDeviceFileDescriptor(dev, fd);
+    HDF_LOGI("LibusbAdapterTest:: GetDeviceFileDescriptor result=%{public}d, fd=%{public}d", ret, fd);
     EXPECT_EQ(0, ret);
     EXPECT_GE(fd, 0);
     if (fd >= 0) {
         close(fd);
     }
+    g_libusbAdapter->CloseDevice(dev);
 }
 
 /**
- * @tc.name: LibusbAdapterGetFileDescriptor002
- * @tc.desc: Test functions to GetFileDescriptor
- * @tc.desc: int32_t GetFileDescriptor(const UsbDev &dev, int32_t &fd);
+ * @tc.name: LibusbAdapterGetDeviceFileDescriptor002
+ * @tc.desc: Test functions to GetDeviceFileDescriptor
+ * @tc.desc: int32_t GetDeviceFileDescriptor(const UsbDev &dev, int32_t &fd);
  * @tc.desc: Negative test: invalid device
  * @tc.type: FUNC
  */
-HWTEST_F(LibusbAdapterTest, LibusbAdapterGetFileDescriptor002, TestSize.Level1)
+HWTEST_F(LibusbAdapterTest, LibusbAdapterGetDeviceFileDescriptor002, TestSize.Level1)
 {
     struct UsbDev dev = {BUS_NUM_INVALID, DEV_ADDR_INVALID};
     int32_t fd = -1;
-    auto ret = g_libusbAdapter->GetFileDescriptor(dev, fd);
-    HDF_LOGI("LibusbAdapterTest:: Line:%{public}d GetFileDescriptor result=%{public}d", __LINE__, ret);
+    auto ret = g_libusbAdapter->GetDeviceFileDescriptor(dev, fd);
+    HDF_LOGI("LibusbAdapterTest:: Line:%{public}d GetDeviceFileDescriptor result=%{public}d", __LINE__, ret);
     EXPECT_NE(ret, 0);
 }
 
