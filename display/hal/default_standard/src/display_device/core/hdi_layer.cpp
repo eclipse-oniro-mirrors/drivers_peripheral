@@ -16,12 +16,15 @@
 #include "hdi_layer.h"
 #include <unistd.h>
 #include <cerrno>
+#include <mutex>
 
 namespace OHOS {
 namespace HDI {
 namespace DISPLAY {
 uint32_t HdiLayer::mIdleId = 0;
 std::unordered_set<uint32_t> HdiLayer::mIdSets;
+// Fix FCT bug7: the static mIdleId/mIdSets RMW in GetIdleId must be serialized.
+static std::mutex g_idleIdMutex;
 
 HdiLayerBuffer::HdiLayerBuffer(const BufferHandle &hdl)
     : mPhyAddr(hdl.phyAddr), mHeight(hdl.height), mWidth(hdl.width), mStride(hdl.stride), mFormat(hdl.format)
@@ -59,6 +62,7 @@ HdiLayerBuffer &HdiLayerBuffer::operator = (const BufferHandle &right)
 
 uint32_t HdiLayer::GetIdleId()
 {
+    std::lock_guard<std::mutex> lock(g_idleIdMutex);
     const uint32_t oldIdleId = mIdleId;
     uint32_t id = INVALIDE_LAYER_ID;
     // ensure the mIdleId not INVALIDE_LAYER_ID

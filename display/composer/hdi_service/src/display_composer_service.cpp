@@ -888,9 +888,16 @@ int32_t DisplayComposerService::InitSMQInfo(uint32_t devId, const std::shared_pt
     DISPLAY_CHK_RETURN(vdiAdapter_ == nullptr, HDF_FAILURE,
         DISPLAY_LOGE("%{public}s fail, vdiAdapter_ == nullptr, devId[%{public}u]", __func__, devId));
 
-    std::shared_ptr<V1_6::HdiDisplayCmdResponser> cmdResponserCur =
-        (devId == UINT32_MAX) || (cmdResponserMap_.size() == 1) ? cmdResponser_ :
-        V1_6::HdiDisplayCmdResponser::Create(vdiAdapter_, cacheMgr_);
+    // Fix FCT bug12: read cmdResponserMap_.size() under g_respMapMutex; it was
+    // previously read without the lock while the VDI/netlink thread inserts and
+    // erases entries (PrepareParallelResponser) under the same lock.
+    std::shared_ptr<V1_6::HdiDisplayCmdResponser> cmdResponserCur = nullptr;
+    {
+        std::shared_lock<std::shared_mutex> lock(g_respMapMutex);
+        cmdResponserCur =
+            (devId == UINT32_MAX) || (cmdResponserMap_.size() == 1) ? cmdResponser_ :
+            V1_6::HdiDisplayCmdResponser::Create(vdiAdapter_, cacheMgr_);
+    }
     DISPLAY_CHK_RETURN(cmdResponserCur == nullptr, HDF_FAILURE,
         DISPLAY_LOGE("%{public}s fail, cmdResponserCur == nullptr, devId[%{public}u]", __func__, devId));
 

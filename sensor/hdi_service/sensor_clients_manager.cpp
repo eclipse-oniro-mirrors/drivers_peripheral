@@ -328,6 +328,9 @@ bool SensorClientsManager::IsNeedOpenSensor(int sensorId, int serviceId)
 bool SensorClientsManager::IsNeedCloseSensor(int sensorId, int serviceId)
 {
     SENSOR_TRACE_PID;
+    // Fix FCT bug8: sensorConfig_ must be accessed under sensorConfigMutex_ (its
+    // dedicated lock, used by UpdateSensorConfig/SetSensorBestConfig/GetSensorBestConfig),
+    // not under sensorUsedMutex_.
     auto it = sensorUsed_.find(sensorId);
     if (it == sensorUsed_.end()) {
         HDF_LOGD("%{public}s: sensor %{public}d has been disabled  or not support", __func__, sensorId);
@@ -336,7 +339,10 @@ bool SensorClientsManager::IsNeedCloseSensor(int sensorId, int serviceId)
     sensorUsed_[sensorId].erase(serviceId);
     if (sensorUsed_[sensorId].empty()) {
         sensorUsed_.erase(sensorId);
-        sensorConfig_.erase(sensorId);
+        {
+            std::unique_lock<std::mutex> configLock(sensorConfigMutex_);
+            sensorConfig_.erase(sensorId);
+        }
         HDF_LOGD("%{public}s: disabled sensor %{public}d", __func__, sensorId);
         return true;
     }
@@ -565,7 +571,12 @@ void SensorClientsManager::DeleteService(int32_t sensorId, int32_t serviceId)
             it->second.erase(serviceId);
             if (it->second.empty()) {
                 sensorUsed_.erase(sensorId);
-                sensorConfig_.erase(sensorId);
+                // Fix FCT bug8: erase sensorConfig_ under its dedicated sensorConfigMutex_
+                // instead of sensorUsedMutex_ (concurrent UpdateSensorConfig users).
+                {
+                    std::unique_lock<std::mutex> configLock(sensorConfigMutex_);
+                    sensorConfig_.erase(sensorId);
+                }
                 HDF_LOGD("%{public}s: disabled sensor %{public}d", __func__, sensorId);
                 needDisableSensor = true;
             } else {

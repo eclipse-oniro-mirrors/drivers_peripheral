@@ -107,8 +107,16 @@ void DrmVsyncWorker::WorkThread()
     while (WaitSignalAndCheckRuning()) {
         // wait the vblank
         uint64_t time = WaitNextVBlank(seq);
-        if (mCallBack != nullptr) {
-            mCallBack->Vsync(seq, time);
+        // Fix FCT bug1: mCallBack is written by ReqesterVBlankCb from the IPC
+        // thread; take a locked copy of the shared_ptr so the read cannot race
+        // with re-registration.
+        std::shared_ptr<VsyncCallBack> cb;
+        {
+            std::lock_guard<std::mutex> lg(mMutex);
+            cb = mCallBack;
+        }
+        if (cb != nullptr) {
+            cb->Vsync(seq, time);
         } else {
             DISPLAY_LOGE("the callbac is nullptr");
         }
@@ -119,6 +127,8 @@ void DrmVsyncWorker::ReqesterVBlankCb(const std::shared_ptr<VsyncCallBack> &cb)
 {
     DISPLAY_LOGD();
     DISPLAY_CHK_RETURN_NOT_VALUE((cb == nullptr), DISPLAY_LOGE("the VBlankCallback is nullptr "));
+    // Fix FCT bug1: serialize the callback assignment with the worker's locked read.
+    std::lock_guard<std::mutex> lg(mMutex);
     mCallBack = cb;
 }
 } // namespace OHOS

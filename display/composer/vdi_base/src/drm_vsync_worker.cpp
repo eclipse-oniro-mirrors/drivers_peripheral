@@ -70,7 +70,7 @@ bool DrmVsyncWorker::WaitSignalAndCheckRuning()
 }
 
 
-uint64_t DrmVsyncWorker::WaitNextVBlank(unsigned int &sq)
+uint64_t DrmVsyncWorker::WaitNextVBlankWithCb(const std::shared_ptr<VsyncCallBack> &cb, unsigned int &sq)
 {
     constexpr uint64_t SEC_TO_NSEC = 1000 * 1000 * 1000;
     constexpr uint64_t USEC_TO_NSEC = 1000;
@@ -83,8 +83,12 @@ uint64_t DrmVsyncWorker::WaitNextVBlank(unsigned int &sq)
             }
     };
     /* The drmWaitVBlank need set the crtc pipe when there are multi crtcs in the system. */
-    if (mCallBack->GetPipe() == 1)
+    // Fix FCT bug4: the callback is passed in by the caller (WorkThread holds a
+    // locked snapshot), no longer read race-free from the member; also guard
+    // against a null callback before dereferencing GetPipe().
+    if (cb != nullptr && cb->GetPipe() == 1) {
         vblank.request.type = drmVBlankSeqType((int)(vblank.request.type) | (int)DRM_VBLANK_SECONDARY);
+    }
     int ret = drmWaitVBlank(mDrmFd, &vblank);
     DISPLAY_CHK_RETURN((ret < 0), 0,
         DISPLAY_LOGE("wait vblank failed ret :　%{public}d　errno %{public}d", ret, errno));
@@ -108,10 +112,17 @@ void DrmVsyncWorker::WorkThread()
     DISPLAY_LOGD();
     unsigned int seq = 0;
     while (WaitSignalAndCheckRuning()) {
+        // Fix FCT bug4: take a locked snapshot of mCallBack so the read cannot
+        // race with ReqesterVBlankCb re-registration from the IPC thread.
+        std::shared_ptr<VsyncCallBack> cb;
+        {
+            std::lock_guard<std::mutex> lg(mMutex);
+            cb = mCallBack;
+        }
         // wait the vblank
-        uint64_t time = WaitNextVBlank(seq);
-        if (mCallBack != nullptr) {
-            mCallBack->Vsync(seq, time);
+        uint64_t time = WaitNextVBlankWithCb(cb, seq);
+        if (cb != nullptr) {
+            cb->Vsync(seq, time);
         } else {
             DISPLAY_LOGE("the callbac is nullptr");
         }
@@ -122,6 +133,8 @@ void DrmVsyncWorker::ReqesterVBlankCb(std::shared_ptr<VsyncCallBack> &cb)
 {
     DISPLAY_LOGD();
     DISPLAY_CHK_RETURN_NOT_VALUE((cb == nullptr), DISPLAY_LOGE("the VBlankCallback is nullptr "));
+    // Fix FCT bug4: serialize the callback assignment with the worker's locked read.
+    std::lock_guard<std::mutex> lg(mMutex);
     mCallBack = cb;
 }
 } // namespace OHOS

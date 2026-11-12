@@ -33,7 +33,9 @@ public:
 
     void EnableVsync(bool enable);
     void WorkThread();
-    uint64_t WaitNextVBlank(unsigned int &sq);
+    // Fix FCT bug4: callback snapshot is passed in by WorkThread instead of
+    // reading the member without a lock.
+    uint64_t WaitNextVBlankWithCb(const std::shared_ptr<VsyncCallBack> &cb, unsigned int &sq);
     bool WaitSignalAndCheckRuning();
     void ReqesterVBlankCb(std::shared_ptr<VsyncCallBack> &cb);
 

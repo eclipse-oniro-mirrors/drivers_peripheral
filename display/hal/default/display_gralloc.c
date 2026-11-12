@@ -66,6 +66,9 @@ struct GrallocManager {
 };
 
 static struct GrallocManager g_grallocManager;
+// Fix FCT bug8/bug9: count RMW, gFuncs lazy init and manager-mutex destroy were
+// all unsynchronized; serialize them with a static process-local pthread mutex.
+static pthread_mutex_t g_grallocInitMutex = PTHREAD_MUTEX_INITIALIZER;
 
 static const PlaneLayoutInfo g_yuv420SPLayout = {
     .numPlanes = 2,
@@ -345,10 +348,14 @@ int32_t GrallocInitialize(GrallocFuncs **funcs)
         HDF_LOGE("%s: funcs is null", __func__);
         return DISPLAY_NULL_PTR;
     }
+    // Fix FCT bug8/bug9: the gFuncs DCL, the PTHREAD_PROCESS_SHARED manager
+    // mutex init and the count increment must be serialized.
+    pthread_mutex_lock(&g_grallocInitMutex);
     if (gFuncs == NULL) {
         gFuncs = (GrallocFuncs *)OsalMemCalloc(sizeof(GrallocFuncs));
         if (gFuncs == NULL) {
             HDF_LOGE("%s: gFuncs is null", __func__);
+            pthread_mutex_unlock(&g_grallocInitMutex);
             return DISPLAY_NULL_PTR;
         }
         pthread_mutexattr_init(&g_grallocManager.mutexattr);
@@ -361,6 +368,7 @@ int32_t GrallocInitialize(GrallocFuncs **funcs)
     }
     *funcs = gFuncs;
     GetGrallocMgr();
+    pthread_mutex_unlock(&g_grallocInitMutex);
     HDF_LOGI("%s: gralloc initialize success", __func__);
     return DISPLAY_SUCCESS;
 }
@@ -371,11 +379,15 @@ int32_t GrallocUninitialize(GrallocFuncs *funcs)
         HDF_LOGE("%s: funcs is null", __func__);
         return DISPLAY_NULL_PTR;
     }
+    // Fix FCT bug8/bug9: serialize the count decrement and the
+    // destroy-on-zero with Initialize and with lock holders.
+    pthread_mutex_lock(&g_grallocInitMutex);
     if (PutGrallocMgr() == 0) {
         pthread_mutexattr_destroy(&g_grallocManager.mutexattr);
         pthread_mutex_destroy(&g_grallocManager.mutex);
         OsalMemFree(funcs);
     }
+    pthread_mutex_unlock(&g_grallocInitMutex);
     HDF_LOGI("%s: gralloc uninitialize success", __func__);
     return DISPLAY_SUCCESS;
 }

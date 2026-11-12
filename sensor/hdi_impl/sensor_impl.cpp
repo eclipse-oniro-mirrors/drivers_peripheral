@@ -264,20 +264,33 @@ int32_t SensorImpl::Register(int32_t groupId, const sptr<ISensorCallbackVdi> &ca
         return SENSOR_INVALID_PARAM;
     }
 
-    std::lock_guard<std::mutex> lock(g_mutex);
-    auto groupCallBackIter = g_groupIdCallBackMap.find(groupId);
-    if (groupCallBackIter != g_groupIdCallBackMap.end()) {
-        auto callBackIter =
-            find_if(g_groupIdCallBackMap[groupId].begin(), g_groupIdCallBackMap[groupId].end(),
-            [&callbackObj](const sptr<ISensorCallbackVdi> &callbackRegistered) {
-                const sptr<IRemoteObject> &lhs = callbackObj->HandleCallbackDeath();
-                const sptr<IRemoteObject> &rhs = callbackRegistered->HandleCallbackDeath();
-                return lhs == rhs;
-            });
-        if (callBackIter == g_groupIdCallBackMap[groupId].end()) {
-            g_groupIdCallBackMap[groupId].push_back(callbackObj);
+    // Fix FCT bug1 (AB-BA deadlock):
+    // T1(IPC): this function held g_mutex while calling sensorInterface->Register,
+    //          which locks hal eventMutex (sensor_channel.c:230).
+    // T2(data): OnSensorEventReceived (holds eventMutex) -> TradtionalSensorDataCallback
+    //          -> ReportSensorEventsData (locks g_mutex).
+    // Lock order is reversed -> deadlock. Fix: look up the map under g_mutex, release it,
+    // then call hal Register outside the lock.
+    bool alreadyRegistered = false;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        auto groupCallBackIter = g_groupIdCallBackMap.find(groupId);
+        if (groupCallBackIter != g_groupIdCallBackMap.end()) {
+            auto callBackIter =
+                find_if(g_groupIdCallBackMap[groupId].begin(), g_groupIdCallBackMap[groupId].end(),
+                [&callbackObj](const sptr<ISensorCallbackVdi> &callbackRegistered) {
+                    const sptr<IRemoteObject> &lhs = callbackObj->HandleCallbackDeath();
+                    const sptr<IRemoteObject> &rhs = callbackRegistered->HandleCallbackDeath();
+                    return lhs == rhs;
+                });
+            if (callBackIter != g_groupIdCallBackMap[groupId].end()) {
+                alreadyRegistered = true;
+            }
+            if (!alreadyRegistered) {
+                g_groupIdCallBackMap[groupId].push_back(callbackObj);
+            }
+            return SENSOR_SUCCESS;
         }
-        return SENSOR_SUCCESS;
     }
 
     int32_t ret = HDF_FAILURE;
@@ -293,9 +306,12 @@ int32_t SensorImpl::Register(int32_t groupId, const sptr<ISensorCallbackVdi> &ca
         HDF_LOGE("%{public}s: Register fail, groupId[%{public}d]", __func__, groupId);
         return ret;
     }
-    std::vector<sptr<ISensorCallbackVdi>> remoteVec;
-    remoteVec.push_back(callbackObj);
-    g_groupIdCallBackMap[groupId] = remoteVec;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        std::vector<sptr<ISensorCallbackVdi>> remoteVec;
+        remoteVec.push_back(callbackObj);
+        g_groupIdCallBackMap[groupId] = remoteVec;
+    }
     return ret;
 }
 
@@ -306,7 +322,9 @@ int32_t SensorImpl::Unregister(int32_t groupId, const sptr<ISensorCallbackVdi> &
         HDF_LOGE("%{public}s: get sensor Module instance failed", __func__);
         return HDF_FAILURE;
     }
-    std::lock_guard<std::mutex> lock(g_mutex);
+    // Fix FCT bug1 (AB-BA deadlock): UnregisterImpl now manages g_mutex itself in
+    // sections, so that sensorInterface->Unregister (hal eventMutex) is never called
+    // while holding g_mutex.
     const sptr<IRemoteObject> &remote = callbackObj->HandleCallbackDeath();
     StartTrace(HITRACE_TAG_SENSORS, "Unregister");
     int32_t ret = UnregisterImpl(groupId, remote.GetRefPtr());
@@ -331,30 +349,42 @@ int32_t SensorImpl::UnregisterImpl(int32_t groupId, IRemoteObject *callbackObj)
         return SENSOR_INVALID_PARAM;
     }
 
-    auto groupIdCallBackIter = g_groupIdCallBackMap.find(groupId);
-    if (groupIdCallBackIter == g_groupIdCallBackMap.end()) {
-        HDF_LOGE("%{public}s: groupId [%{public}d] callbackObj not registered", __func__, groupId);
-        return HDF_FAILURE;
+    // Fix FCT bug1 (AB-BA deadlock): map access is done under g_mutex, but
+    // sensorInterface->Unregister (hal eventMutex) is called outside g_mutex,
+    // avoiding the inverted lock order against the data-report path.
+    bool needHalUnregister = false;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        auto groupIdCallBackIter = g_groupIdCallBackMap.find(groupId);
+        if (groupIdCallBackIter == g_groupIdCallBackMap.end()) {
+            HDF_LOGE("%{public}s: groupId [%{public}d] callbackObj not registered", __func__, groupId);
+            return HDF_FAILURE;
+        }
+
+        auto callBackIter =
+            find_if(g_groupIdCallBackMap[groupId].begin(), g_groupIdCallBackMap[groupId].end(),
+            [&callbackObj](const sptr<ISensorCallbackVdi> &callbackRegistered) {
+                return callbackObj == (callbackRegistered->HandleCallbackDeath()).GetRefPtr();
+            });
+        if (callBackIter == g_groupIdCallBackMap[groupId].end()) {
+            HDF_LOGE("%{public}s: groupId [%{public}d] callbackObj not registered", __func__, groupId);
+            return HDF_FAILURE;
+        }
+
+        /**
+         * when there is only one item in the vector,can call the Unregister function.
+         * when there is more than one item in the vector, only need to remove the  callbackObj
+         * from the vector
+         */
+        if (g_groupIdCallBackMap[groupId].size() > CALLBACK_CTOUNT_THRESHOLD) {
+            g_groupIdCallBackMap[groupId].erase(callBackIter);
+            return SENSOR_SUCCESS;
+        }
+        needHalUnregister = true;
     }
 
-    auto callBackIter =
-        find_if(g_groupIdCallBackMap[groupId].begin(), g_groupIdCallBackMap[groupId].end(),
-        [&callbackObj](const sptr<ISensorCallbackVdi> &callbackRegistered) {
-            return callbackObj == (callbackRegistered->HandleCallbackDeath()).GetRefPtr();
-        });
-    if (callBackIter == g_groupIdCallBackMap[groupId].end()) {
-        HDF_LOGE("%{public}s: groupId [%{public}d] callbackObj not registered", __func__, groupId);
+    if (!needHalUnregister) {
         return HDF_FAILURE;
-    }
-
-    /**
-     * when there is only one item in the vector,can call the Unregister function.
-     * when there is more than one item in the vector, only need to remove the  callbackObj
-     * from the vector
-     */
-    if (g_groupIdCallBackMap[groupId].size() > CALLBACK_CTOUNT_THRESHOLD) {
-        g_groupIdCallBackMap[groupId].erase(callBackIter);
-        return SENSOR_SUCCESS;
     }
 
     int32_t ret = HDF_FAILURE;
@@ -369,7 +399,10 @@ int32_t SensorImpl::UnregisterImpl(int32_t groupId, IRemoteObject *callbackObj)
         return ret;
     }
 
-    g_groupIdCallBackMap.erase(groupId);
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_groupIdCallBackMap.erase(groupId);
+    }
 
     return ret;
 }
