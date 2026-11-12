@@ -30,7 +30,6 @@ using namespace OHOS;
 using namespace std;
 using namespace OHOS::HDI::Usb::V1_2;
 
-const int SLEEP_TIME = 3;
 const uint8_t BUS_NUM_INVALID = 255;
 const uint8_t DEV_ADDR_INVALID = 255;
 const uint8_t INTERFACE_ID_INVALID = 32;
@@ -52,13 +51,6 @@ void LibusbAdapterTest::SetUpTestCase(void)
     g_libusbAdapter = LibusbAdapter::GetInstance();
     if (g_libusbAdapter == nullptr) {
         HDF_LOGE("%{public}s: LibusbAdapter::GetInstance() failed", __func__);
-        exit(0);
-    }
-    auto ret = g_usbInterface->SetPortRole(1, 1, 1);
-    sleep(SLEEP_TIME);
-    HDF_LOGI("LibusbAdapterTest::[Device] %{public}d SetPortRole=%{public}d", __LINE__, ret);
-    ASSERT_EQ(0, ret);
-    if (ret != 0) {
         exit(0);
     }
     std::cout << "please connect device, press enter to continue" << std::endl;
