@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Huawei Device Co., Ltd.
+ * Copyright (c) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -23,10 +23,10 @@
 #include "hdf_log.h"
 #include "v1_2/iusb_interface.h"
 #include "v1_2/usb_types.h"
+#include "libusb_adapter.h"
 
 using namespace testing::ext;
 using namespace OHOS;
-using namespace OHOS::USB;
 using namespace std;
 using namespace OHOS::HDI::Usb::V1_2;
 
@@ -34,9 +34,11 @@ const int SLEEP_TIME = 3;
 const uint8_t BUS_NUM_INVALID = 255;
 const uint8_t DEV_ADDR_INVALID = 255;
 const uint8_t INTERFACE_ID_INVALID = 32;
+
+namespace OHOS::HDI::Usb::V1_2 {
+
 UsbDev LibusbAdapterTest::dev_ = {0, 0};
 
-namespace {
 sptr<OHOS::HDI::Usb::V1_2::IUsbInterface> g_usbInterface = nullptr;
 std::shared_ptr<LibusbAdapter> g_libusbAdapter = nullptr;
 
@@ -945,4 +947,4 @@ HWTEST_F(LibusbAdapterTest, LibusbAdapterGetRawDescriptor002, TestSize.Level1)
     HDF_LOGI("LibusbAdapterTest:: Line:%{public}d GetRawDescriptor result=%{public}d", __LINE__, ret);
     EXPECT_NE(ret, 0);
 }
-} // namespace
+} // namespace OHOS::HDI::Usb::V1_2
