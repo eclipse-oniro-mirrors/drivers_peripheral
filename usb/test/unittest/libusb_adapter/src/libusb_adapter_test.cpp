@@ -35,6 +35,9 @@ using namespace OHOS::HDI::Usb::V1_2;
 const uint8_t BUS_NUM_INVALID = 255;
 const uint8_t DEV_ADDR_INVALID = 255;
 const uint8_t INTERFACE_ID_INVALID = 32;
+constexpr uint32_t DEVICE_DESCRIPTOR_CLASS_INDEX = 4;
+constexpr int32_t DEVICE_READY_RETRY_COUNT = 30;
+constexpr int32_t DEVICE_READY_RETRY_INTERVAL_MS = 100;
 
 namespace OHOS::HDI::Usb::V1_2 {
 
@@ -52,7 +55,8 @@ public:
         UsbDev dev = {static_cast<uint8_t>(info.busNum), static_cast<uint8_t>(info.devNum)};
         std::vector<uint8_t> descriptor;
         int32_t ret = LibusbAdapter::GetInstance()->GetDeviceDescriptor(dev, descriptor);
-        if (ret == 0 && descriptor.size() > 4 && descriptor[4] != LIBUSB_CLASS_HUB) {
+        if (ret == 0 && descriptor.size() > DEVICE_DESCRIPTOR_CLASS_INDEX &&
+            descriptor[DEVICE_DESCRIPTOR_CLASS_INDEX] != LIBUSB_CLASS_HUB) {
             LibusbAdapterTest::dev_ = dev;
         }
         return 0;
@@ -75,8 +79,8 @@ void LibusbAdapterTest::SetUpTestCase(void)
     }
     g_subscriber = new UsbDeviceSubscriber();
     g_libusbAdapter->SetSubscriber(g_subscriber);
-    for (int i = 0; i < 30 && (dev_.busNum == 0 || dev_.devAddr == 0); i++) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    for (int i = 0; i < DEVICE_READY_RETRY_COUNT && (dev_.busNum == 0 || dev_.devAddr == 0); i++) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(DEVICE_READY_RETRY_INTERVAL_MS));
     }
     HDF_LOGI("LibusbAdapterTest::dev_ = {%{public}d, %{public}d}",
         static_cast<int>(dev_.busNum), static_cast<int>(dev_.devAddr));
