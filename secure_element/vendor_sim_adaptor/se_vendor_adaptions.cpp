@@ -249,6 +249,11 @@ int32_t SimSeVendorAdaptions::getAtr(std::vector<uint8_t>& response)
 int32_t SimSeVendorAdaptions::isSecureElementPresent(bool& present)
 {
     HDF_LOGI("SimSeVendorAdaptions:isSecureElementPresent!");
+    if (vendorSimSecureElementIsCardPresentFunc_ == nullptr) {
+        HDF_LOGE("vendorSimSecureElementIsCardPresentFunc_ is null!");
+        present = false;
+        return HDF_FAILURE;
+    }
     present = vendorSimSecureElementIsCardPresentFunc_();
     return HDF_SUCCESS;
 }
