@@ -17,6 +17,7 @@
 
 #include <iostream>
 #include <memory>
+#include <thread>
 #include <vector>
 
 #include "hdf_log.h"
@@ -141,6 +142,31 @@ HWTEST_F(LibusbAdapterTest, LibusbAdapterOpenDevice003, TestSize.Level1)
     auto ret = g_libusbAdapter->OpenDevice(dev);
     HDF_LOGI("LibusbAdapterTest:: Line:%{public}d OpenDevice result=%{public}d", __LINE__, ret);
     EXPECT_NE(ret, 0);
+}
+
+/**
+ * @tc.name: LibusbAdapterOpenDeviceConcurrent001
+ * @tc.desc: Test functions to OpenDevice
+ * @tc.desc: int32_t OpenDevice(const UsbDev &dev);
+ * @tc.desc: Positive test: open from two threads concurrently then close twice
+ * @tc.type: FUNC
+ */
+HWTEST_F(LibusbAdapterTest, LibusbAdapterOpenDeviceConcurrent001, TestSize.Level1)
+{
+    struct UsbDev dev = dev_;
+    std::vector<int32_t> openResults(2, -1);
+    std::thread thread1([&]() { openResults[0] = g_libusbAdapter->OpenDevice(dev); });
+    std::thread thread2([&]() { openResults[1] = g_libusbAdapter->OpenDevice(dev); });
+    thread1.join();
+    thread2.join();
+    ASSERT_EQ(0, openResults[0]);
+    ASSERT_EQ(0, openResults[1]);
+    int32_t ret = g_libusbAdapter->CloseDevice(dev, false);
+    HDF_LOGI("LibusbAdapterTest:: Line:%{public}d CloseDevice1 result=%{public}d", __LINE__, ret);
+    EXPECT_EQ(0, ret);
+    ret = g_libusbAdapter->CloseDevice(dev, false);
+    HDF_LOGI("LibusbAdapterTest:: Line:%{public}d CloseDevice2 result=%{public}d", __LINE__, ret);
+    EXPECT_EQ(0, ret);
 }
 
 /**

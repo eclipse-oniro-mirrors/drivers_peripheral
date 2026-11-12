@@ -224,6 +224,7 @@ private:
     void GetCurrentDevList(libusb_context *ctx, sptr<V1_2::LibUsbSaSubscriber> libUsbSaSubscriber);
     int32_t GetUsbDevice(const UsbDev &dev, libusb_device **device, bool addRefCount = false);
     int32_t FindHandleByDev(const UsbDev &dev, libusb_device_handle **handle);
+    int32_t OpenDeviceHandle(const UsbDev &dev, libusb_device *device, libusb_device_handle *&devHandle);
     void DeleteSettingsMap(libusb_device_handle* handle);
     int32_t DoControlTransfer(const UsbDev &dev, const UsbCtrlTransfer &ctrl, std::vector<uint8_t> &data);
     int32_t ReadDescriptors(int32_t fd, void **descriptors, size_t &descriptorsLength);

@@ -394,28 +394,12 @@ int32_t LibusbAdapter::OpenDevice(const UsbDev &dev)
         ReportUsbdRecognitionFailSysEvent("OpenDevice", ret, "GetUsbDevice failed");
         return HDF_DEV_ERR_NO_DEVICE;
     }
-    libusb_device_handle* devHandle = nullptr;
-    uint32_t result = (static_cast<uint32_t>(dev.busNum) << DISPLACEMENT_NUMBER) |
-        static_cast<uint32_t>(dev.devAddr);
-    ret = FindHandleByDev(dev, &devHandle);
-    if (ret != HDF_SUCCESS || devHandle == nullptr) {
-        ret = libusb_open(device, &devHandle);
-        if (ret != HDF_SUCCESS || devHandle == nullptr) {
-            HDF_LOGE("%{public}s:Opening device failed ret = %{public}d", __func__, ret);
-            ReportUsbdRecognitionFailSysEvent("OpenDevice", ret, "Opening device failed");
-            libusb_unref_device(device);
-            return HDF_FAILURE;
-        }
-        std::unique_lock<std::shared_mutex> lock(g_mapMutexHandleMap);
-        g_handleMap[result] = {devHandle, 1};
-    } else {
-        std::unique_lock<std::shared_mutex> lock(g_mapMutexHandleMap);
-        auto it = g_handleMap.find(result);
-        if (it != g_handleMap.end() && (it->second.handle != nullptr)) {
-            it->second.count++;
-        }
-    }
+    libusb_device_handle *devHandle = nullptr;
+    ret = OpenDeviceHandle(dev, device, devHandle);
     libusb_unref_device(device);
+    if (ret != HDF_SUCCESS) {
+        return HDF_FAILURE;
+    }
     TransferInit(dev);
     BulkTransferInit(dev);
     int32_t currentConfig = -1;
@@ -428,6 +412,38 @@ int32_t LibusbAdapter::OpenDevice(const UsbDev &dev)
     std::unique_lock<std::shared_mutex> lock(g_mapMutexDeviceSettingsMap);
     g_deviceSettingsMap[devHandle].configurationIndex = currentConfig;
     HDF_LOGI("%{public}s succeeded", __func__);
+    return HDF_SUCCESS;
+}
+
+int32_t LibusbAdapter::OpenDeviceHandle(const UsbDev &dev, libusb_device *device, libusb_device_handle *&devHandle)
+{
+    uint32_t result = (static_cast<uint32_t>(dev.busNum) << DISPLACEMENT_NUMBER) |
+        static_cast<uint32_t>(dev.devAddr);
+    devHandle = nullptr;
+    int32_t ret = FindHandleByDev(dev, &devHandle);
+    if (ret != HDF_SUCCESS || devHandle == nullptr) {
+        ret = libusb_open(device, &devHandle);
+        if (ret != HDF_SUCCESS || devHandle == nullptr) {
+            HDF_LOGE("%{public}s:Opening device failed ret = %{public}d", __func__, ret);
+            ReportUsbdRecognitionFailSysEvent("OpenDevice", ret, "Opening device failed");
+            return HDF_FAILURE;
+        }
+        std::unique_lock<std::shared_mutex> lock(g_mapMutexHandleMap);
+        auto it = g_handleMap.find(result);
+        if (it != g_handleMap.end() && it->second.handle != nullptr) {
+            libusb_close(devHandle);
+            devHandle = it->second.handle;
+            it->second.count++;
+        } else {
+            g_handleMap[result] = {devHandle, 1};
+        }
+        return HDF_SUCCESS;
+    }
+    std::unique_lock<std::shared_mutex> lock(g_mapMutexHandleMap);
+    auto it = g_handleMap.find(result);
+    if (it != g_handleMap.end() && (it->second.handle != nullptr)) {
+        it->second.count++;
+    }
     return HDF_SUCCESS;
 }
 
