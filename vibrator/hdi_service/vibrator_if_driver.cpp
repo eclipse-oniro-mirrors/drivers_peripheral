@@ -97,7 +97,7 @@ static void HdfVibratorInterfaceDriverRelease(struct HdfDeviceObject *deviceObje
     }
 
     auto *hdfVibratorInterfaceHost = CONTAINER_OF(deviceObject->service, struct HdfVibratorInterfaceHost, ioService);
-    deviceObject->service = nullptr; 
+    deviceObject->service = nullptr;
     delete hdfVibratorInterfaceHost;
 }
 
