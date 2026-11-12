@@ -1420,12 +1420,17 @@ int32_t LibusbAdapter::GetCurrentInterfaceSetting(const UsbDev &dev, uint8_t &se
         return HDF_FAILURE;
     }
     std::shared_lock<std::shared_mutex> lock(g_mapMutexDeviceSettingsMap);
-    if (g_deviceSettingsMap[devHandle].alternateSetting < 0) {
-        HDF_LOGE("%{public}s: Current Interface Setting Invalid, settingIndex = :%{public}d",
-            __func__, g_deviceSettingsMap[devHandle].alternateSetting);
+    auto it = g_deviceSettingsMap.find(devHandle);
+    if (it == g_deviceSettingsMap.end()) {
+        HDF_LOGE("%{public}s: devHandle not in settings map", __func__);
         return HDF_FAILURE;
     }
-    settingIndex = g_deviceSettingsMap[devHandle].alternateSetting;
+    if (it->second.alternateSetting < 0) {
+        HDF_LOGE("%{public}s: Current Interface Setting Invalid, settingIndex = :%{public}d",
+            __func__, it->second.alternateSetting);
+        return HDF_FAILURE;
+    }
+    settingIndex = it->second.alternateSetting;
     HDF_LOGI("%{public}s leave", __func__);
     return HDF_SUCCESS;
 }
