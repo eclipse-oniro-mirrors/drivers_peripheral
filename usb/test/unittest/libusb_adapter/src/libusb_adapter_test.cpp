@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "hdf_log.h"
-#include "v1_2/iusb_interface.h"
 #include "v1_2/usb_types.h"
 #include "libusb_adapter.h"
 
@@ -38,16 +37,10 @@ namespace OHOS::HDI::Usb::V1_2 {
 
 UsbDev LibusbAdapterTest::dev_ = {0, 0};
 
-sptr<OHOS::HDI::Usb::V1_2::IUsbInterface> g_usbInterface = nullptr;
 std::shared_ptr<LibusbAdapter> g_libusbAdapter = nullptr;
 
 void LibusbAdapterTest::SetUpTestCase(void)
 {
-    g_usbInterface = OHOS::HDI::Usb::V1_2::IUsbInterface::Get();
-    if (g_usbInterface == nullptr) {
-        HDF_LOGE("%{public}s:IUsbInterface::Get() failed.", __func__);
-        exit(0);
-    }
     g_libusbAdapter = LibusbAdapter::GetInstance();
     if (g_libusbAdapter == nullptr) {
         HDF_LOGE("%{public}s: LibusbAdapter::GetInstance() failed", __func__);
