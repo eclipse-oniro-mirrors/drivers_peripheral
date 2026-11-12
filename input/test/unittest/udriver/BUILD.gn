@@ -47,15 +47,17 @@ ohos_unittest("input_udriver_unittest") {
   testonly = true
   module_out_path = module_output_path
   install_enable = true
-  sources = [ "./hdi_input_test.cpp" ]
+  sources = [
+    "./hdi_input_test.cpp",
+    "$hdi_input_base_path/udriver/src/input_device_manager.cpp",
+    "$hdi_input_base_path/udriver/src/input_manager.cpp"
+  ]
 
   include_dirs = [
     "$hdi_input_base_path/interfaces/include",
     "$hdi_input_base_path/utils/include",
     "$hdi_input_base_path/udriver/include",
   ]
-
-  deps = [ "$hdi_input_base_path/udriver:hdi_input_udriver" ]
 
   if (is_standard_system) {
     external_deps = [
