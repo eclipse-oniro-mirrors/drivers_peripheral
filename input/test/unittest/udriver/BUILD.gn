@@ -59,8 +59,6 @@ ohos_unittest("input_udriver_unittest") {
     "$hdi_input_base_path/udriver/include",
   ]
 
-  deps = [ "$hdi_input_base_path/udriver:hdi_input_udriver" ]
-
   if (is_standard_system) {
     external_deps = [
       "c_utils:utils",
