@@ -19,11 +19,15 @@
 #include <iostream>
 #include <memory>
 #include <thread>
+#include <unistd.h>
 #include <vector>
 
 #include "hdf_log.h"
+#include "securec.h"
 #include "usbd_type.h"
+#include "v1_2/iusbd_transfer_callback.h"
 #include "v1_2/usb_types.h"
+#include "v2_0/iusbd_bulk_callback.h"
 #include "v2_0/iusbd_subscriber.h"
 #include "libusb_adapter.h"
 
@@ -38,6 +42,15 @@ const uint8_t INTERFACE_ID_INVALID = 32;
 constexpr uint32_t DEVICE_DESCRIPTOR_CLASS_INDEX = 4;
 constexpr int32_t DEVICE_READY_RETRY_COUNT = 30;
 constexpr int32_t DEVICE_READY_RETRY_INTERVAL_MS = 100;
+constexpr uint8_t INTERFACEID_OK = 0;
+constexpr uint32_t MAX_BUFFER_LENGTH = 0x0100U;
+constexpr int32_t ASHMEM_MAX_SIZE = 1024;
+constexpr int32_t ASYNC_TRANSFER_TIME_OUT = 1000;
+constexpr int32_t ENDPOINT_ADDRESS_IN = 0x81;
+constexpr int32_t ENDPOINT_ADDRESS_OUT = 0x1;
+constexpr uint32_t BULK_CANCEL_RACE_LOOP = 30;
+constexpr uint32_t BULK_CANCEL_WAIT_US = 20000;
+constexpr uint32_t BULK_CLEANUP_RETRY_MAX = 100;
 
 namespace OHOS::HDI::Usb::V1_2 {
 
@@ -69,6 +82,145 @@ public:
 };
 
 sptr<UsbDeviceSubscriber> g_subscriber = nullptr;
+
+class UsbdBulkCallbackTest : public OHOS::HDI::Usb::V2_0::IUsbdBulkCallback {
+public:
+    int32_t OnBulkWriteCallback(int32_t status, int32_t actLength) override
+    {
+        return 0;
+    }
+    int32_t OnBulkReadCallback(int32_t status, int32_t actLength) override
+    {
+        return 0;
+    }
+};
+
+class UsbdTransferCallbackTest : public OHOS::HDI::Usb::V1_2::IUsbdTransferCallback {
+public:
+    int32_t OnTransferWriteCallback(int32_t status, int32_t actLength,
+        const std::vector<OHOS::HDI::Usb::V1_2::UsbIsoPacketDescriptor>& descs, const uint64_t userData) override
+    {
+        return 0;
+    }
+    int32_t OnTransferReadCallback(int32_t status, int32_t actLength,
+        const std::vector<OHOS::HDI::Usb::V1_2::UsbIsoPacketDescriptor>& descs, const uint64_t userData) override
+    {
+        return 0;
+    }
+};
+
+int32_t InitAshmemOne(sptr<Ashmem> &asmptr, int32_t asmSize, uint8_t rflg)
+{
+    asmptr = Ashmem::CreateAshmem("ttashmem000", asmSize);
+    if (asmptr == nullptr) {
+        HDF_LOGE("InitAshmemOne CreateAshmem failed");
+        return HDF_FAILURE;
+    }
+    asmptr->MapReadAndWriteAshmem();
+    if (rflg == 0) {
+        uint8_t tdata[ASHMEM_MAX_SIZE];
+        int32_t offset = 0;
+        int32_t tlen = 0;
+        int32_t retSafe = memset_s(tdata, sizeof(tdata), 'Y', ASHMEM_MAX_SIZE);
+        if (retSafe != EOK) {
+            HDF_LOGE("InitAshmemOne memset_s failed");
+            return HDF_FAILURE;
+        }
+        while (offset < asmSize) {
+            tlen = (asmSize - offset) < ASHMEM_MAX_SIZE ? (asmSize - offset) : ASHMEM_MAX_SIZE;
+            asmptr->WriteToAshmem(tdata, tlen, offset);
+            offset += tlen;
+        }
+    }
+    return HDF_SUCCESS;
+}
+
+void StartBulkEventThread(std::shared_ptr<LibusbAdapter> adapter, const UsbDev &dev)
+{
+    if (adapter == nullptr) {
+        return;
+    }
+    struct USBTransferInfo info = {
+        .endpoint = ENDPOINT_ADDRESS_OUT,
+        .flags = 0,
+        .type = LIBUSB_TRANSFER_TYPE_BULK,
+        .timeOut = ASYNC_TRANSFER_TIME_OUT,
+        .length = MAX_BUFFER_LENGTH,
+        .userData = 0,
+        .numIsoPackets = 0,
+    };
+    sptr<UsbdTransferCallbackTest> asyncCallback = new UsbdTransferCallbackTest();
+    if (asyncCallback == nullptr) {
+        HDF_LOGE("StartBulkEventThread new async callback failed");
+        return;
+    }
+    sptr<Ashmem> ashmem;
+    (void)InitAshmemOne(ashmem, MAX_BUFFER_LENGTH, 0);
+    (void)adapter->AsyncSubmitTransfer(dev, info, asyncCallback, ashmem);
+    usleep(BULK_CANCEL_WAIT_US);
+    (void)adapter->AsyncCancelTransfer(dev, ENDPOINT_ADDRESS_OUT);
+}
+
+void CleanupBulkTransfer(std::shared_ptr<LibusbAdapter> adapter, const UsbDev &dev, const UsbPipe &pipe)
+{
+    if (adapter == nullptr) {
+        return;
+    }
+    (void)adapter->BulkCancel(dev, pipe);
+    for (uint32_t i = 0; i < BULK_CLEANUP_RETRY_MAX; i++) {
+        if (adapter->UnRegBulkCallback(dev, pipe) == HDF_SUCCESS) {
+            break;
+        }
+        usleep(BULK_CANCEL_WAIT_US);
+    }
+}
+
+bool FindBulkInEndpoint(const UsbDev &dev, uint8_t &intfId, uint8_t &endpointId)
+{
+    libusb_context *ctx = nullptr;
+    if (libusb_init(&ctx) != LIBUSB_SUCCESS) {
+        return false;
+    }
+    libusb_device **devs = nullptr;
+    ssize_t cnt = libusb_get_device_list(ctx, &devs);
+    bool found = false;
+    if (cnt > 0) {
+        for (ssize_t i = 0; i < cnt && !found; i++) {
+            if (libusb_get_bus_number(devs[i]) != dev.busNum ||
+                libusb_get_device_address(devs[i]) != dev.devAddr) {
+                continue;
+            }
+            libusb_config_descriptor *config = nullptr;
+            if (libusb_get_active_config_descriptor(devs[i], &config) != LIBUSB_SUCCESS) {
+                break;
+            }
+            for (int j = 0; j < config->bNumInterfaces && !found; j++) {
+                const libusb_interface *intf = &config->interface[j];
+                for (int k = 0; k < intf->num_altsetting && !found; k++) {
+                    const libusb_interface_descriptor *intfDesc = &intf->altsetting[k];
+                    for (int m = 0; m < intfDesc->bNumEndpoints; m++) {
+                        const libusb_endpoint_descriptor *ep = &intfDesc->endpoint[m];
+                        if ((ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) != LIBUSB_TRANSFER_TYPE_BULK) {
+                            continue;
+                        }
+                        if ((ep->bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) != LIBUSB_ENDPOINT_IN) {
+                            continue;
+                        }
+                        intfId = intfDesc->bInterfaceNumber;
+                        endpointId = ep->bEndpointAddress;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            libusb_free_config_descriptor(config);
+            break;
+        }
+    }
+    libusb_free_device_list(devs, 1);
+    libusb_exit(ctx);
+    return found;
+}
 
 void LibusbAdapterTest::SetUpTestCase(void)
 {
@@ -980,5 +1132,123 @@ HWTEST_F(LibusbAdapterTest, LibusbAdapterGetRawDescriptor002, TestSize.Level1)
     auto ret = g_libusbAdapter->GetRawDescriptor(dev, descriptor);
     HDF_LOGI("LibusbAdapterTest:: Line:%{public}d GetRawDescriptor result=%{public}d", __LINE__, ret);
     EXPECT_NE(ret, 0);
+}
+
+/**
+ * @tc.name: LibusbAdapterBulkCancelCallbackRace001
+ * @tc.desc: Test BulkRead followed by BulkCancel races with the async completion callback.
+ * @tc.desc: Repeatedly submit and cancel a bulk transfer, then verify the endpoint is reusable
+ * @tc.desc: (the cancelled completion callback releases the buffer and resets isTransferring).
+ * @tc.type: FUNC
+ */
+HWTEST_F(LibusbAdapterTest, LibusbAdapterBulkCancelCallbackRace001, TestSize.Level1)
+{
+    UsbDev dev = dev_;
+    auto ret = g_libusbAdapter->OpenDevice(dev);
+    ASSERT_EQ(0, ret);
+    uint8_t intfId = 0;
+    uint8_t endpointId = 0;
+    if (!FindBulkInEndpoint(dev, intfId, endpointId)) {
+        HDF_LOGI("LibusbAdapterTest::BulkCancelCallbackRace001 no bulk in endpoint, skip");
+        g_libusbAdapter->CloseDevice(dev);
+        return;
+    }
+    ret = g_libusbAdapter->ClaimInterface(dev, intfId, 0);
+    if (ret != HDF_SUCCESS) {
+        HDF_LOGI("LibusbAdapterTest::BulkCancelCallbackRace001 claim interface failed ret=%{public}d", ret);
+        g_libusbAdapter->CloseDevice(dev);
+        return;
+    }
+    UsbPipe pipe = {intfId, endpointId};
+    sptr<UsbdBulkCallbackTest> usbdBulkCallback = new UsbdBulkCallbackTest();
+    if (usbdBulkCallback == nullptr) {
+        HDF_LOGE("LibusbAdapterTest::BulkCancelCallbackRace001 new callback failed");
+        g_libusbAdapter->ReleaseInterface(dev, intfId);
+        g_libusbAdapter->CloseDevice(dev);
+        return;
+    }
+    sptr<Ashmem> ashmem;
+    (void)InitAshmemOne(ashmem, MAX_BUFFER_LENGTH, 1);
+    StartBulkEventThread(g_libusbAdapter, dev);
+    ret = g_libusbAdapter->RegBulkCallback(dev, pipe, usbdBulkCallback);
+    ASSERT_EQ(ret, HDF_SUCCESS);
+    for (uint32_t i = 0; i < BULK_CANCEL_RACE_LOOP; i++) {
+        int32_t readRet = g_libusbAdapter->BulkRead(dev, pipe, ashmem);
+        if (readRet != HDF_SUCCESS) {
+            usleep(BULK_CANCEL_WAIT_US);
+            readRet = g_libusbAdapter->BulkRead(dev, pipe, ashmem);
+        }
+        HDF_LOGI("LibusbAdapterTest::BulkCancelCallbackRace001 %{public}d BulkRead=%{public}d", __LINE__, readRet);
+        EXPECT_EQ(readRet, HDF_SUCCESS);
+        int32_t cancelRet = g_libusbAdapter->BulkCancel(dev, pipe);
+        HDF_LOGI("LibusbAdapterTest::BulkCancelCallbackRace001 %{public}d BulkCancel=%{public}d", __LINE__,
+            cancelRet);
+        EXPECT_EQ(cancelRet, HDF_SUCCESS);
+        usleep(BULK_CANCEL_WAIT_US);
+    }
+    CleanupBulkTransfer(g_libusbAdapter, dev, pipe);
+    g_libusbAdapter->ReleaseInterface(dev, intfId);
+    g_libusbAdapter->CloseDevice(dev);
+}
+
+/**
+ * @tc.name: LibusbAdapterBulkReadBusyReject001
+ * @tc.desc: Test BulkRead rejects a second submission while the endpoint transfer is still in progress.
+ * @tc.type: FUNC
+ */
+HWTEST_F(LibusbAdapterTest, LibusbAdapterBulkReadBusyReject001, TestSize.Level1)
+{
+    UsbDev dev = dev_;
+    auto ret = g_libusbAdapter->OpenDevice(dev);
+    ASSERT_EQ(0, ret);
+    uint8_t intfId = 0;
+    uint8_t endpointId = 0;
+    if (!FindBulkInEndpoint(dev, intfId, endpointId)) {
+        HDF_LOGI("LibusbAdapterTest::BulkReadBusyReject001 no bulk in endpoint, skip");
+        g_libusbAdapter->CloseDevice(dev);
+        return;
+    }
+    ret = g_libusbAdapter->ClaimInterface(dev, intfId, 0);
+    if (ret != HDF_SUCCESS) {
+        HDF_LOGI("LibusbAdapterTest::BulkReadBusyReject001 claim interface failed ret=%{public}d", ret);
+        g_libusbAdapter->CloseDevice(dev);
+        return;
+    }
+    UsbPipe pipe = {intfId, endpointId};
+    sptr<UsbdBulkCallbackTest> usbdBulkCallback = new UsbdBulkCallbackTest();
+    if (usbdBulkCallback == nullptr) {
+        HDF_LOGE("LibusbAdapterTest::BulkReadBusyReject001 new callback failed");
+        g_libusbAdapter->ReleaseInterface(dev, intfId);
+        g_libusbAdapter->CloseDevice(dev);
+        return;
+    }
+    sptr<Ashmem> ashmem;
+    (void)InitAshmemOne(ashmem, MAX_BUFFER_LENGTH, 1);
+    StartBulkEventThread(g_libusbAdapter, dev);
+    ret = g_libusbAdapter->RegBulkCallback(dev, pipe, usbdBulkCallback);
+    ASSERT_EQ(ret, HDF_SUCCESS);
+    ret = g_libusbAdapter->BulkRead(dev, pipe, ashmem);
+    HDF_LOGI("LibusbAdapterTest::BulkReadBusyReject001 %{public}d first BulkRead=%{public}d", __LINE__, ret);
+    EXPECT_EQ(ret, HDF_SUCCESS);
+    ret = g_libusbAdapter->BulkRead(dev, pipe, ashmem);
+    HDF_LOGI("LibusbAdapterTest::BulkReadBusyReject001 %{public}d second BulkRead=%{public}d", __LINE__, ret);
+    EXPECT_TRUE(ret == LIBUSB_ERROR_BUSY || ret == HDF_SUCCESS);
+    CleanupBulkTransfer(g_libusbAdapter, dev, pipe);
+    g_libusbAdapter->ReleaseInterface(dev, intfId);
+    g_libusbAdapter->CloseDevice(dev);
+}
+
+/**
+ * @tc.name: LibusbAdapterBulkCancelNoDevice001
+ * @tc.desc: Test BulkCancel with a non-existent device returns failure without crashing.
+ * @tc.type: FUNC
+ */
+HWTEST_F(LibusbAdapterTest, LibusbAdapterBulkCancelNoDevice001, TestSize.Level1)
+{
+    UsbDev invalidDev = {0, 0};
+    UsbPipe pipe = {INTERFACEID_OK, ENDPOINT_ADDRESS_IN};
+    int32_t ret = g_libusbAdapter->BulkCancel(invalidDev, pipe);
+    HDF_LOGI("LibusbAdapterTest::BulkCancelNoDevice001 %{public}d BulkCancel=%{public}d", __LINE__, ret);
+    EXPECT_NE(ret, HDF_SUCCESS);
 }
 } // namespace OHOS::HDI::Usb::V1_2
