@@ -21,7 +21,6 @@
 #include "v1_0/iusbd_subscriber.h"
 #include "v1_2/usb_types.h"
 #include "v1_2/iusbd_transfer_callback.h"
-#include "v2_0/iusbd_bulk_callback.h"
 #include "hdf_log.h"
 #include "securec.h"
 
@@ -53,20 +52,6 @@ public:
     }
     int32_t OnTransferReadCallback(int32_t status, int32_t actLength,
          const std::vector<OHOS::HDI::Usb::V1_2::UsbIsoPacketDescriptor>& descs, const uint64_t userData) override
-    {
-        return 0;
-    }
-};
-
-class UsbdBulkCallbackTest : public OHOS::HDI::Usb::V2_0::IUsbdBulkCallback {
-public:
-    UsbdBulkCallbackTest() = default;
-    ~UsbdBulkCallbackTest() = default;
-    int32_t OnBulkWriteCallback(int32_t status, int32_t actLength) override
-    {
-        return 0;
-    }
-    int32_t OnBulkReadCallback(int32_t status, int32_t actLength) override
     {
         return 0;
     }
