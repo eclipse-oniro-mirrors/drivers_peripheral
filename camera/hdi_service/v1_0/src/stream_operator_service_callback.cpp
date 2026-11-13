@@ -52,44 +52,59 @@ StreamOperatorServiceCallback::~StreamOperatorServiceCallback()
 void StreamOperatorServiceCallback::OnCallbackDied()
 {
     CAMERA_LOGI("StreamOperatorServiceCallback::OnCallbackDied, nulling callback");
-    streamOperatorCallback_ = nullptr;
+    OHOS::sptr<IStreamOperatorCallback> callback;
+    {
+        std::lock_guard<std::mutex> lock(callbackMutex_);
+        callback = streamOperatorCallback_;
+        streamOperatorCallback_ = nullptr;
+    }
+}
+
+OHOS::sptr<IStreamOperatorCallback> StreamOperatorServiceCallback::GetCallback()
+{
+    std::lock_guard<std::mutex> lock(callbackMutex_);
+    return streamOperatorCallback_;
 }
 
 int32_t StreamOperatorServiceCallback::OnCaptureStarted(int32_t captureId, const std::vector<int32_t> &streamIds)
 {
-    CHECK_IF_PTR_NULL_RETURN_VALUE(streamOperatorCallback_, OHOS::HDI::Camera::V1_0::INVALID_ARGUMENT);
-    return streamOperatorCallback_->OnCaptureStarted(captureId, streamIds);
+    OHOS::sptr<IStreamOperatorCallback> callback = GetCallback();
+    CHECK_IF_PTR_NULL_RETURN_VALUE(callback, OHOS::HDI::Camera::V1_0::INVALID_ARGUMENT);
+    return callback->OnCaptureStarted(captureId, streamIds);
 }
 
 int32_t StreamOperatorServiceCallback::OnCaptureEnded(int32_t captureId, const std::vector<VdiCaptureEndedInfo> &infos)
 {
-    CHECK_IF_PTR_NULL_RETURN_VALUE(streamOperatorCallback_, OHOS::HDI::Camera::V1_0::INVALID_ARGUMENT);
+    OHOS::sptr<IStreamOperatorCallback> callback = GetCallback();
+    CHECK_IF_PTR_NULL_RETURN_VALUE(callback, OHOS::HDI::Camera::V1_0::INVALID_ARGUMENT);
     std::vector<CaptureEndedInfo> hdiInfos;
     for (auto info : infos) {
         CaptureEndedInfo hdiInfo;
         ConvertCaptureEndedInfoVdiToHdi(info, hdiInfo);
         hdiInfos.push_back(hdiInfo);
     }
-    return streamOperatorCallback_->OnCaptureEnded(captureId, hdiInfos);
+    return callback->OnCaptureEnded(captureId, hdiInfos);
 }
 
 int32_t StreamOperatorServiceCallback::OnCaptureError(int32_t captureId, const std::vector<VdiCaptureErrorInfo> &infos)
 {
-    CHECK_IF_PTR_NULL_RETURN_VALUE(streamOperatorCallback_, OHOS::HDI::Camera::V1_0::INVALID_ARGUMENT);
+    OHOS::sptr<IStreamOperatorCallback> callback = GetCallback();
+    CHECK_IF_PTR_NULL_RETURN_VALUE(callback, OHOS::HDI::Camera::V1_0::INVALID_ARGUMENT);
     std::vector<CaptureErrorInfo> hdiInfos;
     for (auto info : infos) {
         CaptureErrorInfo hdiInfo;
         ConvertCaptureErrorInfoVdiToHdi(info, hdiInfo);
         hdiInfos.push_back(hdiInfo);
     }
-    return streamOperatorCallback_->OnCaptureError(captureId, hdiInfos);
+    return callback->OnCaptureError(captureId, hdiInfos);
 }
 
 int32_t StreamOperatorServiceCallback::OnFrameShutter(int32_t captureId,
     const std::vector<int32_t> &streamIds, uint64_t timestamp)
 {
-    CHECK_IF_PTR_NULL_RETURN_VALUE(streamOperatorCallback_, OHOS::HDI::Camera::V1_0::INVALID_ARGUMENT);
-    return streamOperatorCallback_->OnFrameShutter(captureId, streamIds, timestamp);
+    OHOS::sptr<IStreamOperatorCallback> callback = GetCallback();
+    CHECK_IF_PTR_NULL_RETURN_VALUE(callback, OHOS::HDI::Camera::V1_0::INVALID_ARGUMENT);
+    return callback->OnFrameShutter(captureId, streamIds, timestamp);
 }
 
 } // end namespace OHOS::Camera

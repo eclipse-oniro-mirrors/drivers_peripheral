@@ -16,6 +16,7 @@
 #ifndef CAMERA_HOST_SERVICE_CALLBACK_H
 #define CAMERA_HOST_SERVICE_CALLBACK_H
 
+#include <mutex>
 #include "camera.h"
 #include "v1_0/icamera_host_callback.h"
 #include "v1_0/icamera_host_vdi_callback.h"
@@ -26,9 +27,10 @@ namespace OHOS::Camera {
 using namespace OHOS::HDI::Camera::V1_0;
 using namespace OHOS::VDI::Camera::V1_0;
 
+std::recursive_mutex &GetCameraIdInfoListMutex();
+
 class CameraHostServiceCallback : public ICameraHostVdiCallback {
 public:
-
     CameraHostServiceCallback(OHOS::sptr<ICameraHostCallback> cameraHostCallback,
         OHOS::sptr<ICameraHostVdi> cameraHostVdi, std::vector<CameraIdInfo> &cameraIdInfoList);
 
