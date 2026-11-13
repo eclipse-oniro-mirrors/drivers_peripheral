@@ -89,14 +89,11 @@ void H4Protocol::ReadData(int fd)
     ssize_t readLen;
     if (hciPacket_.size() == 0) {
         readLen = Read(fd, &packetType_, sizeof(packetType_));
-        if (readLen < 0) {
-            HDF_LOGE("read fd[%d]", fd);
-            return;
-        } else if (readLen == 0) {
-            HDF_LOGE("read fd[%d] readLen = 0.", fd);
+        if (readLen <= 0) {
+            HDF_LOGE("read fd[%d] readLen = %zd.", fd, readLen);
             return;
         }
-
+        packetType_ &= HCI_DATA_TYPE_SECOND_MASK;
         if (packetType_ > HCI_PACKET_TYPE_UNKNOWN && packetType_ < HCI_PACKET_TYPE_MAX) {
             hciPacket_.resize(header_[packetType_].headerSize);
         }
