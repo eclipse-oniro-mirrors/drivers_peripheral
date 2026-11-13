@@ -15,6 +15,7 @@
 
 #include "usb_serial_ddk_service.h"
 
+#include <algorithm>
 #include <cerrno>
 #include <fcntl.h>
 #include <hdf_base.h>
@@ -22,11 +23,14 @@
 #include <iproxy_broker.h>
 #include <cstdlib>
 #include <cstring>
+#include <map>
+#include <mutex>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 
 #include "ddk_sysfs_dev_node.h"
+#include "ddk_caller_context_key.h"
 #include "usb_ddk_permission.h"
 #include "usbd_wrapper.h"
 #ifdef __LITEOS__
@@ -45,6 +49,9 @@ namespace V1_0 {
 
 constexpr uint8_t THIRTY_TWO_BIT = 32;
 constexpr size_t MAX_BUFFER_LENGTH = 4096;
+
+static std::mutex g_fdMapsMutex;
+static std::map<uint64_t, int32_t> g_fdMaps;
 
 inline uint32_t GetBusNum(uint64_t devId)
 {
@@ -104,6 +111,12 @@ int32_t UsbSerialDdkService::Open(uint64_t deviceId, uint64_t interfaceIndex,
 
     uint32_t busNum = GetBusNum(deviceId);
     uint32_t devNum = GetDevNum(deviceId);
+    if (busNum > UINT8_MAX || devNum > UINT8_MAX || interfaceIndex > UINT8_MAX) {
+        HDF_LOGE("%{public}s: deviceId or interfaceIndex out of range, busNum: %{public}u, devNum: %{public}u, "
+                 "interfaceIndex: %{public}llu", __func__, busNum, devNum,
+                 static_cast<unsigned long long>(interfaceIndex));
+        return USB_SERIAL_DDK_INVALID_PARAMETER;
+    }
     SysfsDevNode devNode(busNum, devNum, interfaceIndex, "ttyUSB");
     std::string path;
     int32_t ret = devNode.FindPath(path);
@@ -111,12 +124,33 @@ int32_t UsbSerialDdkService::Open(uint64_t deviceId, uint64_t interfaceIndex,
         HDF_LOGE("Get devNodePath ret: %{public}d\n", ret);
         return USB_SERIAL_DDK_DEVICE_NOT_FOUND;
     }
-    int fd = open(path.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
+    // key: [55:48]busNum | [47:40]devAddr | [39:32]interfaceIndex | [31:0]callerTokenId
+    uint64_t key = BuildCallerContextKeyFromDeviceId(deviceId, interfaceIndex);
+    std::lock_guard<std::mutex> lock(g_fdMapsMutex);
+    auto itFd = g_fdMaps.find(key);
+    if (itFd != g_fdMaps.end()) {
+        int32_t cachedFd = itFd->second;
+        /* An unplugged tty keeps its descriptor valid, so a cache hit must be
+         * probed before reuse; otherwise Open would keep handing out a dead fd
+         * and the caller could not recover by re-opening after a re-plug. */
+        if (osAdapter_ == nullptr || !osAdapter_->IsDeviceDisconnect(cachedFd)) {
+            dev.fd = static_cast<uint32_t>(cachedFd);
+            return HDF_SUCCESS;
+        }
+        HDF_LOGW("%{public}s: cached fd %{public}d disconnected, reopening", __func__, cachedFd);
+        if (fdsan_close_with_tag(cachedFd, fdsan_create_owner_tag(FDSAN_OWNER_TYPE_FILE, LOG_DOMAIN)) != 0) {
+            HDF_LOGE("%{public}s: close stale fd %{public}d failed: %{public}s",
+                __func__, cachedFd, strerror(errno));
+        }
+        g_fdMaps.erase(itFd);
+    }
+    int32_t fd = open(path.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
     if (fd < 0) {
         HDF_LOGE("error %{public}d opening devNodePath: %{public}s\n", errno, strerror(errno));
         return USB_SERIAL_DDK_IO_ERROR;
     }
     fdsan_exchange_owner_tag(fd, 0, fdsan_create_owner_tag(FDSAN_OWNER_TYPE_FILE, LOG_DOMAIN));
+    g_fdMaps[key] = fd;
     dev.fd = static_cast<uint32_t>(fd);
     return HDF_SUCCESS;
 }
@@ -130,7 +164,20 @@ int32_t UsbSerialDdkService::Close(const OHOS::HDI::Usb::UsbSerialDdk::V1_0::Usb
     }
 
     int32_t fd = static_cast<int32_t>(dev.fd);
+    std::lock_guard<std::mutex> lock(g_fdMapsMutex);
+    auto itFd = std::find_if(g_fdMaps.begin(), g_fdMaps.end(),
+        [fd](const std::pair<const uint64_t, int32_t> &item) { return item.second == fd; });
+    if (itFd == g_fdMaps.end()) {
+        HDF_LOGE("%{public}s: fd %{public}d not opened or already closed", __func__, fd);
+        return USB_SERIAL_DDK_INVALID_OPERATION;
+    }
+    if (GetCallerTokenFromKey(itFd->first) != IPCSkeleton::GetCallingTokenID()) {
+        HDF_LOGE("%{public}s: fd %{public}d not owned by caller token %{public}u", __func__, fd,
+                 IPCSkeleton::GetCallingTokenID());
+        return USB_SERIAL_DDK_NO_PERM;
+    }
     int32_t ret = fdsan_close_with_tag(fd, fdsan_create_owner_tag(FDSAN_OWNER_TYPE_FILE, LOG_DOMAIN));
+    g_fdMaps.erase(itFd);
     if (ret != 0) {
         HDF_LOGE("Failed to close device: %{public}s.\n", strerror(errno));
         if (errno == EBADF) {

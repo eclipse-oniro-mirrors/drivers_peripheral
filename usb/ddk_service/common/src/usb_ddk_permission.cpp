@@ -70,6 +70,7 @@ void DdkPermissionManager::Reset()
 {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_verifyAccessToken = nullptr;
+    g_getApiVersion = nullptr;
     if (g_libHandle != nullptr) {
         dlclose(g_libHandle);
         g_libHandle = nullptr;
