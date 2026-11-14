@@ -327,6 +327,7 @@ struct AudioHwAdapter {
     struct HdfRemoteDispatcher dispatcher;
     struct AudioAdapterDescriptor adapterDescriptor;
     struct AudioPortAndCapability *portCapabilitys;
+    pthread_mutex_t infosLock;
     struct AudioRenderAndCaptureInfo infos;
 };
 

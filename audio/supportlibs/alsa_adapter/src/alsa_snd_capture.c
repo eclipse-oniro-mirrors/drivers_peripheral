@@ -15,6 +15,7 @@
 
 #include "alsa_soundcard.h"
 #include "alsa_snd_capture.h"
+#include <pthread.h>
 
 #define HDF_LOG_TAG HDF_AUDIO_HAL_CAPTURE
 
@@ -31,6 +32,7 @@
 #define PCM_WAIT_TIME         5000
 
 static struct AlsaCapture *g_alsaCaptureList = NULL;
+static pthread_mutex_t g_capturePoolMutex = PTHREAD_MUTEX_INITIALIZER;
 static void RegisterCaptureImpl(struct AlsaCapture *captureIns);
 
 void  CaptureSetPriData(struct AlsaCapture *captureIns, CapturePriData data)
@@ -45,9 +47,11 @@ CapturePriData CaptureGetPriData(struct AlsaCapture *captureIns)
 
 static int32_t CaptureFreeMemory(void)
 {
+    pthread_mutex_lock(&g_capturePoolMutex);
     if (g_alsaCaptureList != NULL) {
         for (int32_t i = 0; i < MAX_CARD_NUM; i++) {
             if (g_alsaCaptureList[i].soundCard.cardStatus != 0) {
+                pthread_mutex_unlock(&g_capturePoolMutex);
                 AUDIO_FUNC_LOGE("refCount is not zero, Sound card in use!");
                 return HDF_ERR_DEVICE_BUSY;
             }
@@ -60,6 +64,7 @@ static int32_t CaptureFreeMemory(void)
         g_alsaCaptureList = NULL;
     }
 
+    pthread_mutex_unlock(&g_capturePoolMutex);
     return HDF_SUCCESS;
 }
 
@@ -411,10 +416,12 @@ static struct AlsaCapture *GetCaptureInsByName(const char *adapterName)
     /*
     fine the instance with the corresponding adapter name, or create one if none.
     */
+    pthread_mutex_lock(&g_capturePoolMutex);
     for (int32_t i = 0; i < MAX_CARD_NUM; i++) {
         alsaSnd = (struct AlsaSoundCard *)&g_alsaCaptureList[i];
         if (alsaSnd->cardStatus) {
             if (0 == strcmp(alsaSnd->adapterName, adapterName)) {
+                pthread_mutex_unlock(&g_capturePoolMutex);
                 return &g_alsaCaptureList[i];
             }
         }
@@ -427,6 +434,7 @@ static struct AlsaCapture *GetCaptureInsByName(const char *adapterName)
             (void)memset_s(captureIns, sizeof(struct AlsaCapture), 0, sizeof(struct AlsaCapture));
             int32_t ret = strncpy_s(alsaSnd->adapterName, MAX_CARD_NAME_LEN + 1, adapterName, strlen(adapterName));
             if (ret != 0) {
+                pthread_mutex_unlock(&g_capturePoolMutex);
                 AUDIO_FUNC_LOGE("strncpy_s failed!");
                 return NULL;
             }
@@ -436,9 +444,11 @@ static struct AlsaCapture *GetCaptureInsByName(const char *adapterName)
             captureIns->bufferTime = AUDIO_BUFFER_TIME_DEF;
             captureIns->descPins = PIN_NONE;
             captureIns->resample = 1;
+            pthread_mutex_unlock(&g_capturePoolMutex);
             return captureIns;
         }
     }
+    pthread_mutex_unlock(&g_capturePoolMutex);
     AUDIO_FUNC_LOGE("Failed to AddCardIns!");
     return NULL;
 }
@@ -454,13 +464,16 @@ struct AlsaCapture *CaptureCreateInstance(const char* adapterName, enum AudioCat
         return NULL;
     }
 
+    pthread_mutex_lock(&g_capturePoolMutex);
     if (g_alsaCaptureList == NULL) {
         g_alsaCaptureList = (struct AlsaCapture *)OsalMemCalloc(MAX_CARD_NUM * sizeof(struct AlsaCapture));
         if (g_alsaCaptureList == NULL) {
+            pthread_mutex_unlock(&g_capturePoolMutex);
             AUDIO_FUNC_LOGE("Failed to allocate memory!");
             return NULL;
         }
     }
+    pthread_mutex_unlock(&g_capturePoolMutex);
 
     captureIns = GetCaptureInsByName(adapterName);
     if (captureIns == NULL) {
@@ -500,13 +513,16 @@ struct AlsaCapture *CaptureCreateInstance(const char* adapterName)
         return NULL;
     }
 
+    pthread_mutex_lock(&g_capturePoolMutex);
     if (g_alsaCaptureList == NULL) {
         g_alsaCaptureList = (struct AlsaCapture *)OsalMemCalloc(MAX_CARD_NUM * sizeof(struct AlsaCapture));
         if (g_alsaCaptureList == NULL) {
+            pthread_mutex_unlock(&g_capturePoolMutex);
             AUDIO_FUNC_LOGE("Failed to allocate memory!");
             return NULL;
         }
     }
+    pthread_mutex_unlock(&g_capturePoolMutex);
 
     captureIns = GetCaptureInsByName(adapterName);
     if (captureIns == NULL) {
@@ -539,16 +555,20 @@ struct AlsaCapture *CaptureGetInstance(const char *adapterName)
         return NULL;
     }
 
+    pthread_mutex_lock(&g_capturePoolMutex);
     if (g_alsaCaptureList == NULL) {
+        pthread_mutex_unlock(&g_capturePoolMutex);
         AUDIO_FUNC_LOGE("g_alsaCaptureList is NULL!");
         return NULL;
     }
 
     for (int32_t i = 0; i < MAX_CARD_NUM; i++) {
         if (strcmp(g_alsaCaptureList[i].soundCard.adapterName, adapterName) == 0) {
+            pthread_mutex_unlock(&g_capturePoolMutex);
             return &(g_alsaCaptureList[i]);
         }
     }
+    pthread_mutex_unlock(&g_capturePoolMutex);
 
     return NULL;
 }

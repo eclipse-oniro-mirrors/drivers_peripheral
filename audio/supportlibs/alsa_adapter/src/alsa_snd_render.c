@@ -15,6 +15,7 @@
 
 #include "alsa_soundcard.h"
 #include "alsa_snd_render.h"
+#include <pthread.h>
 #include "osal_time.h"
 
 #define HDF_LOG_TAG HDF_AUDIO_HAL_RENDER
@@ -38,6 +39,7 @@
 #endif
 
 static struct AlsaRender *g_alsaRenderList = NULL;
+static pthread_mutex_t g_renderPoolMutex = PTHREAD_MUTEX_INITIALIZER;
 static void RegisterRenderImpl(struct AlsaRender *renderIns);
 
 void RenderSetPriData(struct AlsaRender *renderIns, RenderPriData data)
@@ -52,21 +54,26 @@ RenderPriData RenderGetPriData(struct AlsaRender *renderIns)
 
 static int32_t CreateRenderIns(void)
 {
+    pthread_mutex_lock(&g_renderPoolMutex);
     if (g_alsaRenderList == NULL) {
         g_alsaRenderList = (struct AlsaRender *)OsalMemCalloc(MAX_CARD_NUM * sizeof(struct AlsaRender));
         if (g_alsaRenderList == NULL) {
+            pthread_mutex_unlock(&g_renderPoolMutex);
             AUDIO_FUNC_LOGE("Failed to allocate memory!");
             return HDF_FAILURE;
         }
     }
+    pthread_mutex_unlock(&g_renderPoolMutex);
     return HDF_SUCCESS;
 }
 
 static int32_t RenderFreeMemory(void)
 {
+    pthread_mutex_lock(&g_renderPoolMutex);
     if (g_alsaRenderList != NULL) {
         for (int32_t i = 0; i < MAX_CARD_NUM; i++) {
             if (g_alsaRenderList[i].soundCard.cardStatus != 0) {
+                pthread_mutex_unlock(&g_renderPoolMutex);
                 AUDIO_FUNC_LOGE("refCount is not zero, Sound card in use!");
                 return HDF_ERR_DEVICE_BUSY;
             }
@@ -79,6 +86,7 @@ static int32_t RenderFreeMemory(void)
         AudioMemFree((void **)&g_alsaRenderList);
         g_alsaRenderList = NULL;
     }
+    pthread_mutex_unlock(&g_renderPoolMutex);
 
     return HDF_SUCCESS;
 }
@@ -289,10 +297,12 @@ static struct AlsaRender *GetRenderInsByName(const char *adapterName)
     /*
     fine the instance with the corresponding adapter name, or create one if none.
     */
+    pthread_mutex_lock(&g_renderPoolMutex);
     for (int32_t i = 0; i < MAX_CARD_NUM; i++) {
         alsaSnd = (struct AlsaSoundCard *)&g_alsaRenderList[i];
         if (alsaSnd->cardStatus) {
             if (0 == strcmp(alsaSnd->adapterName, adapterName)) {
+                pthread_mutex_unlock(&g_renderPoolMutex);
                 return &g_alsaRenderList[i];
             }
         }
@@ -305,6 +315,7 @@ static struct AlsaRender *GetRenderInsByName(const char *adapterName)
             (void)memset_s(renderIns, sizeof(struct AlsaRender), 0, sizeof(struct AlsaRender));
             int32_t ret = strncpy_s(alsaSnd->adapterName, MAX_CARD_NAME_LEN + 1, adapterName, strlen(adapterName));
             if (ret != 0) {
+                pthread_mutex_unlock(&g_renderPoolMutex);
                 AUDIO_FUNC_LOGE("strncpy_s failed!");
                 return NULL;
             }
@@ -314,9 +325,11 @@ static struct AlsaRender *GetRenderInsByName(const char *adapterName)
             renderIns->bufferTime = AUDIO_BUFFER_TIME_DEF;
             renderIns->descPins = PIN_NONE;
             renderIns->resample = 1;
+            pthread_mutex_unlock(&g_renderPoolMutex);
             return renderIns;
         }
     }
+    pthread_mutex_unlock(&g_renderPoolMutex);
     AUDIO_FUNC_LOGE("Failed to AddCardIns!");
     return NULL;
 }
@@ -421,16 +434,20 @@ struct AlsaRender *RenderGetInstance(const char *adapterName)
         return NULL;
     }
 
+    pthread_mutex_lock(&g_renderPoolMutex);
     if (g_alsaRenderList == NULL) {
+        pthread_mutex_unlock(&g_renderPoolMutex);
         AUDIO_FUNC_LOGE("g_alsaRenderList is NULL!");
         return NULL;
     }
 
     for (int32_t i = 0; i < MAX_CARD_NUM; i++) {
         if (strcmp(g_alsaRenderList[i].soundCard.adapterName, adapterName) == 0) {
+            pthread_mutex_unlock(&g_renderPoolMutex);
             return &(g_alsaRenderList[i]);
         }
     }
+    pthread_mutex_unlock(&g_renderPoolMutex);
 
     return NULL;
 }

@@ -15,6 +15,7 @@
 
 #include "audio_adapter_info_common.h"
 #include <ctype.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -40,6 +41,8 @@
 uint32_t g_adapterNum = 0;
 struct AudioAdapterDescriptor *g_audioAdapterDescs = NULL;
 
+static pthread_mutex_t g_adapterInfoLock = PTHREAD_MUTEX_INITIALIZER;
+
 struct AudioAdapterDescriptor *AudioAdapterGetConfigDescs(void)
 {
     return g_audioAdapterDescs;
@@ -47,7 +50,10 @@ struct AudioAdapterDescriptor *AudioAdapterGetConfigDescs(void)
 
 int32_t AudioAdapterGetAdapterNum(void)
 {
-    return g_adapterNum;
+    pthread_mutex_lock(&g_adapterInfoLock);
+    uint32_t num = g_adapterNum;
+    pthread_mutex_unlock(&g_adapterInfoLock);
+    return (int32_t)num;
 }
 
 int32_t AudioAdapterExist(const char *adapterName)
@@ -57,16 +63,20 @@ int32_t AudioAdapterExist(const char *adapterName)
         return HDF_ERR_INVALID_PARAM;
     }
 
+    pthread_mutex_lock(&g_adapterInfoLock);
     if (g_audioAdapterDescs == NULL || g_adapterNum > SUPPORT_ADAPTER_NUM_MAX) {
         AUDIO_FUNC_LOGE("no adapter info");
+        pthread_mutex_unlock(&g_adapterInfoLock);
         return HDF_FAILURE;
     }
 
     for (uint32_t i = 0; i < g_adapterNum; i++) {
         if (strcmp(adapterName, g_audioAdapterDescs[i].adapterName) == 0) {
+            pthread_mutex_unlock(&g_adapterInfoLock);
             return i;
         }
     }
+    pthread_mutex_unlock(&g_adapterInfoLock);
     AUDIO_FUNC_LOGE("adapterName=%{public}s does not exist!", adapterName);
 
     return HDF_FAILURE;
@@ -144,7 +154,7 @@ int32_t AudioAdaptersForUser(InterfaceLibModeGetAllCardInfo getAllCardInfo,
         return HDF_ERR_INVALID_PARAM;
     }
 
-    int realSize = 0;
+    int32_t realSize = 0;
 
     if (getAllCardInfo(&descs, &realSize) != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("set descs is failed!");
@@ -158,14 +168,24 @@ int32_t AudioAdaptersForUser(InterfaceLibModeGetAllCardInfo getAllCardInfo,
 
     *size = (uint32_t)realSize;
 
-    if (g_audioAdapterDescs == NULL || g_adapterNum != (uint32_t)realSize) {
-        AudioAdapterReleaseDescs(g_audioAdapterDescs, g_adapterNum);
-        AudioMemFree((void **)&g_audioAdapterDescs);
-        if (getAllCardInfo(&g_audioAdapterDescs, (int *)&g_adapterNum) != HDF_SUCCESS) {
+    pthread_mutex_lock(&g_adapterInfoLock);
+    bool needRefresh = (g_audioAdapterDescs == NULL || g_adapterNum != (uint32_t)realSize);
+
+    if (needRefresh) {
+        struct AudioAdapterDescriptor *newDescs = NULL;
+        int32_t newNum = 0;
+        if (getAllCardInfo(&newDescs, &newNum) != HDF_SUCCESS) {
             AUDIO_FUNC_LOGE("set g_audioAdapterDescs is failed!");
+            pthread_mutex_unlock(&g_adapterInfoLock);
             return HDF_FAILURE;
         }
+
+        AudioAdapterReleaseDescs(g_audioAdapterDescs, g_adapterNum);
+        AudioMemFree((void**)&g_audioAdapterDescs);
+        g_audioAdapterDescs = newDescs;
+        g_adapterNum = (uint32_t)newNum;
     }
+    pthread_mutex_unlock(&g_adapterInfoLock);
     return HDF_SUCCESS;
 }
 
@@ -181,9 +201,11 @@ bool ReleaseAudioManagerObjectComm(struct IAudioManager *object)
     object->UnloadAdapter = NULL;
     object->ReleaseAudioManagerObject = NULL;
 
+    pthread_mutex_lock(&g_adapterInfoLock);
     AudioAdapterReleaseDescs(g_audioAdapterDescs, g_adapterNum);
     AudioMemFree((void **)&g_audioAdapterDescs);
     g_adapterNum = 0;
+    pthread_mutex_unlock(&g_adapterInfoLock);
 
     return true;
 }

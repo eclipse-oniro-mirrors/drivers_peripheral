@@ -151,14 +151,18 @@ int32_t AudioCapturePause(struct IAudioCapture *handle)
         return AUDIO_ERR_INTERNAL;
     }
 
+    pthread_mutex_lock(&hwCapture->captureParam.captureMode.ctlParam.mutex);
     bool pauseStatus = hwCapture->captureParam.captureMode.ctlParam.pause;
     hwCapture->captureParam.captureMode.ctlParam.pause = true;
+    pthread_mutex_unlock(&hwCapture->captureParam.captureMode.ctlParam.mutex);
 
     int32_t ret = (*pInterfaceLibModeCapture)(
         hwCapture->devDataHandle, &hwCapture->captureParam, AUDIODRV_CTL_IOCTL_PAUSE_WRITE_CAPTURE);
     if (ret < 0) {
         AUDIO_FUNC_LOGE("Audio Capture Pause FAIL!");
+        pthread_mutex_lock(&hwCapture->captureParam.captureMode.ctlParam.mutex);
         hwCapture->captureParam.captureMode.ctlParam.pause = pauseStatus;
+        pthread_mutex_unlock(&hwCapture->captureParam.captureMode.ctlParam.mutex);
         return HDF_ERR_NOT_SUPPORT;
     }
     AUDIO_FUNC_LOGI("Enter. pauseStatus= %{public}d", pauseStatus);
@@ -189,6 +193,7 @@ int32_t AudioCaptureResume(struct IAudioCapture *handle)
         return AUDIO_ERR_INTERNAL;
     }
 
+    pthread_mutex_lock(&hwCapture->captureParam.captureMode.ctlParam.mutex);
     bool resumeStatus = hwCapture->captureParam.captureMode.ctlParam.pause;
     hwCapture->captureParam.captureMode.ctlParam.pause = false;
 
@@ -197,8 +202,10 @@ int32_t AudioCaptureResume(struct IAudioCapture *handle)
     if (ret < 0) {
         AUDIO_FUNC_LOGE("Audio capture Resume FAIL!");
         hwCapture->captureParam.captureMode.ctlParam.pause = resumeStatus;
+        pthread_mutex_unlock(&hwCapture->captureParam.captureMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
+    pthread_mutex_unlock(&hwCapture->captureParam.captureMode.ctlParam.mutex);
 
     AudioLogRecord(AUDIO_INFO, "[%s]-[%s]-[%d] :> [%s]", __FILE__, __func__, __LINE__, "Audio Capture Resume");
     return AUDIO_SUCCESS;
@@ -452,6 +459,7 @@ int32_t AudioCaptureSetMute(struct IAudioCapture *handle, bool mute)
         return AUDIO_ERR_INTERNAL;
     }
 
+    pthread_mutex_lock(&impl->captureParam.captureMode.ctlParam.mutex);
     bool muteStatus = impl->captureParam.captureMode.ctlParam.mute;
     impl->captureParam.captureMode.ctlParam.mute = mute;
 
@@ -460,8 +468,10 @@ int32_t AudioCaptureSetMute(struct IAudioCapture *handle, bool mute)
     if (ret < 0) {
         AUDIO_FUNC_LOGE("SetMute SetParams FAIL");
         impl->captureParam.captureMode.ctlParam.mute = muteStatus;
+        pthread_mutex_unlock(&impl->captureParam.captureMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
+    pthread_mutex_unlock(&impl->captureParam.captureMode.ctlParam.mutex);
 
     AudioLogRecord(AUDIO_INFO, "[%s]-[%s]-[%d] :> [Setmute = %d]", __FILE__, __func__, __LINE__, mute);
     return AUDIO_SUCCESS;
@@ -525,6 +535,7 @@ int32_t AudioCaptureSetVolume(struct IAudioCapture *handle, float volume)
         return AUDIO_ERR_INTERNAL;
     }
 
+    pthread_mutex_lock(&hwCapture->captureParam.captureMode.ctlParam.mutex);
 #ifdef AUDIO_HAL_P7885
     float volTemp = (float)volume * INTEGER_TO_DEC;
 #else
@@ -534,6 +545,7 @@ int32_t AudioCaptureSetVolume(struct IAudioCapture *handle, float volume)
     float volTemp = ((volMax - volMin) / 2) * log10(volume) + volMin;
     if (volTemp < volMin || volTemp > volMax) {
         AUDIO_FUNC_LOGE("volTemp fail");
+        pthread_mutex_unlock(&hwCapture->captureParam.captureMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
 #endif
@@ -544,8 +556,10 @@ int32_t AudioCaptureSetVolume(struct IAudioCapture *handle, float volume)
     if (ret < 0) {
         AUDIO_FUNC_LOGE("SetParams FAIL!");
         hwCapture->captureParam.captureMode.ctlParam.volume = volumeTemp;
+        pthread_mutex_unlock(&hwCapture->captureParam.captureMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
+    pthread_mutex_unlock(&hwCapture->captureParam.captureMode.ctlParam.mutex);
     AUDIO_FUNC_LOGI("Enter. volumeTemp= %{public}f, volMax= %{public}f, volMin= %{public}f, volTemp= %{public}f",
                     volumeTemp, volMax, volMin, volTemp);
     return AUDIO_SUCCESS;
@@ -671,6 +685,7 @@ int32_t AudioCaptureSetGain(struct IAudioCapture *handle, float gain)
         return AUDIO_ERR_INTERNAL;
     }
 
+    pthread_mutex_lock(&impl->captureParam.captureMode.ctlParam.mutex);
     float gainTemp = impl->captureParam.captureMode.ctlParam.audioGain.gain;
     impl->captureParam.captureMode.ctlParam.audioGain.gain = gain;
 
@@ -678,6 +693,7 @@ int32_t AudioCaptureSetGain(struct IAudioCapture *handle, float gain)
     if (pInterfaceLibModeCapture == NULL || *pInterfaceLibModeCapture == NULL) {
         AUDIO_FUNC_LOGE("pInterfaceLibModeCapture Fail!");
         impl->captureParam.captureMode.ctlParam.audioGain.gain = gainTemp;
+        pthread_mutex_unlock(&impl->captureParam.captureMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
 
@@ -686,8 +702,10 @@ int32_t AudioCaptureSetGain(struct IAudioCapture *handle, float gain)
     if (ret < 0) {
         AUDIO_FUNC_LOGE("CaptureSetGain FAIL!");
         impl->captureParam.captureMode.ctlParam.audioGain.gain = gainTemp;
+        pthread_mutex_unlock(&impl->captureParam.captureMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
+    pthread_mutex_unlock(&impl->captureParam.captureMode.ctlParam.mutex);
     return AUDIO_SUCCESS;
 }
 
