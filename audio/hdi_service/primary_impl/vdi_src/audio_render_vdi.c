@@ -101,12 +101,12 @@ int32_t AudioGetLatencyVdi(struct IAudioRender *render, uint32_t *ms)
         return HDF_ERR_INVALID_PARAM;
     }
 
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     HdfAudioStartTrace("Hdi:AudioGetLatencyVdi", 0);
     struct timeval startTime = AudioDfxSysEventGetTimeStamp();
     int32_t ret = vdiRender->GetLatency(vdiRender, ms);
     AudioDfxSysEventError("Render GetLatency", startTime, TIME_THRESHOLD, ret);
     HdfAudioFinishTrace();
-    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio GetLatency fail, ret=%{public}d", ret);
         return ret;
@@ -263,21 +263,10 @@ static int32_t AudioRenderCallbackVdi(enum  AudioCallbackTypeVdi type, void *res
 {
     CHECK_NULL_PTR_RETURN_VALUE(cookie, HDF_ERR_INVALID_PARAM);
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)cookie;
-    uint32_t renderId = renderInfo->renderId;
-    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
-        AUDIO_FUNC_LOGE("invalid param");
-        return HDF_ERR_INVALID_PARAM;
-    }
-    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
     struct IAudioCallback *cb = renderInfo->callback;
-    if (cb == NULL) {
-        AUDIO_FUNC_LOGE("invalid param");
-        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
-        return HDF_ERR_INVALID_PARAM;
-    }
+    CHECK_NULL_PTR_RETURN_VALUE(cb, HDF_ERR_INVALID_PARAM);
     int8_t newCookie = 0;
     int8_t newReserved = 0;
-    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     int32_t ret = cb->RenderCallback(cb, (enum AudioCallbackType)type, &newReserved, &newCookie);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render AudioRenderCallbackVdi fail, ret=%{public}d", ret);
