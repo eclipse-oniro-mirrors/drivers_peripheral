@@ -65,7 +65,7 @@ MetadataController &MetadataController::GetInstance()
 void MetadataController::SetUpdateSettingCallback(const MetaDataCb &cb)
 {
     std::unique_lock<std::mutex> lock(dataConfigLock_);
-    if (!isInit_) {
+    if (!isInit_.load()) {
         CAMERA_LOGE("already set update setting callback.");
         return;
     }
@@ -75,7 +75,7 @@ void MetadataController::SetUpdateSettingCallback(const MetaDataCb &cb)
 void MetadataController::UnSetUpdateSettingCallback()
 {
     std::unique_lock<std::mutex> lock(dataConfigLock_);
-    if (!isInit_) {
+    if (!isInit_.load()) {
         CAMERA_LOGE("already set update setting callback.");
         return;
     }
@@ -92,11 +92,11 @@ void MetadataController::AddNodeCallback(const MetaDataCb &cb)
 
 void MetadataController::ClearNodeCallback()
 {
+    std::unique_lock<std::mutex> lock(queueLock_);
     if (nodeFunc_.empty()) {
         CAMERA_LOGE("nodeFunc_ empty");
         return;
     }
-    std::unique_lock<std::mutex> lock(queueLock_);
     nodeFunc_.clear();
 }
 
@@ -229,6 +229,10 @@ bool MetadataController::UpdateSettingsConfig(const std::shared_ptr<CameraMetada
 void MetadataController::GetSettingsConfig(std::shared_ptr<CameraMetadata> &meta)
 {
     std::unique_lock<std::mutex> lock(dataConfigLock_);
+    if (metaDataConfig_ == nullptr) {
+        CAMERA_LOGE("metaDataConfig_ is nullptr.");
+        return;
+    }
     metaDataConfig_->GetMetadata(DEVICE_STREAM_ID, meta);
 }
 
@@ -277,35 +281,46 @@ bool MetadataController::FilterUpdateKeys(int32_t streamId, const std::shared_pt
 bool MetadataController::DealMetadata(int32_t streamId, const std::shared_ptr<CameraMetadata> &meta)
 {
     bool result = false;
-    if (firstNotifyNodes_.count(streamId) == 0 && streamId != DEVICE_STREAM_ID) {
-        {
-            std::unique_lock<std::mutex> lock(dataConfigLock_);
+    bool isFirstNotify = false;
+    {
+        std::unique_lock<std::mutex> lock(dataConfigLock_);
+        if (metaDataConfig_ == nullptr) {
+            CAMERA_LOGE("metaDataConfig_ is nullptr.");
+            return false;
+        }
+        isFirstNotify = (firstNotifyNodes_.count(streamId) == 0 && streamId != DEVICE_STREAM_ID);
+        if (isFirstNotify) {
             changeDataKeys_[streamId] = updateMetaDataKeys_[streamId];
             result = metaDataConfig_->UpdateSettingsConfig(streamId, true, updateMetaDataKeys_[streamId], meta);
             if (!result) {
                 CAMERA_LOGE("set metadata config fail and streamId = %{public}d", streamId);
                 return false;
             }
+            firstNotifyNodes_.insert(streamId);
         }
-        firstNotifyNodes_.insert(streamId);
-        {
-            std::unique_lock<std::mutex> lock(queueLock_);
-            queue_.push(meta);
-            cv_.notify_all();
-        }
+    }
+    if (isFirstNotify) {
+        std::unique_lock<std::mutex> lock(queueLock_);
+        queue_.push(meta);
+        cv_.notify_all();
         return true;
     }
     std::shared_ptr<CameraMetadata> metaTemp = nullptr;
+    std::vector<int32_t> updateKeysSnapshot;
     {
         std::unique_lock<std::mutex> lock(dataConfigLock_);
         if (!metaDataConfig_->GetMetadata(streamId, metaTemp)) {
             CAMERA_LOGE("get metadata fail and streamId = %{public}d", streamId);
             return false;
         }
+        auto it = updateMetaDataKeys_.find(streamId);
+        if (it != updateMetaDataKeys_.end()) {
+            updateKeysSnapshot = it->second;
+        }
     }
 
     std::shared_ptr<CameraMetadata> changeMetadata = std::make_shared<CameraMetadata>(ENTRY_CAPACITY, DATA_CAPACITY);
-    result = CompareMetadata(streamId, metaTemp, meta, changeMetadata);
+    result = CompareMetadata(streamId, updateKeysSnapshot, metaTemp, meta, changeMetadata);
     if (!result) {
         CAMERA_LOGE("compare metadata fail and streamId = %{public}d", streamId);
         return false;
@@ -320,10 +335,11 @@ bool MetadataController::DealMetadata(int32_t streamId, const std::shared_ptr<Ca
     return true;
 }
 
-bool MetadataController::CompareMetadata(int32_t streamId, const std::shared_ptr<CameraMetadata> &oldMeta,
+bool MetadataController::CompareMetadata(int32_t streamId, const std::vector<int32_t> &updateKeys,
+    const std::shared_ptr<CameraMetadata> &oldMeta,
     const std::shared_ptr<CameraMetadata> &newMeta, std::shared_ptr<CameraMetadata> &outMetadata)
 {
-    std::vector<int32_t> updateKeys;
+    std::vector<int32_t> updateKeysOut;
     std::vector<int32_t> newKeys;
     common_metadata_header_t *metadataOld = oldMeta->get();
     common_metadata_header_t *metadataNew = newMeta->get();
@@ -332,7 +348,7 @@ bool MetadataController::CompareMetadata(int32_t streamId, const std::shared_ptr
         return false;
     }
     bool result = false;
-    for (auto &metaType : updateMetaDataKeys_[streamId]) {
+    for (auto &metaType : updateKeys) {
         camera_metadata_item_t baseEntry;
         int ret = FindCameraMetadataItem(metadataOld, metaType, &baseEntry);
         if (ret != 0) {
@@ -348,9 +364,9 @@ bool MetadataController::CompareMetadata(int32_t streamId, const std::shared_ptr
         }
         bool isChange = IsChangeTagData(metaType, baseEntry, newEntry);
         if (isChange) {
-            updateKeys.push_back(OHOS_CAMERA_STREAM_ID);
-            updateKeys.push_back(metaType);
-            result = UpdateNewTagData(updateKeys, newMeta, outMetadata);
+            updateKeysOut.push_back(OHOS_CAMERA_STREAM_ID);
+            updateKeysOut.push_back(metaType);
+            result = UpdateNewTagData(updateKeysOut, newMeta, outMetadata);
             if (!result) {
                 CAMERA_LOGE("compare update change meta failed.");
                 return false;
@@ -358,7 +374,7 @@ bool MetadataController::CompareMetadata(int32_t streamId, const std::shared_ptr
         }
     }
 
-    if (updateKeys.size() == 0 && newKeys.size() == 0) {
+    if (updateKeysOut.size() == 0 && newKeys.size() == 0) {
         CAMERA_LOGW("ignore meta data");
         return false;
     }
@@ -367,10 +383,10 @@ bool MetadataController::CompareMetadata(int32_t streamId, const std::shared_ptr
         newKeys.push_back(OHOS_CAMERA_STREAM_ID);
     }
 
-    if (updateKeys.size() > 0) {
-        updateKeys.push_back(OHOS_CAMERA_STREAM_ID);
+    if (updateKeysOut.size() > 0) {
+        updateKeysOut.push_back(OHOS_CAMERA_STREAM_ID);
     }
-    return UpdateChangeMetadata(streamId, updateKeys, newKeys, newMeta, outMetadata);
+    return UpdateChangeMetadata(streamId, updateKeysOut, newKeys, newMeta, outMetadata);
 }
 
 bool MetadataController::UpdateChangeMetadata(int32_t streamId, const std::vector<int32_t> &updateKeys,
@@ -576,63 +592,74 @@ void MetadataController::DealMessage()
 
 void MetadataController::SetDeviceDefaultMetadata(std::shared_ptr<CameraMetadata> &meta)
 {
-    if (isInit_) {
+    if (isInit_.exchange(true)) {
         CAMERA_LOGE("already set device default meta data.");
         return;
     }
-    isInit_ = true;
-    if (metaDataConfig_ != nullptr) {
-        metaDataConfig_.reset();
-    }
-    metaDataConfig_ = std::make_shared<MetadataConfig>();
-    metaDataConfig_->GetDeviceDefaultMetadata(meta);
+    std::shared_ptr<MetadataConfig> metaDataConfig = std::make_shared<MetadataConfig>();
+    metaDataConfig->GetDeviceDefaultMetadata(meta);
     FilterUpdateKeys(DEVICE_STREAM_ID, meta);
-    metaDataConfig_->UpdateSettingsConfig(DEVICE_STREAM_ID, true, updateMetaDataKeys_[DEVICE_STREAM_ID], meta);
+    std::unique_lock<std::mutex> lock(dataConfigLock_);
+    metaDataConfig_ = metaDataConfig;
+    metaDataConfig->UpdateSettingsConfig(DEVICE_STREAM_ID, true, updateMetaDataKeys_[DEVICE_STREAM_ID], meta);
 }
 
 void MetadataController::Start()
 {
-    if (!isInit_) {
+    if (!isInit_.load()) {
         CAMERA_LOGE("already start.");
         return;
     }
-    peerFrame_ = true;
-    updateSettingFunc_ = nullptr;
-
-    abilityMetaData_.clear();
+    {
+        std::unique_lock<std::mutex> lock(dataConfigLock_);
+        peerFrame_ = true;
+        updateSettingFunc_ = nullptr;
+        abilityMetaData_.clear();
+    }
 
     if (isRunning_.load()) {
-        isRunning_.store(false);
+        {
+            std::unique_lock<std::mutex> lock(queueLock_);
+            isRunning_.store(false);
+            cv_.notify_all();
+        }
     }
-    cv_.notify_all();
     StopThread();
 
-    isRunning_.store(true);
+    {
+        std::unique_lock<std::mutex> lock(queueLock_);
+        isRunning_.store(true);
+        std::queue<std::shared_ptr<CameraMetadata>> empty;
+        swap(empty, queue_);
+        nodeFunc_.clear();
+    }
 
-    std::queue<std::shared_ptr<CameraMetadata>> empty;
-    swap(empty, queue_);
+    {
+        std::unique_lock<std::mutex> lock(dataConfigLock_);
+        firstNotifyNodes_.clear();
+        updateMetaDataKeys_.clear();
+        changeDataKeys_.clear();
+    }
 
-    nodeFunc_.clear();
-    firstNotifyNodes_.clear();
-    updateMetaDataKeys_.clear();
-    changeDataKeys_.clear();
-
-    if (notifyChangedMetadata_ == nullptr) {
-        notifyChangedMetadata_ = new (std::nothrow) std::thread([this] { this->DealMessage(); });
+    {
+        std::unique_lock<std::mutex> lock(queueLock_);
         if (notifyChangedMetadata_ == nullptr) {
-            CAMERA_LOGE("notifyChangedMetadata_ create failed\n");
-            return;
+            notifyChangedMetadata_ = new (std::nothrow) std::thread([this] { this->DealMessage(); });
+            if (notifyChangedMetadata_ == nullptr) {
+                CAMERA_LOGE("notifyChangedMetadata_ create failed\n");
+                isRunning_.store(false);
+                return;
+            }
         }
     }
 }
 
 void MetadataController::Stop()
 {
-    if (!isInit_) {
+    if (!isInit_.exchange(false)) {
         CAMERA_LOGE("invalid stop.");
         return;
     }
-    isInit_ = false;
 
     {
         std::unique_lock<std::mutex> lock(queueLock_);
@@ -646,10 +673,15 @@ void MetadataController::Stop()
 
 void MetadataController::StopThread()
 {
-    if (notifyChangedMetadata_ != nullptr) {
-        notifyChangedMetadata_->join();
-        delete notifyChangedMetadata_;
+    std::thread *thread = nullptr;
+    {
+        std::unique_lock<std::mutex> lock(queueLock_);
+        thread = notifyChangedMetadata_;
         notifyChangedMetadata_ = nullptr;
+    }
+    if (thread != nullptr) {
+        thread->join();
+        delete thread;
     }
 }
 

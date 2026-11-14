@@ -17,6 +17,7 @@
 #define METADATA_CONTROLLER_H
 
 #include "metadata_config.h"
+#include <atomic>
 #include <list>
 #include <mutex>
 #include <queue>
@@ -58,7 +59,8 @@ private:
     int32_t GetStreamId(const std::shared_ptr<CameraMetadata> &meta);
     bool FilterUpdateKeys(int32_t streamId, const std::shared_ptr<CameraMetadata> &meta);
     bool DealMetadata(int32_t streamId, const std::shared_ptr<CameraMetadata> &meta);
-    bool CompareMetadata(int32_t streamId, const std::shared_ptr<CameraMetadata> &oldMeta,
+    bool CompareMetadata(int32_t streamId, const std::vector<int32_t> &updateKeys,
+        const std::shared_ptr<CameraMetadata> &oldMeta,
         const std::shared_ptr<CameraMetadata> &newMeta, std::shared_ptr<CameraMetadata> &outMetadata);
     bool UpdateChangeMetadata(int32_t streamId, const std::vector<int32_t> &updateKeys,
         const std::vector<int32_t> &newKeys, const std::shared_ptr<CameraMetadata> &newMeta,
@@ -88,7 +90,7 @@ private:
     std::queue<std::shared_ptr<CameraMetadata>> queue_;
     std::atomic_bool isRunning_;
     std::thread *notifyChangedMetadata_ = nullptr;
-    bool isInit_ = false;
+    std::atomic_bool isInit_ = false;
     bool isMute_ = false;
 #ifdef V4L2_EMULATOR
     int32_t rotateAngle_ = 0;

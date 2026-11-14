@@ -32,9 +32,13 @@ ohos_unittest("camera_security_ut") {
   module_out_path = module_output_path
   sources = [
     "exif_utils_capacity_test.cpp",
+    "fermi_concurrency_test.cpp",
     "stream_callback_death_test.cpp",
     "$camera_path/../../hdi_service/v1_0/src/stream_operator_service_callback.cpp",
     "$camera_path/../../hdi_service/v1_0/src/camera_service_type_converter.cpp",
+    "$camera_path/../v4l2/src/stream_operator/capture_request.cpp",
+    "$camera_path/../v4l2/src/stream_operator/stream_tunnel/standard/stream_tunnel.cpp",
+    "$camera_path/../v4l2/src/stream_operator/stream_statistics.cpp",
   ]
 
   include_dirs = [
@@ -43,10 +47,28 @@ ohos_unittest("camera_security_ut") {
     "$camera_path/../../hdi_service/v1_0/include",
     "$camera_path/../interfaces",
     "$camera_path/../interfaces/v1_0",
+    "$camera_path/../../interfaces/include",
+    "$camera_path/metadata_manager/include",
+    "$camera_path/../v4l2/include/stream_operator",
+    "$camera_path/../v4l2/include/camera_host",
+    "$camera_path/../v4l2/include/camera_device",
+    "$camera_path/../v4l2/src/stream_operator/stream_tunnel/standard",
+    "$camera_path/pipeline_core",
+    "$camera_path/pipeline_core/host_stream/include",
+    "$camera_path/pipeline_core/utils",
+    "$camera_path/pipeline_core/include",
+    "$camera_path/pipeline_core/pipeline_impl/include",
+    "$camera_path/pipeline_core/ipp/include",
+    "$camera_path/device_manager/include",
+    "$camera_path/buffer_manager/src/buffer_adapter/standard",
+    "$camera_path/dump/include",
+    "$camera_path/utils/event",
   ]
 
   deps = [
     "$camera_path/utils:peripheral_camera_utils",
+    "$camera_path/metadata_manager:peripheral_camera_metadata_manager",
+    "$camera_path/buffer_manager:peripheral_camera_buffer_manager",
   ]
 
   external_deps = [
@@ -59,7 +81,9 @@ ohos_unittest("camera_security_ut") {
     "googletest:gtest_main",
     "graphic_surface:surface",
     "hdf_core:libhdf_utils",
+    "hdf_core:libhdf_host",
     "hilog:libhilog",
+    "hisysevent:libhisysevent",
     "bounds_checking_function:libsec_shared",
     "ipc:ipc_single",
     "libexif:libexif",

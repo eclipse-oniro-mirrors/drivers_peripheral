@@ -69,12 +69,20 @@ RetCode CaptureRequest::OnResult(const int32_t id)
 
 void CaptureRequest::DisableSync()
 {
-    std::lock_guard<std::mutex> l(lock_);
-    ownerCount_ = 1;
-    semp_->needSync = false;
-    semp_->cv_.notify_all();
-    semr_->needSync = false;
-    semr_->cv_.notify_all();
+    {
+        std::lock_guard<std::mutex> l(lock_);
+        ownerCount_ = 1;
+    }
+    {
+        std::lock_guard<std::mutex> l(semp_->sem_);
+        semp_->needSync = false;
+        semp_->cv_.notify_all();
+    }
+    {
+        std::lock_guard<std::mutex> l(semr_->sem_);
+        semr_->needSync = false;
+        semr_->cv_.notify_all();
+    }
 }
 
 uint32_t CaptureRequest::GetOwnerCount()
@@ -163,14 +171,14 @@ CaptureRequest::RequestSemaphore::~RequestSemaphore()
 
 void CaptureRequest::RequestSemaphore::Sync()
 {
-    if (!needSync) {
+    if (!needSync.load()) {
         return;
     }
 
     syncCount_++;
     if (syncCount_ < ownerCount_) {
         std::unique_lock<std::mutex> l(sem_);
-        cv_.wait(l);
+        cv_.wait(l, [this] { return !needSync.load() || syncCount_ == 0; });
     } else {
         std::unique_lock<std::mutex> l(sem_);
         syncCount_ = 0;
