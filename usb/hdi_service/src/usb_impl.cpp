@@ -947,11 +947,7 @@ int32_t UsbImpl::UsbdPnpNotifyAddAndRemoveDevice(HdfSBuf *data, UsbdSubscriber *
         HDF_LOGE("%{public}s super is nullptr", __func__);
         return HDF_ERR_INVALID_PARAM;
     }
-    sptr<IUsbdSubscriber> subscriber = nullptr;
-    {
-        std::shared_lock<std::shared_mutex> lock(subscribersMutex_);
-        subscriber = usbdSubscriber->subscriber;
-    }
+    sptr<IUsbdSubscriber> subscriber = GetUsbdSubscriber(usbdSubscriber);
 
     uint32_t infoSize;
     UsbPnpNotifyMatchInfoTable *infoTable = nullptr;
@@ -1001,14 +997,63 @@ int32_t UpdatePort(uint32_t mode, const sptr<IUsbdSubscriber> subscriber)
     return UsbdPort::GetInstance().UpdatePort(mode, subscriber);
 }
 
+sptr<IUsbdSubscriber> UsbImpl::GetUsbdSubscriber(UsbdSubscriber *usbdSubscriber)
+{
+    std::shared_lock<std::shared_mutex> lock(subscribersMutex_);
+    return usbdSubscriber->subscriber;
+}
+
+int32_t UsbImpl::FindSubscriberIndex(const sptr<IRemoteObject> &remote)
+{
+    for (int32_t i = 0; i < MAX_SUBSCRIBER; i++) {
+        if (subscribers_[i].remote == remote) {
+            return i;
+        }
+    }
+    return MAX_SUBSCRIBER;
+}
+
+int32_t UsbImpl::FindFreeSubscriberIndex()
+{
+    for (int32_t i = 0; i < MAX_SUBSCRIBER; i++) {
+        if (subscribers_[i].subscriber == nullptr) {
+            return i;
+        }
+    }
+    return MAX_SUBSCRIBER;
+}
+
+int32_t UsbImpl::RegisterSubscriber(int32_t i, const sptr<IUsbdSubscriber> &subscriber,
+    const sptr<IRemoteObject> &remote)
+{
+    subscribers_[i].subscriber = subscriber;
+    subscribers_[i].impl = this;
+    subscribers_[i].usbPnpListener.callBack = UsbdPnpLoaderEventReceived;
+    subscribers_[i].usbPnpListener.priv = &subscribers_[i];
+    subscribers_[i].remote = remote;
+    auto *recipient = new UsbImpl::UsbDeathRecipient(subscriber);
+    if (recipient == nullptr) {
+        HDF_LOGE("%{public}s: new deathRecipient failed", __func__);
+        subscribers_[i].subscriber = nullptr;
+        return HDF_FAILURE;
+    }
+    subscribers_[i].deathRecipient = recipient;
+    bool result = subscribers_[i].remote->AddDeathRecipient(recipient);
+    if (!result) {
+        HDF_LOGE("%{public}s:AddUsbDeathRecipient failed", __func__);
+        delete recipient;
+        subscribers_[i].deathRecipient = nullptr;
+        subscribers_[i].subscriber = nullptr;
+        return HDF_FAILURE;
+    }
+    HDF_LOGI("%{public}s: index = %{public}d", __func__, i);
+    return HDF_SUCCESS;
+}
+
 int32_t UsbImpl::UsbdPnpLoaderEventReceived(void *priv, uint32_t id, HdfSBuf *data)
 {
     UsbdSubscriber *usbdSubscriber = static_cast<UsbdSubscriber *>(priv);
-    sptr<IUsbdSubscriber> subscriber = nullptr;
-    {
-        std::shared_lock<std::shared_mutex> lock(subscribersMutex_);
-        subscriber = usbdSubscriber->subscriber;
-    }
+    sptr<IUsbdSubscriber> subscriber = GetUsbdSubscriber(usbdSubscriber);
 
     if (id == USB_PNP_DRIVER_GADGET_ADD) {
         HITRACE_METER_NAME(HITRACE_TAG_HDF, "USB_PNP_DRIVER_GADGET_ADD");
@@ -2285,54 +2330,26 @@ int32_t UsbImpl::QueryPort(int32_t &portId, int32_t &powerRole, int32_t &dataRol
 
 int32_t UsbImpl::BindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
 {
-    int32_t i;
     if (subscriber == nullptr) {
         HDF_LOGE("%{public}s:subscriber is  null", __func__);
         return HDF_ERR_INVALID_PARAM;
     }
     std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
     const sptr<IRemoteObject> &remote = OHOS::HDI::hdi_objcast<IUsbdSubscriber>(subscriber);
-    for (i = 0; i < MAX_SUBSCRIBER; i++) {
-        if (subscribers_[i].remote == remote) {
-            break;
-        }
-    }
+    int32_t i = FindSubscriberIndex(remote);
     if (i < MAX_SUBSCRIBER) {
         HDF_LOGI("%{public}s: current subscriber was bind", __func__);
         return HDF_SUCCESS;
     }
-    for (i = 0; i < MAX_SUBSCRIBER; i++) {
-        if (subscribers_[i].subscriber == nullptr) {
-            subscribers_[i].subscriber = subscriber;
-            subscribers_[i].impl = this;
-            subscribers_[i].usbPnpListener.callBack = UsbdPnpLoaderEventReceived;
-            subscribers_[i].usbPnpListener.priv = &subscribers_[i];
-            subscribers_[i].remote = remote;
-            auto *recipient = new UsbImpl::UsbDeathRecipient(subscriber);
-            if (recipient == nullptr) {
-                HDF_LOGE("%{public}s: new deathRecipient failed", __func__);
-                subscribers_[i].subscriber = nullptr;
-                return HDF_FAILURE;
-            }
-            subscribers_[i].deathRecipient = recipient;
-            bool result = subscribers_[i].remote->AddDeathRecipient(recipient);
-            if (!result) {
-                HDF_LOGE("%{public}s:AddUsbDeathRecipient failed", __func__);
-                delete recipient;
-                subscribers_[i].deathRecipient = nullptr;
-                subscribers_[i].subscriber = nullptr;
-                return HDF_FAILURE;
-            }
-
-            HDF_LOGI("%{public}s: index = %{public}d", __func__, i);
-            break;
-        }
-    }
+    i = FindFreeSubscriberIndex();
     if (i == MAX_SUBSCRIBER) {
         HDF_LOGE("%{public}s: too many listeners", __func__);
         return HDF_ERR_OUT_OF_RANGE;
     }
-
+    int32_t ret = RegisterSubscriber(i, subscriber, remote);
+    if (ret != HDF_SUCCESS) {
+        return ret;
+    }
     if (DdkListenerMgrAdd(&subscribers_[i].usbPnpListener) != HDF_SUCCESS) {
         HDF_LOGE("%{public}s: register listerer failed", __func__);
         return HDF_FAILURE;
