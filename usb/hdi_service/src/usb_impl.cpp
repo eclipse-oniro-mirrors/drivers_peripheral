@@ -70,6 +70,7 @@ HdfDevEventlistener UsbImpl::listenerForLoadService_ = {nullptr};
 UsbdLoadService UsbImpl::loadUsbService_ = {USB_SYSTEM_ABILITY_ID};
 UsbdLoadService UsbImpl::loadHdfEdm_ = {HDF_EXTERNAL_DEVICE_MANAGER_SA_ID};
 UsbdSubscriber UsbImpl::subscribers_[MAX_SUBSCRIBER] = {{0}};
+std::shared_mutex UsbImpl::subscribersMutex_;
 bool UsbImpl::isGadgetConnected_ = false;
 uint32_t UsbImpl::attachCount_ = 0;
 uint32_t UsbImpl::attachFailedCount_ = 0;
@@ -946,7 +947,11 @@ int32_t UsbImpl::UsbdPnpNotifyAddAndRemoveDevice(HdfSBuf *data, UsbdSubscriber *
         HDF_LOGE("%{public}s super is nullptr", __func__);
         return HDF_ERR_INVALID_PARAM;
     }
-    const sptr<IUsbdSubscriber> subscriber = usbdSubscriber->subscriber;
+    sptr<IUsbdSubscriber> subscriber = nullptr;
+    {
+        std::shared_lock<std::shared_mutex> lock(subscribersMutex_);
+        subscriber = usbdSubscriber->subscriber;
+    }
 
     uint32_t infoSize;
     UsbPnpNotifyMatchInfoTable *infoTable = nullptr;
@@ -999,7 +1004,11 @@ int32_t UpdatePort(uint32_t mode, const sptr<IUsbdSubscriber> subscriber)
 int32_t UsbImpl::UsbdPnpLoaderEventReceived(void *priv, uint32_t id, HdfSBuf *data)
 {
     UsbdSubscriber *usbdSubscriber = static_cast<UsbdSubscriber *>(priv);
-    const sptr<IUsbdSubscriber> subscriber = usbdSubscriber->subscriber;
+    sptr<IUsbdSubscriber> subscriber = nullptr;
+    {
+        std::shared_lock<std::shared_mutex> lock(subscribersMutex_);
+        subscriber = usbdSubscriber->subscriber;
+    }
 
     if (id == USB_PNP_DRIVER_GADGET_ADD) {
         HITRACE_METER_NAME(HITRACE_TAG_HDF, "USB_PNP_DRIVER_GADGET_ADD");
@@ -2281,6 +2290,7 @@ int32_t UsbImpl::BindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
         HDF_LOGE("%{public}s:subscriber is  null", __func__);
         return HDF_ERR_INVALID_PARAM;
     }
+    std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
     const sptr<IRemoteObject> &remote = OHOS::HDI::hdi_objcast<IUsbdSubscriber>(subscriber);
     for (i = 0; i < MAX_SUBSCRIBER; i++) {
         if (subscribers_[i].remote == remote) {
@@ -2336,6 +2346,7 @@ int32_t UsbImpl::UnbindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
         HDF_LOGE("%{public}s:subscriber is  null", __func__);
         return HDF_ERR_INVALID_PARAM;
     }
+    std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
     int32_t i;
     const sptr<IRemoteObject> &remote = OHOS::HDI::hdi_objcast<IUsbdSubscriber>(subscriber);
     for (i = 0; i < MAX_SUBSCRIBER; i++) {
@@ -2365,6 +2376,7 @@ int32_t UsbImpl::UnbindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
 
 void UsbImpl::UsbDeathRecipient::OnRemoteDied(const wptr<IRemoteObject> &object)
 {
+    std::unique_lock<std::shared_mutex> lock(UsbImpl::subscribersMutex_);
     int32_t i;
     for (i = 0; i < MAX_SUBSCRIBER; i++) {
         if (UsbImpl::subscribers_[i].subscriber == deathSubscriber_) {
