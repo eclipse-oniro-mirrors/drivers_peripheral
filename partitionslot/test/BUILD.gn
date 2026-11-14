@@ -25,6 +25,7 @@ ohos_unittest("partitionslot_hdi_test") {
     "hdf_core:libhdf_utils",
     "hdf_core:libhdi",
     "hilog:libhilog",
+    "init:libbegetutil",
   ]
 }
 

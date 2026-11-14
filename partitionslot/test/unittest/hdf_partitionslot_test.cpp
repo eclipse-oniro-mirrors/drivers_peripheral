@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include "hdf_log.h"
 #include "idevmgr_hdi.h"
+#include "param_wrapper.h"
 #include "v1_0/ipartition_slot.h"
 
 namespace OHOS {
@@ -73,6 +74,11 @@ HWTEST_F(HDFPartitionSlotTest, HdfPartitionSlotTest_002, TestSize.Level1)
 
 HWTEST_F(HDFPartitionSlotTest, HdfPartitionSlotTest_003, TestSize.Level1)
 {
+    int32_t bootSlots = OHOS::system::GetIntParameter("ohos.boot.bootslots", 1);
+    if (bootSlots <= 1) {
+        GTEST_SKIP() << "A/B partition not supported (bootslots=" << bootSlots << ")";
+        return;
+    }
     std::cout << "begin set active slot by service" << std::endl;
     int numOfSlots = 0;
     int currentSlot = 0;
@@ -85,6 +91,11 @@ HWTEST_F(HDFPartitionSlotTest, HdfPartitionSlotTest_003, TestSize.Level1)
 
 HWTEST_F(HDFPartitionSlotTest, HdfPartitionSlotTest_004, TestSize.Level1)
 {
+    int32_t bootSlots = OHOS::system::GetIntParameter("ohos.boot.bootslots", 1);
+    if (bootSlots <= 1) {
+        GTEST_SKIP() << "A/B partition not supported (bootslots=" << bootSlots << ")";
+        return;
+    }
     std::cout << "begin set unbootable slot by service" << std::endl;
     sptr<IPartitionSlot> partitionslot = IPartitionSlot::Get();
     ASSERT_TRUE(partitionslot != nullptr);
