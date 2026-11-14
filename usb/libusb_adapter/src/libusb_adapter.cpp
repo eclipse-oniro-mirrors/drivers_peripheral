@@ -3093,11 +3093,6 @@ int32_t LibusbAdapter::RegBulkCallback(const UsbDev &dev, const UsbPipe &pipe, c
         HDF_LOGE("%{public}s: cb is nullptr", __func__);
         return HDF_FAILURE;
     }
-    LibusbBulkTransfer *bulkTransfer = new(std::nothrow) LibusbBulkTransfer();
-    if (bulkTransfer == nullptr) {
-        HDF_LOGE("%{public}s: bulkTransfer is nullptr", __func__);
-        return HDF_FAILURE;
-    }
     std::lock_guard<std::mutex> lock(g_bulkManager.bulkTransferVecLock);
     auto it = std::find_if(
         g_bulkManager.bulktransferVec.begin(), g_bulkManager.bulktransferVec.end(),
@@ -3106,22 +3101,33 @@ int32_t LibusbAdapter::RegBulkCallback(const UsbDev &dev, const UsbPipe &pipe, c
     });
     if (it == g_bulkManager.bulktransferVec.end()) {
         HDF_LOGE("%{public}s: Wrapper not found, device does not exist", __func__);
-        delete bulkTransfer;
-        bulkTransfer = nullptr;
         return HDF_FAILURE;
     }
     LibusbBulkWrapper* wrapper = it->second;
     if (wrapper == nullptr) {
         HDF_LOGE("%{public}s: Wrapper is nullptr", __func__);
-        delete bulkTransfer;
-        bulkTransfer = nullptr;
+        return HDF_FAILURE;
+    }
+    std::lock_guard<std::mutex> listLock(wrapper->bulkTransferLock);
+    auto transferIt = std::find_if(
+        wrapper->bulkTransferList.begin(), wrapper->bulkTransferList.end(),
+        [&pipe](const auto& pair) {
+            return pair.second->endpoint == pipe.endpointId;
+    });
+    if (transferIt != wrapper->bulkTransferList.end()) {
+        HDF_LOGI("%{public}s: endpoint already registered, update callback", __func__);
+        transferIt->first->bulkCbRef = cb;
+        return HDF_SUCCESS;
+    }
+    LibusbBulkTransfer *bulkTransfer = new(std::nothrow) LibusbBulkTransfer();
+    if (bulkTransfer == nullptr) {
+        HDF_LOGE("%{public}s: bulkTransfer is nullptr", __func__);
         return HDF_FAILURE;
     }
     bulkTransfer->busNum = dev.busNum;
     bulkTransfer->devAddr = dev.devAddr;
     bulkTransfer->bulkCbRef = cb;
     bulkTransfer->bulkTransferRef->endpoint = pipe.endpointId;
-    std::lock_guard<std::mutex> listLock(wrapper->bulkTransferLock);
     wrapper->bulkTransferList.emplace(bulkTransfer, bulkTransfer->bulkTransferRef);
     return HDF_SUCCESS;
 }
@@ -3164,6 +3170,9 @@ int32_t LibusbAdapter::UnRegBulkCallback(const UsbDev &dev, const UsbPipe &pipe)
         return HDF_FAILURE;
     }
     transferCancle->bulkCbRef = nullptr;
+    wrapper->bulkTransferList.erase(transferIt);
+    delete transferCancle;
+    transferCancle = nullptr;
     return HDF_SUCCESS;
 }
 
