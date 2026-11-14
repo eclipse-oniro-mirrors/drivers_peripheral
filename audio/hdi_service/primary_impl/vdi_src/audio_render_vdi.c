@@ -101,12 +101,12 @@ int32_t AudioGetLatencyVdi(struct IAudioRender *render, uint32_t *ms)
         return HDF_ERR_INVALID_PARAM;
     }
 
-    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     HdfAudioStartTrace("Hdi:AudioGetLatencyVdi", 0);
     struct timeval startTime = AudioDfxSysEventGetTimeStamp();
     int32_t ret = vdiRender->GetLatency(vdiRender, ms);
     AudioDfxSysEventError("Render GetLatency", startTime, TIME_THRESHOLD, ret);
     HdfAudioFinishTrace();
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio GetLatency fail, ret=%{public}d", ret);
         return ret;
