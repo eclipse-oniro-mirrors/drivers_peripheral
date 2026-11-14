@@ -3041,6 +3041,10 @@ void LibusbAdapter::ClearBulkTranfer(LibusbBulkWrapper *bulkWrapper)
             continue;
         }
         if (bulkTransfer->bulkTransferRef != nullptr) {
+            if (bulkTransfer->bulkTransferRef->buffer != nullptr) {
+                OsalMemFree(bulkTransfer->bulkTransferRef->buffer);
+                bulkTransfer->bulkTransferRef->buffer = nullptr;
+            }
             HDF_LOGI("%{public}s: clear bulk tranfer libusb free transfer", __func__);
             libusb_free_transfer(bulkTransfer->bulkTransferRef);
             bulkTransfer->bulkTransferRef = nullptr;
