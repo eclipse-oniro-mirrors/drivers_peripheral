@@ -45,7 +45,10 @@ static pthread_mutex_t g_adapterInfoLock = PTHREAD_MUTEX_INITIALIZER;
 
 struct AudioAdapterDescriptor *AudioAdapterGetConfigDescs(void)
 {
-    return g_audioAdapterDescs;
+    pthread_mutex_lock(&g_adapterInfoLock);
+    struct AudioAdapterDescriptor *descs = g_audioAdapterDescs;
+    pthread_mutex_unlock(&g_adapterInfoLock);
+    return descs;
 }
 
 int32_t AudioAdapterGetAdapterNum(void)
