@@ -719,6 +719,10 @@ int32_t AudioAdapterDestroyRender(struct IAudioAdapter *adapter, uint32_t render
     struct IAudioRender *render = (struct IAudioRender *)hwAdapter->infos.renderServicePtr[renderId];
     hwAdapter->infos.renderServicePtr[renderId] = NULL;
     pthread_mutex_unlock(&hwAdapter->infosLock);
+    if (render == NULL) {
+        AUDIO_FUNC_LOGE("render is null");
+        return HDF_ERR_INVALID_PARAM;
+    }
     StubCollectorRemoveObject(IAUDIORENDER_INTERFACE_DESC, render);
 
     struct AudioHwRender *hwRender = (struct AudioHwRender *)render;
