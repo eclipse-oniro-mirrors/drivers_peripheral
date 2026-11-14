@@ -490,6 +490,20 @@ static struct UsbHandleMgr *GetHandleMgr(const struct UsbFnInterfaceMgr *intfMgr
     return NULL;
 }
 
+static struct UsbFnInterfaceMgr *GetInterfaceMgrByFunc(const struct UsbFnDeviceMgr *devMgr,
+    const struct UsbFnFuncMgr *funcMgr)
+{
+    if (devMgr == NULL) {
+        return NULL;
+    }
+    for (uint8_t i = 0; i < devMgr->fnDev.numInterfaces; i++) {
+        if (devMgr->interfaceMgr[i].funcMgr == funcMgr) {
+            return &devMgr->interfaceMgr[i];
+        }
+    }
+    return NULL;
+}
+
 static void HandleEp0Event(const struct UsbFnDeviceMgr *devMgr, struct UsbFnEventAll event)
 {
     uint8_t i;
@@ -500,11 +514,18 @@ static void HandleEp0Event(const struct UsbFnDeviceMgr *devMgr, struct UsbFnEven
             HDF_LOGE("%{public}s:%{public}d GetFuncMgr failed.", __func__, __LINE__);
             return;
         }
+        struct UsbFnInterfaceMgr *interfaceMgr = GetInterfaceMgrByFunc(devMgr, funcMgr);
+        if (interfaceMgr == NULL) {
+            HDF_LOGE("%{public}s:%{public}d GetInterfaceMgrByFunc failed.", __func__, __LINE__);
+            continue;
+        }
+        (void)OsalMutexLock(&interfaceMgr->handleLock);
         if (event.ep0Event[i].type == USB_EP0_CTRL_EVENT) {
             HandleEp0CtrlEvent(funcMgr, &event.ep0Event[i].ctrlEvent);
         } else if (event.ep0Event[i].type == USB_EP0_IO_COMPLETED) {
             HandleEp0IoEvent(funcMgr, &event.ep0Event[i].reqEvent);
         }
+        (void)OsalMutexUnlock(&interfaceMgr->handleLock);
     }
 }
 
@@ -643,17 +664,21 @@ int32_t UsbFnStopRecvEvent(struct UsbFnInterface *interface)
     struct UsbFnAdapterOps *fnOps = UsbFnAdapterGetOps();
     struct UsbFnInterfaceMgr *interfaceMgr = (struct UsbFnInterfaceMgr *)interface;
     struct UsbFnFuncMgr *funcMgr = interfaceMgr->funcMgr;
+    (void)OsalMutexLock(&interfaceMgr->handleLock);
     ret = fnOps->queueDel(funcMgr->fd);
     if (ret) {
         HDF_LOGE("%{public}s:%{public}d queueDel failed, ret = %{public}d ", __func__, __LINE__, ret);
+        (void)OsalMutexUnlock(&interfaceMgr->handleLock);
         return HDF_ERR_DEVICE_BUSY;
     }
     ret = fnOps->closePipe(funcMgr->fd);
     if (ret) {
         HDF_LOGE("%{public}s:%{public}d closePipe failed, ret = %{public}d ", __func__, __LINE__, ret);
+        (void)OsalMutexUnlock(&interfaceMgr->handleLock);
         return HDF_ERR_DEVICE_BUSY;
     }
     funcMgr->fd = -1;
     funcMgr->callback = NULL;
+    (void)OsalMutexUnlock(&interfaceMgr->handleLock);
     return 0;
 }
