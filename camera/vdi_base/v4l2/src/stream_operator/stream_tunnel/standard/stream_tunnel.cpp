@@ -35,13 +35,16 @@ StreamTunnel::~StreamTunnel()
 RetCode StreamTunnel::AttachBufferQueue(OHOS::sptr<OHOS::IBufferProducer>& producer)
 {
     CHECK_IF_PTR_NULL_RETURN_VALUE(producer, RC_ERROR);
-    bufferQueue_ = OHOS::Surface::CreateSurfaceAsProducer(producer);
-    CHECK_IF_PTR_NULL_RETURN_VALUE(bufferQueue_, RC_ERROR);
+    OHOS::sptr<OHOS::Surface> bufferQueue = OHOS::Surface::CreateSurfaceAsProducer(producer);
+    CHECK_IF_PTR_NULL_RETURN_VALUE(bufferQueue, RC_ERROR);
+    std::lock_guard<std::mutex> l(lock_);
+    bufferQueue_ = bufferQueue;
     return RC_OK;
 }
 
 RetCode StreamTunnel::DetachBufferQueue()
 {
+    std::lock_guard<std::mutex> l(lock_);
     bufferQueue_ = nullptr;
     return RC_OK;
 }
@@ -56,7 +59,9 @@ void StreamTunnel::CleanBuffers()
 
     std::lock_guard<std::mutex> l(lock_);
     buffers.clear();
-    bufferQueue_->CleanCache();
+    if (bufferQueue_ != nullptr) {
+        bufferQueue_->CleanCache();
+    }
     index = -1;
     lastReturnedBuffer_ = nullptr;
     outstandingIndices_.clear();
@@ -66,7 +71,12 @@ const int32_t BLOB_MAX_SIZE = 24 * 1024 * 1024;
 
 std::shared_ptr<IBuffer> StreamTunnel::GetBuffer()
 {
-    CHECK_IF_PTR_NULL_RETURN_VALUE(bufferQueue_, nullptr);
+    OHOS::sptr<OHOS::Surface> bufferQueue = nullptr;
+    {
+        std::lock_guard<std::mutex> l(lock_);
+        bufferQueue = bufferQueue_;
+    }
+    CHECK_IF_PTR_NULL_RETURN_VALUE(bufferQueue, nullptr);
     OHOS::sptr<OHOS::SurfaceBuffer> sb = nullptr;
     int32_t fence = 0;
     constexpr int32_t sleepTime = 2000;
@@ -74,7 +84,7 @@ std::shared_ptr<IBuffer> StreamTunnel::GetBuffer()
     OHOS::SurfaceError sfError = OHOS::SURFACE_ERROR_OK;
     auto tmpConfig = requestConfig_;
     do {
-        sfError = bufferQueue_->RequestBuffer(sb, fence, tmpConfig);
+        sfError = bufferQueue->RequestBuffer(sb, fence, tmpConfig);
         if (sfError == OHOS::SURFACE_ERROR_NO_BUFFER) {
             std::unique_lock<std::mutex> l(waitLock_);
             waitCV_.wait(l, [this] { return wakeup_ == true; });
@@ -92,7 +102,7 @@ std::shared_ptr<IBuffer> StreamTunnel::GetBuffer()
 
     if (stop_) {
         if (sb != nullptr) {
-            int ret = bufferQueue_->CancelBuffer(sb);
+            int ret = bufferQueue->CancelBuffer(sb);
             stats_.CancelBufferResult(ret);
         }
         return nullptr;
@@ -159,10 +169,15 @@ static void PrepareBufferBeforeFlush(const std::shared_ptr<IBuffer>& buffer, con
 RetCode StreamTunnel::PutBuffer(const std::shared_ptr<IBuffer>& buffer)
 {
     CHECK_IF_PTR_NULL_RETURN_VALUE(buffer, RC_ERROR);
-    CHECK_IF_PTR_NULL_RETURN_VALUE(bufferQueue_, RC_ERROR);
+    OHOS::sptr<OHOS::Surface> bufferQueue = nullptr;
     OHOS::sptr<OHOS::SurfaceBuffer> sb = nullptr;
     {
         std::lock_guard<std::mutex> l(lock_);
+        bufferQueue = bufferQueue_;
+        if (bufferQueue == nullptr) {
+            CAMERA_LOGE("bufferQueue_ is null.");
+            return RC_ERROR;
+        }
         auto it = buffers.find(buffer);
         if (it == buffers.end()) {
             CAMERA_LOGE("buffer [%{public}d] doesn't belong to this tunnel.", buffer->GetIndex());
@@ -183,13 +198,13 @@ RetCode StreamTunnel::PutBuffer(const std::shared_ptr<IBuffer>& buffer)
         sb->GetExtraData()->ExtraGet(OHOS::Camera::timeStamp, timestamp);
         flushConfig_.timestamp = timestamp;
         int32_t fence = -1;
-        int ret = bufferQueue_->FlushBuffer(sb, fence, flushConfig_);
+        int ret = bufferQueue->FlushBuffer(sb, fence, flushConfig_);
         CAMERA_LOGI("FlushBuffer stream = [%{public}d], timestamp = [%{public}d], ret = [%{public}d]",
             buffer->GetStreamId(), timestamp, ret);
         stats_.FlushBufferResult(ret);
         frameCount_++;
     } else {
-        int ret = bufferQueue_->CancelBuffer(sb);
+        int ret = bufferQueue->CancelBuffer(sb);
         CAMERA_LOGI("CancelBuffer done, streamId = %{public}d, index = %{public}d, ret = %{public}d",
             buffer->GetStreamId(), buffer->GetIndex(), ret);
         stats_.CancelBufferResult(ret);
@@ -207,13 +222,21 @@ RetCode StreamTunnel::PutBuffer(const std::shared_ptr<IBuffer>& buffer)
 
 RetCode StreamTunnel::SetBufferCount(const int32_t n)
 {
-    CHECK_IF_PTR_NULL_RETURN_VALUE(bufferQueue_, RC_ERROR);
     if (n <= 0) {
         CAMERA_LOGE("SetBufferCount invalid count: %{public}d", n);
         return RC_ERROR;
     }
-    bufferCount_ = n;
-    bufferQueue_->SetQueueSize(n);
+    OHOS::sptr<OHOS::Surface> bufferQueue = nullptr;
+    {
+        std::lock_guard<std::mutex> l(lock_);
+        bufferQueue = bufferQueue_;
+        if (bufferQueue == nullptr) {
+            CAMERA_LOGE("bufferQueue_ is null.");
+            return RC_ERROR;
+        }
+        bufferCount_ = n;
+    }
+    bufferQueue->SetQueueSize(n);
     return RC_OK;
 }
 
