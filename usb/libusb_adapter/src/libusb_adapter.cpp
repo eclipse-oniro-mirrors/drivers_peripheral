@@ -2855,7 +2855,7 @@ int32_t LibusbAdapter::BulkRead(const UsbDev &dev, const UsbPipe &pipe, const sp
     }
 
     std::lock_guard<std::mutex> lock(g_bulkManager.bulkTransferVecLock);
-    LibusbBulkTransfer *bulkTransfer = FindBulkTransfer(dev, pipe, ashmem);
+    LibusbBulkTransfer *bulkTransfer = FindBulkTransfer(dev, pipe);
     if (bulkTransfer == nullptr) {
         HDF_LOGE("%{public}s: create libusb bulk transfer failed", __func__);
         return HDF_FAILURE;
@@ -2870,6 +2870,7 @@ int32_t LibusbAdapter::BulkRead(const UsbDev &dev, const UsbPipe &pipe, const sp
         HDF_LOGE("%{public}s: alloc bulk buffer failed", __func__);
         return HDF_FAILURE;
     }
+    bulkTransfer->buikAshmemRef = ashmem;
 
     libusb_fill_bulk_transfer(bulkTransfer->bulkTransferRef, devHandle, pipe.endpointId, buffer, length,
         HandleBulkResult, bulkTransfer, USB_CTRL_SET_TIMEOUT);
@@ -2903,7 +2904,7 @@ int32_t LibusbAdapter::BulkWrite(const UsbDev &dev, const UsbPipe &pipe, const s
     }
 
     std::lock_guard<std::mutex> lock(g_bulkManager.bulkTransferVecLock);
-    LibusbBulkTransfer *bulkTransfer = FindBulkTransfer(dev, pipe, ashmem);
+    LibusbBulkTransfer *bulkTransfer = FindBulkTransfer(dev, pipe);
     if (bulkTransfer == nullptr) {
         HDF_LOGE("%{public}s: create libusb bulk transfer failed", __func__);
         return HDF_FAILURE;
@@ -2918,6 +2919,7 @@ int32_t LibusbAdapter::BulkWrite(const UsbDev &dev, const UsbPipe &pipe, const s
         HDF_LOGE("%{public}s: alloc bulk buffer failed", __func__);
         return HDF_FAILURE;
     }
+    bulkTransfer->buikAshmemRef = ashmem;
 
     libusb_fill_bulk_transfer(bulkTransfer->bulkTransferRef, devHandle, pipe.endpointId, buffer, length,
         HandleBulkResult, bulkTransfer, USB_CTRL_SET_TIMEOUT);
@@ -3058,8 +3060,7 @@ void LibusbAdapter::ClearBulkTranfer(LibusbBulkWrapper *bulkWrapper)
     bulkWrapper = nullptr;
 }
 
-LibusbBulkTransfer *LibusbAdapter::FindBulkTransfer(const UsbDev &dev, const UsbPipe &pipe,
-    const sptr<Ashmem> &ashmem)
+LibusbBulkTransfer *LibusbAdapter::FindBulkTransfer(const UsbDev &dev, const UsbPipe &pipe)
 {
     HDF_LOGI("%{public}s: enter", __func__);
     auto it = std::find_if(
@@ -3084,9 +3085,7 @@ LibusbBulkTransfer *LibusbAdapter::FindBulkTransfer(const UsbDev &dev, const Usb
             return pair.second->endpoint == pipe.endpointId;
     });
     if (bulkPair != wrapper->bulkTransferList.end()) {
-        LibusbBulkTransfer* transferCancle = bulkPair->first;
-        transferCancle->buikAshmemRef = ashmem;
-        return transferCancle;
+        return bulkPair->first;
     }
     HDF_LOGI("%{public}s:not find BulkTransfer", __func__);
     return nullptr;

@@ -286,7 +286,7 @@ private:
     void DeleteBulkDevRequest(const UsbDev &dev);
     void ClearBulkTranfer(LibusbBulkWrapper *bulkWrapper);
     static LibusbBulkWrapper *GetBulkWrapper(const UsbDev &dev);
-    LibusbBulkTransfer *FindBulkTransfer(const UsbDev &dev, const UsbPipe &pipe, const sptr<Ashmem> &ashmem);
+    LibusbBulkTransfer *FindBulkTransfer(const UsbDev &dev, const UsbPipe &pipe);
     static bool IsExistBulkTransfer(struct libusb_transfer *transfer);
 
     static int HotplugCallback(libusb_context* ctx, libusb_device* device,
