@@ -519,7 +519,11 @@ static void HandleEp0Event(const struct UsbFnDeviceMgr *devMgr, struct UsbFnEven
             HDF_LOGE("%{public}s:%{public}d GetInterfaceMgrByFunc failed.", __func__, __LINE__);
             continue;
         }
-        (void)OsalMutexLock(&interfaceMgr->handleLock);
+        int32_t lockRet = OsalMutexLock(&interfaceMgr->handleLock);
+        if (lockRet != HDF_SUCCESS) {
+            HDF_LOGE("%{public}s:%{public}d OsalMutexLock failed, ret = %{public}d", __func__, __LINE__, lockRet);
+            continue;
+        }
         if (event.ep0Event[i].type == USB_EP0_CTRL_EVENT) {
             HandleEp0CtrlEvent(funcMgr, &event.ep0Event[i].ctrlEvent);
         } else if (event.ep0Event[i].type == USB_EP0_IO_COMPLETED) {
@@ -664,7 +668,11 @@ int32_t UsbFnStopRecvEvent(struct UsbFnInterface *interface)
     struct UsbFnAdapterOps *fnOps = UsbFnAdapterGetOps();
     struct UsbFnInterfaceMgr *interfaceMgr = (struct UsbFnInterfaceMgr *)interface;
     struct UsbFnFuncMgr *funcMgr = interfaceMgr->funcMgr;
-    (void)OsalMutexLock(&interfaceMgr->handleLock);
+    int32_t lockRet = OsalMutexLock(&interfaceMgr->handleLock);
+    if (lockRet != HDF_SUCCESS) {
+        HDF_LOGE("%{public}s:%{public}d OsalMutexLock failed, ret = %{public}d", __func__, __LINE__, lockRet);
+        return HDF_FAILURE;
+    }
     ret = fnOps->queueDel(funcMgr->fd);
     if (ret) {
         HDF_LOGE("%{public}s:%{public}d queueDel failed, ret = %{public}d ", __func__, __LINE__, ret);

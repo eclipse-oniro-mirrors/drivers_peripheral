@@ -949,6 +949,10 @@ int32_t UsbImpl::UsbdPnpNotifyAddAndRemoveDevice(HdfSBuf *data, UsbdSubscriber *
         return HDF_ERR_INVALID_PARAM;
     }
     sptr<IUsbdSubscriber> subscriber = GetUsbdSubscriber(usbdSubscriber);
+    if (subscriber == nullptr) {
+        HDF_LOGE("%{public}s: subscriber is nullptr, %{public}d", __func__, __LINE__);
+        return HDF_FAILURE;
+    }
 
     uint32_t infoSize;
     UsbPnpNotifyMatchInfoTable *infoTable = nullptr;
@@ -972,19 +976,11 @@ int32_t UsbImpl::UsbdPnpNotifyAddAndRemoveDevice(HdfSBuf *data, UsbdSubscriber *
         ret = UsbdDispatcher::UsbdDeviceCreateAndAttach(super, infoTable->busNum, infoTable->devNum);
         ReportUsbdSysEvent(ret, infoTable, "UsbdPnpNotifyAddAndRemoveDevice");
         USBDeviceInfo info = {ACT_DEVUP, infoTable->busNum, infoTable->devNum};
-        if (subscriber == nullptr) {
-            HDF_LOGE("%{public}s: subscriber is nullptr, %{public}d", __func__, __LINE__);
-            return HDF_FAILURE;
-        }
         ret = subscriber->DeviceEvent(info);
     } else if (id == USB_PNP_NOTIFY_REMOVE_DEVICE) {
         UsbImpl::UsbdCloseFd(super, infoTable);
         UsbdDispatcher::UsbdDeviceDettach(super, infoTable->busNum, infoTable->devNum);
         USBDeviceInfo info = {ACT_DEVDOWN, infoTable->busNum, infoTable->devNum};
-        if (subscriber == nullptr) {
-            HDF_LOGE("%{public}s: subscriber is nullptr, %{public}d", __func__, __LINE__);
-            return HDF_FAILURE;
-        }
         ret = subscriber->DeviceEvent(info);
     }
     return ret;
@@ -1062,24 +1058,20 @@ int32_t UsbImpl::UsbdPnpLoaderEventReceived(void *priv, uint32_t id, HdfSBuf *da
 {
     UsbdSubscriber *usbdSubscriber = static_cast<UsbdSubscriber *>(priv);
     sptr<IUsbdSubscriber> subscriber = GetUsbdSubscriber(usbdSubscriber);
+    if (subscriber == nullptr) {
+        HDF_LOGE("%{public}s: subscriber is nullptr, %{public}d", __func__, __LINE__);
+        return HDF_FAILURE;
+    }
 
     if (id == USB_PNP_DRIVER_GADGET_ADD) {
         HITRACE_METER_NAME(HITRACE_TAG_HDF, "USB_PNP_DRIVER_GADGET_ADD");
         isGadgetConnected_ = true;
         USBDeviceInfo info = {ACT_UPDEVICE, 0, 0};
-        if (subscriber == nullptr) {
-            HDF_LOGE("%{public}s: subscriber is nullptr, %{public}d", __func__, __LINE__);
-            return HDF_FAILURE;
-        }
         return subscriber->DeviceEvent(info);
     } else if (id == USB_PNP_DRIVER_GADGET_REMOVE) {
         HITRACE_METER_NAME(HITRACE_TAG_HDF, "USB_PNP_DRIVER_GADGET_REMOVE");
         isGadgetConnected_ = false;
         USBDeviceInfo info = {ACT_DOWNDEVICE, 0, 0};
-        if (subscriber == nullptr) {
-            HDF_LOGE("%{public}s: subscriber is nullptr, %{public}d", __func__, __LINE__);
-            return HDF_FAILURE;
-        }
         UsbdAccessory::GetInstance().HandleEvent(ACT_DOWNDEVICE);
         return subscriber->DeviceEvent(info);
     } else if (id == USB_PNP_DRIVER_PORT_HOST) {
@@ -1089,18 +1081,10 @@ int32_t UsbImpl::UsbdPnpLoaderEventReceived(void *priv, uint32_t id, HdfSBuf *da
         HITRACE_METER_NAME(HITRACE_TAG_HDF, "USB_PNP_DRIVER_PORT_DEVICE");
         return UpdatePort(PORT_MODE_DEVICE, subscriber);
     } else if (id == USB_ACCESSORY_START) {
-        if (subscriber == nullptr) {
-            HDF_LOGE("%{public}s: subscriber is nullptr, %{public}d", __func__, __LINE__);
-            return HDF_FAILURE;
-        }
         HITRACE_METER_NAME(HITRACE_TAG_HDF, "USB_ACCESSORY_START");
         USBDeviceInfo info = {ACT_ACCESSORYUP, 0, 0};
         return subscriber->DeviceEvent(info);
     } else if (id == USB_ACCESSORY_SEND) {
-        if (subscriber == nullptr) {
-            HDF_LOGE("%{public}s: subsciber is nullptr, %{public}d", __func__, __LINE__);
-            return HDF_FAILURE;
-        }
         HITRACE_METER_NAME(HITRACE_TAG_HDF, "USB_ACCESSORY_SEND");
         USBDeviceInfo info = {ACT_ACCESSORYSEND, 0, 0};
         return subscriber->DeviceEvent(info);
