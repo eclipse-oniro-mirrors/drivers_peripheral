@@ -175,7 +175,7 @@ struct UsbdSubscriber {
     void *impl;
     struct HdfDevEventlistener usbPnpListener;
     sptr<IRemoteObject> remote;
-    void *deathRecipient;
+    sptr<IRemoteObject::DeathRecipient> deathRecipient;
 };
 } // namespace V1_2
 } // namespace Usb
