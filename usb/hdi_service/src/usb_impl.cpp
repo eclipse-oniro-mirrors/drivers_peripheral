@@ -1028,7 +1028,7 @@ int32_t UsbImpl::RegisterSubscriber(int32_t i, const sptr<IUsbdSubscriber> &subs
     subscribers_[i].usbPnpListener.callBack = UsbdPnpLoaderEventReceived;
     subscribers_[i].usbPnpListener.priv = &subscribers_[i];
     subscribers_[i].remote = remote;
-    sptr<IRemoteObject::DeathRecipient> recipient = new UsbImpl::UsbDeathRecipient(subscriber);
+    sptr<IRemoteObject::DeathRecipient> recipient(new UsbImpl::UsbDeathRecipient(subscriber));
     if (recipient == nullptr) {
         HDF_LOGE("%{public}s: new deathRecipient failed", __func__);
         subscribers_[i].subscriber = nullptr;
@@ -2360,6 +2360,7 @@ int32_t UsbImpl::BindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
 void UsbImpl::CleanupSubscriber(int32_t i, const sptr<IUsbdSubscriber> &subscriber,
     const sptr<IRemoteObject> &remote)
 {
+    // DdkListenerMgrAdd 失败前已把监听器插入全局链表，此处必须 Remove 才能清除部分注册
     (void)DdkListenerMgrRemove(&subscribers_[i].usbPnpListener);
     std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
     if (subscribers_[i].subscriber != subscriber) {
@@ -2398,7 +2399,8 @@ int32_t UsbImpl::UnbindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
         subscribers_[i].remote = nullptr;
         subscribers_[i].deathRecipient = nullptr;
     }
-    // subscriberOpMutex_ 保证无并发的 Bind 正在注册该槽位，可安全移除监听器
+    // subscriberOpMutex_ 保证无并发的 Bind 正在注册该槽位，可安全移除监听器；
+    // 此处 subscriber 已置空但监听器尚未移除，窗口内到达的 PnP 回调会因空检查安全丢弃
     if (DdkListenerMgrRemove(&subscribers_[i].usbPnpListener) != HDF_SUCCESS) {
         HDF_LOGE("%{public}s: remove listerer failed", __func__);
         return HDF_FAILURE;
