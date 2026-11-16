@@ -15,6 +15,7 @@
 
 #include <dlfcn.h>
 #include <limits.h>
+#include <pthread.h>
 #include <unistd.h>
 #include "hdf_base.h"
 #include "hdf_types.h"
@@ -340,6 +341,7 @@ static int32_t LoadAdapterImpl(const struct AudioAdapterDescriptor *desc, struct
     }
 
     (void)memset_s(hwAdapter, sizeof(struct AudioHwAdapter), 0, sizeof(struct AudioHwAdapter));
+    pthread_mutex_init(&hwAdapter->infosLock, NULL);
     hwAdapter->common.InitAllPorts = AudioAdapterInitAllPorts;
     hwAdapter->common.CreateRender = AudioAdapterCreateRender;
     hwAdapter->common.DestroyRender = AudioAdapterDestroyRender;
@@ -510,6 +512,7 @@ static int32_t AudioManagerServiceRemvAdapter(struct IAudioManager *manager, uin
         AudioMemFree((void **)&hwAdapter->portCapabilitys);
     }
 
+    pthread_mutex_destroy(&hwAdapter->infosLock);
     AudioMemFree((void **)&hwAdapter);
     audioManagerSer->adapterInfos[pos].adapterServicePtr = NULL;
     AUDIO_FUNC_LOGI("audio unload adapterName[%{public}s] success", audioManagerSer->adapterInfos[pos].adapterName);

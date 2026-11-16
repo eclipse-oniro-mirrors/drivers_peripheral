@@ -203,6 +203,7 @@ int32_t AudioRenderPause(struct IAudioRender *handle)
         return AUDIO_ERR_INTERNAL;
     }
 
+    pthread_mutex_lock(&hwRender->renderParam.renderMode.ctlParam.mutex);
     bool pauseStatus = hwRender->renderParam.renderMode.ctlParam.pause;
 
     hwRender->renderParam.renderMode.ctlParam.pause = true;
@@ -211,9 +212,10 @@ int32_t AudioRenderPause(struct IAudioRender *handle)
     if (ret < 0) {
         AUDIO_FUNC_LOGE("RenderPause FAIL!");
         hwRender->renderParam.renderMode.ctlParam.pause = pauseStatus;
+        pthread_mutex_unlock(&hwRender->renderParam.renderMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
-
+    pthread_mutex_unlock(&hwRender->renderParam.renderMode.ctlParam.mutex);
     AUDIO_FUNC_LOGI("Enter. pauseStatus= %{public}d", pauseStatus);
     AudioLogRecord(AUDIO_INFO, "[%s]-[%s]-[%d] :> [%s]", __FILE__, __func__, __LINE__, "Audio Render Pause");
     return AUDIO_SUCCESS;
@@ -241,6 +243,7 @@ int32_t AudioRenderResume(struct IAudioRender *handle)
         return AUDIO_ERR_INTERNAL;
     }
 
+    pthread_mutex_lock(&hwRender->renderParam.renderMode.ctlParam.mutex);
     bool resumeStatus = hwRender->renderParam.renderMode.ctlParam.pause;
 
     hwRender->renderParam.renderMode.ctlParam.pause = false;
@@ -249,9 +252,11 @@ int32_t AudioRenderResume(struct IAudioRender *handle)
     if (ret < 0) {
         AUDIO_FUNC_LOGE("RenderResume FAIL!");
         hwRender->renderParam.renderMode.ctlParam.pause = resumeStatus;
+        pthread_mutex_unlock(&hwRender->renderParam.renderMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
 
+    pthread_mutex_unlock(&hwRender->renderParam.renderMode.ctlParam.mutex);
     AUDIO_FUNC_LOGI("Enter. resumeStatus= %{public}d", resumeStatus);
     AudioLogRecord(AUDIO_INFO, "[%s]-[%s]-[%d] :> [%s]", __FILE__, __func__, __LINE__, "Audio Render Resume");
     return AUDIO_SUCCESS;
@@ -498,6 +503,7 @@ int32_t AudioRenderSetMute(struct IAudioRender *handle, bool mute)
         return AUDIO_ERR_INTERNAL;
     }
 
+    pthread_mutex_lock(&impl->renderParam.renderMode.ctlParam.mutex);
     bool muteStatus = impl->renderParam.renderMode.ctlParam.mute;
     impl->renderParam.renderMode.ctlParam.mute = mute;
 
@@ -505,8 +511,10 @@ int32_t AudioRenderSetMute(struct IAudioRender *handle, bool mute)
     if (ret < 0) {
         AUDIO_FUNC_LOGE("SetMute SetParams FAIL");
         impl->renderParam.renderMode.ctlParam.mute = muteStatus;
+        pthread_mutex_unlock(&impl->renderParam.renderMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
+    pthread_mutex_unlock(&impl->renderParam.renderMode.ctlParam.mutex);
     AudioLogRecord(AUDIO_INFO, "[%s]-[%s]-[%d] :> [Setmute = %d]", __FILE__, __func__, __LINE__, mute);
     return AUDIO_SUCCESS;
 }
@@ -568,6 +576,7 @@ int32_t AudioRenderSetVolume(struct IAudioRender *handle, float volume)
         return AUDIO_ERR_INTERNAL;
     }
 
+    pthread_mutex_lock(&hwRender->renderParam.renderMode.ctlParam.mutex);
 #ifdef AUDIO_HAL_P7885
     float volTemp = (float)volume * INTEGER_TO_DEC;
 #else
@@ -576,6 +585,7 @@ int32_t AudioRenderSetVolume(struct IAudioRender *handle, float volume)
     float volTemp = ((volMax - volMin) / 2) * log10(volume) + volMin;
     if (volTemp < volMin || volTemp > volMax) {
         AUDIO_FUNC_LOGE("volTemp fail");
+        pthread_mutex_unlock(&hwRender->renderParam.renderMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
 #endif
@@ -586,8 +596,10 @@ int32_t AudioRenderSetVolume(struct IAudioRender *handle, float volume)
     if (ret < 0) {
         AUDIO_FUNC_LOGE("RenderSetVolume FAIL!");
         hwRender->renderParam.renderMode.ctlParam.volume = volumeTemp;
+        pthread_mutex_unlock(&hwRender->renderParam.renderMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
+    pthread_mutex_unlock(&hwRender->renderParam.renderMode.ctlParam.mutex);
     AUDIO_FUNC_LOGI("Enter. volumeTemp= %{public}f, volMax= %{public}f, volMin= %{public}f, volTemp= %{public}f",
                     volumeTemp, volMax, volMin, volTemp);
     return AUDIO_SUCCESS;
@@ -710,11 +722,13 @@ int32_t AudioRenderSetGain(struct IAudioRender *handle, float gain)
         return AUDIO_ERR_INVALID_PARAM;
     }
 
+    pthread_mutex_lock(&impl->renderParam.renderMode.ctlParam.mutex);
     float gainTemp = impl->renderParam.renderMode.ctlParam.audioGain.gain;
     impl->renderParam.renderMode.ctlParam.audioGain.gain = gain;
     if (impl->devCtlHandle == NULL) {
         AUDIO_FUNC_LOGE("RenderSetGain Bind Fail!");
         impl->renderParam.renderMode.ctlParam.audioGain.gain = gainTemp;
+        pthread_mutex_unlock(&impl->renderParam.renderMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
 
@@ -722,6 +736,7 @@ int32_t AudioRenderSetGain(struct IAudioRender *handle, float gain)
     if (pInterfaceLibModeRender == NULL || *pInterfaceLibModeRender == NULL) {
         AUDIO_FUNC_LOGE("pInterfaceLibModeRender Is NULL");
         impl->renderParam.renderMode.ctlParam.audioGain.gain = gainTemp;
+        pthread_mutex_unlock(&impl->renderParam.renderMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
 
@@ -729,8 +744,10 @@ int32_t AudioRenderSetGain(struct IAudioRender *handle, float gain)
     if (ret < 0) {
         AUDIO_FUNC_LOGE("RenderSetGain FAIL");
         impl->renderParam.renderMode.ctlParam.audioGain.gain = gainTemp;
+        pthread_mutex_unlock(&impl->renderParam.renderMode.ctlParam.mutex);
         return AUDIO_ERR_INTERNAL;
     }
+    pthread_mutex_unlock(&impl->renderParam.renderMode.ctlParam.mutex);
     return AUDIO_SUCCESS;
 }
 

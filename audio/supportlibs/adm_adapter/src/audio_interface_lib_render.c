@@ -15,6 +15,7 @@
 
 #include "audio_interface_lib_render.h"
 
+#include <pthread.h>
 #include <unistd.h>
 
 #include "audio_common.h"
@@ -29,6 +30,7 @@
 
 /* Out Put Render */
 static struct AudioPcmHwParams g_hwParams;
+static pthread_mutex_t g_hwParamsLock = PTHREAD_MUTEX_INITIALIZER;
 
 int32_t SetHwParams(const struct AudioHwRenderParam *handleData)
 {
@@ -837,17 +839,21 @@ int32_t AudioOutputRenderHwParams(const struct DevHandle *handle,
         return HDF_FAILURE;
     }
 
+    pthread_mutex_lock(&g_hwParamsLock);
     if (SetHwParams(handleData) < 0) {
+        pthread_mutex_unlock(&g_hwParamsLock);
         AUDIO_FUNC_LOGE("SetHwParams failed!");
         AudioFreeHdfSBuf(&sBuf, NULL);
         return HDF_FAILURE;
     }
 
     if (ParamsSbufWriteBuffer(sBuf)) {
+        pthread_mutex_unlock(&g_hwParamsLock);
         AUDIO_FUNC_LOGE("ParamsSbufWriteBuffer failed!");
         AudioFreeHdfSBuf(&sBuf, NULL);
         return HDF_FAILURE;
     }
+    pthread_mutex_unlock(&g_hwParamsLock);
 
     if (AudioServiceDispatch(handle->object, cmdId, sBuf, NULL) != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("RenderHwParams Failed to send service call!");

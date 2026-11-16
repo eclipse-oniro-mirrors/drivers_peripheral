@@ -259,12 +259,13 @@ static int32_t EffectModelGetAllEffectDescriptors(struct IEffectModel *self,
         return HDF_ERR_INVALID_PARAM;
     }
 
-    if (g_cfgDescs == NULL) {
-        HDF_LOGE("%{public}s: point is null!", __func__);
-        return HDF_FAILURE;
-    }
     struct EffectControllerDescriptorVdi *descsVdi = (struct EffectControllerDescriptorVdi *)descs;
     pthread_rwlock_wrlock(&g_rwEffectLock);
+    if (g_cfgDescs == NULL) {
+        HDF_LOGE("%{public}s: point is null!", __func__);
+        pthread_rwlock_unlock(&g_rwEffectLock);
+        return HDF_FAILURE;
+    }
     for (uint32_t i = 0; i < g_cfgDescs->effectNum; i++) {
         int32_t ret = LoadEffectLibrary(g_cfgDescs->effectCfgDescs[i].library, &factLib, &ctrlMgr);
         if (ret != HDF_SUCCESS || factLib == NULL) {
@@ -300,11 +301,17 @@ static int32_t EffectModelGetEffectDescriptor(struct IEffectModel *self, const c
     uint32_t i;
     struct EffectFactory *factLib = NULL;
     struct ControllerManager *ctrlMgr = NULL;
-    if (self == NULL || uuid == NULL || desc == NULL || g_cfgDescs == NULL) {
+    if (self == NULL || uuid == NULL || desc == NULL) {
         HDF_LOGE("%{public}s: invailid input params", __func__);
         return HDF_ERR_INVALID_PARAM;
     }
     struct EffectControllerDescriptorVdi *descVdi = (struct EffectControllerDescriptorVdi *)desc;
+    pthread_rwlock_wrlock(&g_rwEffectLock);
+    if (g_cfgDescs == NULL) {
+        HDF_LOGE("%{public}s: invailid input params", __func__);
+        pthread_rwlock_unlock(&g_rwEffectLock);
+        return HDF_ERR_INVALID_PARAM;
+    }
     for (i = 0; i < g_cfgDescs->effectNum; i++) {
         if (g_cfgDescs->effectCfgDescs[i].effectId == NULL) {
             HDF_LOGE("%{public}s: effectId is null", __func__);
@@ -313,7 +320,6 @@ static int32_t EffectModelGetEffectDescriptor(struct IEffectModel *self, const c
         if (strcmp(uuid, g_cfgDescs->effectCfgDescs[i].effectId) != 0) {
             continue;
         }
-        pthread_rwlock_wrlock(&g_rwEffectLock);
         LoadEffectLibrary(g_cfgDescs->effectCfgDescs[i].library, &factLib, &ctrlMgr);
         if (factLib == NULL) {
             HDF_LOGE("%{public}s: GetEffectLibFromList fail!", __func__);
@@ -336,6 +342,7 @@ static int32_t EffectModelGetEffectDescriptor(struct IEffectModel *self, const c
         pthread_rwlock_unlock(&g_rwEffectLock);
         return HDF_SUCCESS;
     }
+    pthread_rwlock_unlock(&g_rwEffectLock);
     desc = (struct EffectControllerDescriptor *)descVdi;
     HDF_LOGE("%{public}s fail!", __func__);
     return HDF_FAILURE;
@@ -390,14 +397,16 @@ static int32_t EffectModelCreateEffectController(struct IEffectModel *self, cons
         HDF_LOGE("%{public}s: invailid input params", __func__);
         return HDF_ERR_INVALID_PARAM;
     }
-    if (IsSupplyEffect(info->libName) != HDF_SUCCESS) {
-        HDF_LOGE("%{public}s: not support effect [%{public}s]", __func__, info->libName);
-        return HDF_FAILURE;
-    }
+
     struct EffectFactory *lib = NULL;
     struct ControllerManager *ctrlMgr = NULL;
     struct IEffectControlVdi *ctrlOps = NULL;
     pthread_rwlock_wrlock(&g_rwEffectLock);
+    if (IsSupplyEffect(info->libName) != HDF_SUCCESS) {
+        HDF_LOGE("%{public}s: not support effect [%{public}s]", __func__, info->libName);
+        pthread_rwlock_unlock(&g_rwEffectLock);
+        return HDF_FAILURE;
+    }
     int32_t ret = LoadEffectLibrary(info->libName, &lib, &ctrlMgr);
     if (ret != HDF_SUCCESS) {
         HDF_LOGE("%{public}s: LoadEffectLibrary fail", __func__);
@@ -508,11 +517,12 @@ void ModelInit(void)
         HDF_LOGE("%{public}s: AudioEffectGetConfigDescriptor fail!", __func__);
         return;
     }
-
+    pthread_rwlock_wrlock(&g_rwEffectLock);
     if (g_cfgDescs != NULL) {
         AudioEffectReleaseCfgDesc(g_cfgDescs);
     }
     g_cfgDescs = cfgDesc;
+    pthread_rwlock_unlock(&g_rwEffectLock);
     HDF_LOGD("%{public}s end!", __func__);
 }
 
@@ -540,7 +550,10 @@ void EffectModelImplRelease(struct IEffectModel *instance)
         return;
     }
 
+    pthread_rwlock_wrlock(&g_rwEffectLock);
     AudioEffectReleaseCfgDesc(g_cfgDescs);
+    g_cfgDescs = NULL;
+    pthread_rwlock_unlock(&g_rwEffectLock);
     struct EffectModelService *service = CONTAINER_OF(instance, struct EffectModelService, interface);
     if (service == NULL) {
         return;

@@ -83,15 +83,30 @@ int32_t AudioGetLatencyVdi(struct IAudioRender *render, uint32_t *ms)
     CHECK_NULL_PTR_RETURN_VALUE(ms, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetLatency, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetLatency == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     HdfAudioStartTrace("Hdi:AudioGetLatencyVdi", 0);
     struct timeval startTime = AudioDfxSysEventGetTimeStamp();
     int32_t ret = vdiRender->GetLatency(vdiRender, ms);
     AudioDfxSysEventError("Render GetLatency", startTime, TIME_THRESHOLD, ret);
     HdfAudioFinishTrace();
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio GetLatency fail, ret=%{public}d", ret);
         return ret;
@@ -145,14 +160,29 @@ int32_t AudioGetRenderPositionVdi(struct IAudioRender *render, uint64_t *frames,
     CHECK_NULL_PTR_RETURN_VALUE(time, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetRenderPosition, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetRenderPosition == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t id = SetTimer("Hdi:GetRenderPosition");
     HdfAudioStartTrace("Hdi:AudioGetRenderPositionVdi", 0);
     int32_t ret = vdiRender->GetRenderPosition(vdiRender, frames, (struct AudioTimeStampVdi *)time);
     HdfAudioFinishTrace();
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     CancelTimer(id);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render, get position fail, ret=%{public}d", ret);
@@ -167,11 +197,26 @@ int32_t AudioSetRenderSpeedVdi(struct IAudioRender *render, float speed)
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->SetRenderSpeed, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->SetRenderSpeed == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->SetRenderSpeed(vdiRender, speed);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render SetRenderSpeed fail, ret=%{public}d", ret);
         return ret;
@@ -186,11 +231,26 @@ int32_t AudioGetRenderSpeedVdi(struct IAudioRender *render, float *speed)
     CHECK_NULL_PTR_RETURN_VALUE(speed, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetRenderSpeed, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetRenderSpeed == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->GetRenderSpeed(vdiRender, speed);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetRenderSpeed fail, ret=%{public}d", ret);
         return ret;
@@ -203,7 +263,19 @@ static int32_t AudioRenderCallbackVdi(enum  AudioCallbackTypeVdi type, void *res
 {
     CHECK_NULL_PTR_RETURN_VALUE(cookie, HDF_ERR_INVALID_PARAM);
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)cookie;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (!renderInfo->isRegCb) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("audio render callback is not reg");
+        return HDF_FAILURE;
+    }
     struct IAudioCallback *cb = renderInfo->callback;
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     CHECK_NULL_PTR_RETURN_VALUE(cb, HDF_ERR_INVALID_PARAM);
     int8_t newCookie = 0;
     int8_t newReserved = 0;
@@ -221,11 +293,25 @@ int32_t AudioRenderRegCallbackVdi(struct IAudioRender *render, struct IAudioCall
     CHECK_NULL_PTR_RETURN_VALUE(audioCallback, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_wrlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->RegCallback, HDF_ERR_INVALID_PARAM);
-
+    if (vdiRender == NULL || vdiRender->RegCallback == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
     int32_t ret = vdiRender->RegCallback(vdiRender, AudioRenderCallbackVdi, (void *)renderInfo);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render regCallback fail, ret=%{public}d", ret);
         return ret;
@@ -240,11 +326,26 @@ int32_t AudioRenderSetChannelModeVdi(struct IAudioRender *render, enum AudioChan
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->SetChannelMode, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->SetChannelMode == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->SetChannelMode(vdiRender, (enum AudioChannelModeVdi)mode);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio SetChannelMode fail, ret=%{public}d", ret);
         return ret;
@@ -259,11 +360,26 @@ int32_t AudioRenderGetChannelModeVdi(struct IAudioRender *render, enum AudioChan
     CHECK_NULL_PTR_RETURN_VALUE(mode, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetChannelMode, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetChannelMode == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->GetChannelMode(vdiRender, (enum AudioChannelModeVdi *)mode);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetChannelMode fail, ret=%{public}d", ret);
         return ret;
@@ -278,11 +394,26 @@ int32_t AudioRenderDrainBufferVdi(struct IAudioRender *render, enum AudioDrainNo
     CHECK_NULL_PTR_RETURN_VALUE(type, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->DrainBuffer, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->DrainBuffer == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->DrainBuffer(vdiRender, (enum AudioDrainNotifyTypeVdi *)type);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render DrainBuffer fail, ret=%{public}d", ret);
         return ret;
@@ -297,11 +428,26 @@ int32_t AudioRenderIsSupportsDrainVdi(struct IAudioRender *render, bool *support
     CHECK_NULL_PTR_RETURN_VALUE(support, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->IsSupportsDrain, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->IsSupportsDrain == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->IsSupportsDrain(vdiRender, support);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render IsSupportsDrain fail, ret=%{public}d", ret);
         return ret;
@@ -318,19 +464,35 @@ int32_t AudioRenderCheckSceneCapabilityVdi(struct IAudioRender *render, const st
     CHECK_NULL_PTR_RETURN_VALUE(supported, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->CheckSceneCapability, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->CheckSceneCapability == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     struct AudioSceneDescriptorVdi vdiScene;
     (void)memset_s((void *)&vdiScene, sizeof(vdiScene), 0, sizeof(vdiScene));
     int32_t ret = AudioCommonSceneToVdiSceneVdi(scene, &vdiScene);
     if (ret != HDF_SUCCESS) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
         AUDIO_FUNC_LOGE("audio render scene To vdiScene fail");
         return HDF_FAILURE;
     }
 
     ret = vdiRender->CheckSceneCapability(vdiRender, &vdiScene, supported);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     OsalMemFree((void *)vdiScene.desc.desc);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render CheckSceneCapability fail, ret=%{public}d", ret);
@@ -346,9 +508,23 @@ int32_t AudioRenderSelectSceneVdi(struct IAudioRender *render, const struct Audi
     CHECK_NULL_PTR_RETURN_VALUE(scene, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->SelectScene, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->SelectScene == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     AUDIO_FUNC_LOGI("portId = [%{public}u], pin = [%{public}d], desc = [%{public}s]",
         scene->desc.portId, scene->desc.pins, scene->desc.desc);
@@ -359,6 +535,7 @@ int32_t AudioRenderSelectSceneVdi(struct IAudioRender *render, const struct Audi
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render scene To vdiScene fail");
         HdfAudioFinishTrace();
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
         return HDF_FAILURE;
     }
 
@@ -369,9 +546,11 @@ int32_t AudioRenderSelectSceneVdi(struct IAudioRender *render, const struct Audi
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render select scene fail, ret=%{public}d", ret);
         HdfAudioFinishTrace();
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
         return ret;
     }
     HdfAudioFinishTrace();
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     return HDF_SUCCESS;
 }
 
@@ -380,11 +559,26 @@ int32_t AudioRenderSetMuteVdi(struct IAudioRender *render, bool mute)
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->SetMute, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->SetMute == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->SetMute(vdiRender, mute);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render SetMute fail, ret=%{public}d", ret);
         return ret;
@@ -399,11 +593,26 @@ int32_t AudioRenderGetMuteVdi(struct IAudioRender *render, bool *mute)
     CHECK_NULL_PTR_RETURN_VALUE(mute, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetMute, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetMute == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->GetMute(vdiRender, mute);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetMute fail, ret=%{public}d", ret);
         return ret;
@@ -417,15 +626,30 @@ int32_t AudioRenderSetVolumeVdi(struct IAudioRender *render, float volume)
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->SetVolume, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->SetVolume == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     HdfAudioStartTrace("Hdi:AudioRenderSetVolumeVdi", 0);
     struct timeval startTime = AudioDfxSysEventGetTimeStamp();
     int32_t ret = vdiRender->SetVolume(vdiRender, volume);
     AudioDfxSysEventError("Render SetVolume", startTime, TIME_THRESHOLD, ret);
     HdfAudioFinishTrace();
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render SetVolume fail, ret=%{public}d", ret);
         return ret;
@@ -440,11 +664,26 @@ int32_t AudioRenderSetVolumeWithRampVdi(struct IAudioRender *render, float volum
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->SetVolumeWithRamp, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->SetVolumeWithRamp == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->SetVolumeWithRamp(vdiRender, volume, duration);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render SetVolumeWithRamp fail, ret=%{public}d", ret);
         return ret;
@@ -459,11 +698,26 @@ int32_t AudioRenderGetVolumeVdi(struct IAudioRender *render, float *volume)
     CHECK_NULL_PTR_RETURN_VALUE(volume, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetVolume, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetVolume == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->GetVolume(vdiRender, volume);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetVolume fail, ret=%{public}d", ret);
         return ret;
@@ -479,11 +733,26 @@ int32_t AudioRenderGetGainThresholdVdi(struct IAudioRender *render, float *min, 
     CHECK_NULL_PTR_RETURN_VALUE(max, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetGainThreshold, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetGainThreshold == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->GetGainThreshold(vdiRender, min, max);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetGainThreshold fail, ret=%{public}d", ret);
         return ret;
@@ -498,11 +767,26 @@ int32_t AudioRenderGetGainVdi(struct IAudioRender *render, float *gain)
     CHECK_NULL_PTR_RETURN_VALUE(gain, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetGain, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetGain == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->GetGain(vdiRender, gain);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetGain fail, ret=%{public}d", ret);
         return ret;
@@ -516,11 +800,26 @@ int32_t AudioRenderSetGainVdi(struct IAudioRender *render, float gain)
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->SetGain, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->SetGain == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->SetGain(vdiRender, gain);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render SetGain fail, ret=%{public}d", ret);
         return ret;
@@ -535,11 +834,26 @@ int32_t AudioRenderGetFrameSizeVdi(struct IAudioRender *render, uint64_t *size)
     CHECK_NULL_PTR_RETURN_VALUE(size, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetFrameSize, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetFrameSize == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->GetFrameSize(vdiRender, size);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetFrameSize fail, ret=%{public}d", ret);
         return ret;
@@ -554,11 +868,26 @@ int32_t AudioRenderGetFrameCountVdi(struct IAudioRender *render, uint64_t *count
     CHECK_NULL_PTR_RETURN_VALUE(count, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetFrameCount, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetFrameCount == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->GetFrameCount(vdiRender, count);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetFrameCount fail, ret=%{public}d", ret);
         return ret;
@@ -573,19 +902,35 @@ int32_t AudioRenderSetSampleAttributesVdi(struct IAudioRender *render, const str
     CHECK_NULL_PTR_RETURN_VALUE(attrs, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->SetSampleAttributes, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->SetSampleAttributes == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     struct AudioSampleAttributesVdi vdiAttrs;
     (void)memset_s((void *)&vdiAttrs, sizeof(vdiAttrs), 0, sizeof(vdiAttrs));
     int32_t ret = AudioCommonSampleAttrToVdiSampleAttrVdi(attrs, &vdiAttrs);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render SampleAttr to vdisampleAttr fail, ret=%{public}d", ret);
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
         return ret;
     }
 
     ret = vdiRender->SetSampleAttributes(vdiRender, &vdiAttrs);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render SetSampleAttributes fail, ret=%{public}d", ret);
         return ret;
@@ -600,13 +945,28 @@ int32_t AudioRenderGetSampleAttributesVdi(struct IAudioRender *render, struct Au
     CHECK_NULL_PTR_RETURN_VALUE(attrs, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetSampleAttributes, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetSampleAttributes == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     struct AudioSampleAttributesVdi vdiAttrs;
     (void)memset_s((void *)&vdiAttrs, sizeof(vdiAttrs), 0, sizeof(vdiAttrs));
     int32_t ret = vdiRender->GetSampleAttributes(vdiRender, &vdiAttrs);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetSampleAttributes fail, ret=%{public}d", ret);
         return ret;
@@ -627,11 +987,26 @@ int32_t AudioRenderGetCurrentChannelIdVdi(struct IAudioRender *render, uint32_t 
     CHECK_NULL_PTR_RETURN_VALUE(channelId, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetCurrentChannelId, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetCurrentChannelId == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->GetCurrentChannelId(vdiRender, channelId);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetCurrentChannelId fail, ret=%{public}d", ret);
         return ret;
@@ -646,11 +1021,26 @@ int32_t AudioRenderSetExtraParamsVdi(struct IAudioRender *render, const char *ke
     CHECK_NULL_PTR_RETURN_VALUE(keyValueList, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->SetExtraParams, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->SetExtraParams == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->SetExtraParams(vdiRender, keyValueList);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render SetExtraParams fail, ret=%{public}d", ret);
         return ret;
@@ -665,11 +1055,26 @@ int32_t AudioRenderGetExtraParamsVdi(struct IAudioRender *render, char *keyValue
     CHECK_NULL_PTR_RETURN_VALUE(keyValueList, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetExtraParams, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetExtraParams == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->GetExtraParams(vdiRender, keyValueList, keyValueListLen);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetExtraParams fail, ret=%{public}d", ret);
         return ret;
@@ -685,9 +1090,23 @@ int32_t AudioRenderReqMmapBufferVdi(struct IAudioRender *render, int32_t reqSize
     CHECK_NULL_PTR_RETURN_VALUE(desc, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->ReqMmapBuffer, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->ReqMmapBuffer == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     struct AudioMmapBufferDescriptorVdi vdiDesc = {0};
     HdfAudioStartTrace("Hdi:AudioRenderReqMmapBufferVdi", 0);
@@ -695,6 +1114,7 @@ int32_t AudioRenderReqMmapBufferVdi(struct IAudioRender *render, int32_t reqSize
     int32_t ret = vdiRender->ReqMmapBuffer(vdiRender, reqSize, &vdiDesc);
     AudioDfxSysEventError("Render ReqMmapBuffer", startTime, TIME_THRESHOLD, ret);
     HdfAudioFinishTrace();
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render ReqMmapBuffer fail, ret=%{public}d", ret);
         return ret;
@@ -728,15 +1148,30 @@ int32_t AudioRenderGetMmapPositionVdi(struct IAudioRender *render, uint64_t *fra
     vdiTime.tvNSec = 0;
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetMmapPosition, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetMmapPosition == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     HdfAudioStartTrace("Hdi:AudioRenderGetMmapPositionVdi", 0);
     struct timeval startTime = AudioDfxSysEventGetTimeStamp();
     int32_t ret = vdiRender->GetMmapPosition(vdiRender, frames, &vdiTime);
     AudioDfxSysEventError("Render GetMmapPosition", startTime, TIME_THRESHOLD, ret);
     HdfAudioFinishTrace();
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render GetMmapPosition fail, ret=%{public}d", ret);
         return ret;
@@ -752,9 +1187,24 @@ int32_t AudioRenderAddAudioEffectVdi(struct IAudioRender *render, uint64_t effec
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->AddAudioEffect, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->AddAudioEffect == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
 
     return vdiRender->AddAudioEffect(vdiRender, effectid);
 }
@@ -764,9 +1214,24 @@ int32_t AudioRenderRemoveAudioEffectVdi(struct IAudioRender *render, uint64_t ef
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->RemoveAudioEffect, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->RemoveAudioEffect == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
 
     return vdiRender->RemoveAudioEffect(vdiRender, effectid);
 }
@@ -777,9 +1242,24 @@ int32_t AudioRenderGetFrameBufferSizeVdi(struct IAudioRender *render, uint64_t *
     CHECK_NULL_PTR_RETURN_VALUE(bufferSize, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->GetFrameBufferSize, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->GetFrameBufferSize == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
 
     return vdiRender->GetFrameBufferSize(vdiRender, bufferSize);
 }
@@ -922,15 +1402,30 @@ int32_t AudioRenderFlushVdi(struct IAudioRender *render)
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->Flush, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->Flush == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     HdfAudioStartTrace("Hdi:AudioRenderFlushVdi", 0);
     struct timeval startTime = AudioDfxSysEventGetTimeStamp();
     int32_t ret = vdiRender->Flush(vdiRender);
     AudioDfxSysEventError("Render Flush", startTime, TIME_THRESHOLD, ret);
     HdfAudioFinishTrace();
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render Flush fail, ret=%{public}d", ret);
         return ret;
@@ -944,11 +1439,26 @@ int32_t AudioRenderTurnStandbyModeVdi(struct IAudioRender *render)
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->TurnStandbyMode, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->TurnStandbyMode == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->TurnStandbyMode(vdiRender);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render TurnStandbyMode fail, ret=%{public}d", ret);
         return ret;
@@ -962,11 +1472,26 @@ int32_t AudioRenderAudioDevDumpVdi(struct IAudioRender *render, int32_t range, i
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->AudioDevDump, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->AudioDevDump == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
 
     int32_t ret = vdiRender->AudioDevDump(vdiRender, range, fd);
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("audio render AudioDevDump fail, ret=%{public}d", ret);
         return ret;
@@ -982,9 +1507,24 @@ int32_t AudioRenderIsSupportsPauseAndResumeVdi(struct IAudioRender *render, bool
     CHECK_NULL_PTR_RETURN_VALUE(supportResume, HDF_ERR_INVALID_PARAM);
 
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender->IsSupportsPauseAndResume, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->IsSupportsPauseAndResume == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
 
     return vdiRender->IsSupportsPauseAndResume(vdiRender, supportPause, supportResume);
 }
@@ -993,8 +1533,24 @@ int32_t AudioRenderSetbufferSize(struct IAudioRender *render, uint32_t size)
 {
     CHECK_NULL_PTR_RETURN_VALUE(render, HDF_ERR_INVALID_PARAM);
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)render;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (render != &(g_audioRenderPrivVdi.renderInfos[renderId].render)) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
     struct IAudioRenderVdi *vdiRender = renderInfo->vdiRender;
-    CHECK_NULL_PTR_RETURN_VALUE(vdiRender, HDF_ERR_INVALID_PARAM);
+    if (vdiRender == NULL || vdiRender->SetBufferSize == NULL) {
+        AUDIO_FUNC_LOGE("invalid param");
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     return vdiRender->SetBufferSize(vdiRender, size);
 }
 
@@ -1063,15 +1619,19 @@ struct IAudioRender *FindRenderCreated(enum AudioPortPin pin, const struct Audio
     }
 
     for (index = 0; index < AUDIO_VDI_STREAM_NUM_MAX; index++) {
+        pthread_rwlock_wrlock(&g_rwVdiRenderLock[index]);
         if ((renderPriv->renderInfos[index].vdiRender != NULL) &&
             (attrs->type == AUDIO_IN_MEDIA || attrs->type == AUDIO_MULTI_CHANNEL) &&
             (renderPriv->renderInfos[index].streamType == attrs->type) &&
+            (renderPriv->renderInfos[index].adapterName != NULL) &&
             (strcmp(renderPriv->renderInfos[index].adapterName, adapterName) == 0)) {
             if (strcmp(value, "support") == 0) {
+                pthread_rwlock_unlock(&g_rwVdiRenderLock[index]);
                 return NULL;
             }
             *rendrId = renderPriv->renderInfos[index].renderId;
             renderPriv->renderInfos[index].usrCount++;
+            pthread_rwlock_unlock(&g_rwVdiRenderLock[index]);
             return &renderPriv->renderInfos[index].render;
         }
         if ((renderPriv->renderInfos[index].vdiRender != NULL) &&
@@ -1080,12 +1640,15 @@ struct IAudioRender *FindRenderCreated(enum AudioPortPin pin, const struct Audio
             (renderPriv->renderInfos[index].sampleRate == attrs->sampleRate) &&
             (renderPriv->renderInfos[index].channelCount == attrs->channelCount)) {
             if ((attrs->type == AUDIO_VDI_OFFLOAD) && (strcmp(value, "support") == 0)) {
+                pthread_rwlock_unlock(&g_rwVdiRenderLock[index]);
                 return NULL;
             }
             *rendrId = renderPriv->renderInfos[index].renderId;
             renderPriv->renderInfos[index].usrCount++;
+            pthread_rwlock_unlock(&g_rwVdiRenderLock[index]);
             return &renderPriv->renderInfos[index].render;
         }
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[index]);
     }
 
     return NULL;

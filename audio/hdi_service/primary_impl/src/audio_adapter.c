@@ -317,6 +317,7 @@ int32_t InitHwRenderParam(
     hwRender->renderParam.frameRenderMode.periodCount = DEEP_BUFFER_RENDER_PERIOD_COUNT;
     hwRender->renderParam.frameRenderMode.renderhandle = (AudioHandle)hwRender;
     pthread_mutex_init(&hwRender->renderParam.frameRenderMode.mutex, NULL);
+    pthread_mutex_init(&hwRender->renderParam.renderMode.ctlParam.mutex, NULL);
     hwRender->renderParam.renderMode.ctlParam.turnStandbyStatus = AUDIO_TURN_STANDBY_LATER;
     return HDF_SUCCESS;
 }
@@ -686,16 +687,19 @@ int32_t AudioAdapterCreateRender(struct IAudioAdapter *adapter, const struct Aud
         return AUDIO_ERR_NOT_SUPPORT;
     }
 
+    pthread_mutex_lock(&hwAdapter->infosLock);
     *renderId = GetAvailableRenderID(hwAdapter);
     renderId_ = *renderId;
     AUDIO_FUNC_LOGI("AudioAdapterCreateRender renderId: %{public}d", *renderId);
     if (*renderId == MAX_AUDIO_STREAM_NUM) {
         AUDIO_FUNC_LOGE("there is no available renderId");
+        pthread_mutex_unlock(&hwAdapter->infosLock);
         AudioReleaseRenderHandle(hwRender);
         AudioMemFree((void **)&hwRender);
         return HDF_FAILURE;
     }
     hwAdapter->infos.renderServicePtr[*renderId] = hwRender;
+    pthread_mutex_unlock(&hwAdapter->infosLock);
 
     *render = &hwRender->common;
     return AUDIO_SUCCESS;
@@ -711,7 +715,14 @@ int32_t AudioAdapterDestroyRender(struct IAudioAdapter *adapter, uint32_t render
         return AUDIO_ERR_INVALID_PARAM;
     }
 
+    pthread_mutex_lock(&hwAdapter->infosLock);
     struct IAudioRender *render = (struct IAudioRender *)hwAdapter->infos.renderServicePtr[renderId];
+    hwAdapter->infos.renderServicePtr[renderId] = NULL;
+    pthread_mutex_unlock(&hwAdapter->infosLock);
+    if (render == NULL) {
+        AUDIO_FUNC_LOGE("render is null");
+        return HDF_ERR_INVALID_PARAM;
+    }
     StubCollectorRemoveObject(IAUDIORENDER_INTERFACE_DESC, render);
 
     struct AudioHwRender *hwRender = (struct AudioHwRender *)render;
@@ -749,6 +760,7 @@ int32_t AudioAdapterDestroyRender(struct IAudioAdapter *adapter, uint32_t render
     AudioMemFree((void **)&hwRender->renderParam.frameRenderMode.buffer);
     pthread_mutex_unlock(&hwRender->renderParam.frameRenderMode.mutex);
     pthread_mutex_destroy(&hwRender->renderParam.frameRenderMode.mutex);
+    pthread_mutex_destroy(&hwRender->renderParam.renderMode.ctlParam.mutex);
     for (int i = 0; i < ERROR_LOG_MAX_NUM; i++) {
         AudioMemFree((void **)&hwRender->errorLog.errorDump[i].reason);
         AudioMemFree((void **)&hwRender->errorLog.errorDump[i].currentTime);
@@ -1004,6 +1016,7 @@ int32_t InitHwCaptureParam(struct AudioHwCapture *hwCapture, const struct AudioD
     hwCapture->captureParam.frameCaptureMode.attrs.silenceThreshold = attrs->silenceThreshold;
     hwCapture->captureParam.frameCaptureMode.attrs.isBigEndian = attrs->isBigEndian;
     hwCapture->captureParam.frameCaptureMode.attrs.isSignedData = attrs->isSignedData;
+    pthread_mutex_init(&hwCapture->captureParam.captureMode.ctlParam.mutex, NULL);
     pthread_mutex_init(&hwCapture->captureParam.frameCaptureMode.mutex, NULL);
     return HDF_SUCCESS;
 }
@@ -1237,14 +1250,17 @@ int32_t AudioAdapterCreateCapture(struct IAudioAdapter *adapter, const struct Au
         return ret;
     }
 
+    pthread_mutex_lock(&hwAdapter->infosLock);
     *captureId = GetAvailableCaptureID(hwAdapter);
     if (*captureId == MAX_AUDIO_STREAM_NUM) {
         AUDIO_FUNC_LOGE("there is no available captureId");
+        pthread_mutex_unlock(&hwAdapter->infosLock);
         AudioReleaseCaptureHandle(hwCapture);
         AudioMemFree((void **)&hwCapture);
         return HDF_FAILURE;
     }
     hwAdapter->infos.captureServicePtr[*captureId] = hwCapture;
+    pthread_mutex_unlock(&hwAdapter->infosLock);
 
     *capture = &hwCapture->common;
     return AUDIO_SUCCESS;
@@ -1259,7 +1275,10 @@ int32_t AudioAdapterDestroyCapture(struct IAudioAdapter *adapter, uint32_t captu
         AUDIO_FUNC_LOGE("Parameter error!");
         return AUDIO_ERR_INVALID_PARAM;
     }
+    pthread_mutex_lock(&hwAdapter->infosLock);
     struct IAudioCapture *capture = (struct IAudioCapture *)hwAdapter->infos.captureServicePtr[captureId];
+    hwAdapter->infos.captureServicePtr[captureId] = NULL;
+    pthread_mutex_unlock(&hwAdapter->infosLock);
 
     StubCollectorRemoveObject(IAUDIOCAPTURE_INTERFACE_DESC, capture);
 
@@ -1289,6 +1308,7 @@ int32_t AudioAdapterDestroyCapture(struct IAudioAdapter *adapter, uint32_t captu
     AudioReleaseCaptureHandle(hwCapture);
     AudioMemFree((void **)&hwCapture->captureParam.frameCaptureMode.buffer);
     pthread_mutex_unlock(&hwCapture->captureParam.frameCaptureMode.mutex);
+    pthread_mutex_destroy(&hwCapture->captureParam.captureMode.ctlParam.mutex);
     pthread_mutex_destroy(&hwCapture->captureParam.frameCaptureMode.mutex);
     for (int i = 0; i < ERROR_LOG_MAX_NUM; i++) {
         AudioMemFree((void **)&hwCapture->errorLog.errorDump[i].reason);

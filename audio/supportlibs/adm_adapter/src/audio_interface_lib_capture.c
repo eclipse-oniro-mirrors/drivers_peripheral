@@ -14,6 +14,7 @@
  */
 
 #include "audio_interface_lib_capture.h"
+#include <pthread.h>
 #include <unistd.h>
 #include "audio_common.h"
 #include "audio_uhdf_log.h"
@@ -32,6 +33,7 @@
 
 /* Out Put Capture */
 static struct AudioPcmHwParams g_hwParams;
+static pthread_mutex_t g_hwParamsLock = PTHREAD_MUTEX_INITIALIZER;
 
 int32_t SetHwParamsCapture(const struct AudioHwCaptureParam * const handleData)
 {
@@ -739,8 +741,10 @@ int32_t AudioOutputCaptureHwParams(const struct DevHandle *handle,
         return HDF_FAILURE;
     }
 
+    pthread_mutex_lock(&g_hwParamsLock);
     int32_t ret = SetHwParamsCapture(handleData);
     if (ret != HDF_SUCCESS) {
+        pthread_mutex_unlock(&g_hwParamsLock);
         AUDIO_FUNC_LOGE("SetHwParamsCapture Failed");
         AudioFreeHdfSBuf(&sBuf, NULL);
         return HDF_FAILURE;
@@ -748,10 +752,12 @@ int32_t AudioOutputCaptureHwParams(const struct DevHandle *handle,
 
     ret = ParamsSbufWriteBuffer(sBuf);
     if (ret != HDF_SUCCESS) {
+        pthread_mutex_unlock(&g_hwParamsLock);
         AUDIO_FUNC_LOGE("ParamsSbufWriteBuffer Failed");
         AudioFreeHdfSBuf(&sBuf, NULL);
         return HDF_FAILURE;
     }
+    pthread_mutex_unlock(&g_hwParamsLock);
 
     ret = AudioServiceDispatch(handle->object, cmdId, sBuf, NULL);
     if (ret != HDF_SUCCESS) {
@@ -872,7 +878,11 @@ int32_t AudioInputCaptureReadInfoToHandleData(struct AudioHwCaptureParam *handle
         return HDF_FAILURE;
     }
 #ifdef MONO_TO_STEREO
-    if (g_hwParams.channels == 2) { // if rk3568 channel = 2, and 16bit
+    pthread_mutex_lock(&g_hwParamsLock);
+    bool isStereo = (g_hwParams.channels == 2);
+    pthread_mutex_unlock(&g_hwParamsLock);
+
+    if (isStereo) { // if rk3568 channel = 2, and 16bit
         CaptureChannelFixed(handleData->frameCaptureMode.buffer, dataSize / 2); // len = dataSize / 2
     }
 #endif
