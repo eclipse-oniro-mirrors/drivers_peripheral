@@ -443,8 +443,10 @@ int32_t LibusbAdapter::OpenDeviceHandle(const UsbDev &dev, libusb_device *device
     auto it = g_handleMap.find(result);
     if (it != g_handleMap.end() && (it->second.handle != nullptr)) {
         it->second.count++;
+        return HDF_SUCCESS;
     }
-    return HDF_SUCCESS;
+    HDF_LOGE("%{public}s: handle entry not found after FindHandleByDev, concurrent close", __func__);
+    return HDF_FAILURE;
 }
 
 int32_t LibusbAdapter::CloseDevice(const UsbDev &dev, bool isDetach)
@@ -3119,6 +3121,10 @@ int32_t LibusbAdapter::RegBulkCallback(const UsbDev &dev, const UsbPipe &pipe, c
             return pair.second->endpoint == pipe.endpointId;
     });
     if (transferIt != wrapper->bulkTransferList.end()) {
+        if (transferIt->first->isTransferring) {
+            HDF_LOGE("%{public}s: endpoint is transferring, cannot update callback", __func__);
+            return HDF_FAILURE;
+        }
         HDF_LOGI("%{public}s: endpoint already registered, update callback", __func__);
         transferIt->first->bulkCbRef = cb;
         return HDF_SUCCESS;
