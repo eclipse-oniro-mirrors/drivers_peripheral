@@ -198,6 +198,7 @@ private:
     static HdfDevEventlistener listenerForLoadService_;
     static UsbdSubscriber subscribers_[MAX_SUBSCRIBER];
     static std::shared_mutex subscribersMutex_;
+    static std::mutex subscriberOpMutex_;
     static bool isGadgetConnected_;
     static uint32_t attachCount_;
     static uint32_t attachFailedCount_;

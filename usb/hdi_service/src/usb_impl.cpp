@@ -71,6 +71,7 @@ UsbdLoadService UsbImpl::loadUsbService_ = {USB_SYSTEM_ABILITY_ID};
 UsbdLoadService UsbImpl::loadHdfEdm_ = {HDF_EXTERNAL_DEVICE_MANAGER_SA_ID};
 UsbdSubscriber UsbImpl::subscribers_[MAX_SUBSCRIBER] = {{0}};
 std::shared_mutex UsbImpl::subscribersMutex_;
+std::mutex UsbImpl::subscriberOpMutex_;
 bool UsbImpl::isGadgetConnected_ = false;
 uint32_t UsbImpl::attachCount_ = 0;
 uint32_t UsbImpl::attachFailedCount_ = 0;
@@ -2335,6 +2336,7 @@ int32_t UsbImpl::BindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
         return HDF_ERR_INVALID_PARAM;
     }
     const sptr<IRemoteObject> &remote = OHOS::HDI::hdi_objcast<IUsbdSubscriber>(subscriber);
+    std::lock_guard<std::mutex> opLock(subscriberOpMutex_);
     int32_t i = MAX_SUBSCRIBER;
     {
         std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
@@ -2354,7 +2356,8 @@ int32_t UsbImpl::BindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
         }
     }
     // DdkListenerMgrAdd 会同步回调 UsbdPnpLoaderEventReceived -> GetUsbdSubscriber，
-    // 不能在持有 subscribersMutex_ 的情况下调用，否则同线程二次加锁死锁
+    // 不能在持有 subscribersMutex_ 的情况下调用，否则同线程二次加锁死锁；
+    // 但整个绑定过程由 subscriberOpMutex_ 串行化，Unbind/OnRemoteDied 不会清理正在注册的槽位
     if (DdkListenerMgrAdd(&subscribers_[i].usbPnpListener) != HDF_SUCCESS) {
         HDF_LOGE("%{public}s: register listerer failed", __func__);
         CleanupSubscriber(i, subscriber, remote);
@@ -2387,6 +2390,7 @@ int32_t UsbImpl::UnbindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
         return HDF_ERR_INVALID_PARAM;
     }
     const sptr<IRemoteObject> &remote = OHOS::HDI::hdi_objcast<IUsbdSubscriber>(subscriber);
+    std::lock_guard<std::mutex> opLock(subscriberOpMutex_);
     int32_t i = MAX_SUBSCRIBER;
     {
         std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
@@ -2400,10 +2404,12 @@ int32_t UsbImpl::UnbindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
             HDF_LOGE("%{public}s:RemoveUsbDeathRecipient failed", __func__);
             return HDF_FAILURE;
         }
+        delete static_cast<UsbDeathRecipient *>(subscribers_[i].deathRecipient);
         subscribers_[i].subscriber = nullptr;
         subscribers_[i].remote = nullptr;
         subscribers_[i].deathRecipient = nullptr;
     }
+    // subscriberOpMutex_ 保证无并发的 Bind 正在注册该槽位，可安全移除监听器
     if (DdkListenerMgrRemove(&subscribers_[i].usbPnpListener) != HDF_SUCCESS) {
         HDF_LOGE("%{public}s: remove listerer failed", __func__);
         return HDF_FAILURE;
@@ -2413,6 +2419,7 @@ int32_t UsbImpl::UnbindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
 
 void UsbImpl::UsbDeathRecipient::OnRemoteDied(const wptr<IRemoteObject> &object)
 {
+    std::lock_guard<std::mutex> opLock(UsbImpl::subscriberOpMutex_);
     int32_t i = MAX_SUBSCRIBER;
     {
         std::unique_lock<std::shared_mutex> lock(UsbImpl::subscribersMutex_);
