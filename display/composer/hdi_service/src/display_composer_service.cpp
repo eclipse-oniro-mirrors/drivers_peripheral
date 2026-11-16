@@ -43,7 +43,7 @@ namespace Composer {
 const std::string BOOTEVENT_COMPOSER_HOST_READY = "bootevent.composer_host.ready";
 static std::shared_mutex g_respMapMutex;
 
-extern "C" V1_5::IDisplayComposer* DisplayComposerImplGetInstance(void)
+extern "C" V1_6::IDisplayComposer* DisplayComposerImplGetInstance(void)
 {
     return new (std::nothrow) DisplayComposerService();
 }
@@ -1335,6 +1335,11 @@ int32_t DisplayComposerService::GetLayerColor(uint32_t devId, uint32_t layerId, 
     DISPLAY_CHK_RETURN(ret != HDF_SUCCESS, HDF_FAILURE,
         DISPLAY_LOGE("%{public}s fail ret:%{public}d, devId:%{public}u", __func__, ret, devId));
     return ret;
+}
+
+int32_t DisplayComposerService::SetDisplayReadBack(uint32_t devId, bool disableReadback)
+{
+    return HDF_SUCCESS;
 }
 } // namespace Composer
 } // namespace Display
