@@ -14,6 +14,13 @@ import("//build/ohos.gni")
 import("../../power.gni")
 
 ohos_shared_library("libpower_interface_service_1.4") {
+  sanitize = {
+    cfi = true
+    cfi_cross_dso = true
+    debug = false
+  }
+  branch_protector_ret = "pac_ret"
+
   include_dirs = [ "../../utils/include" ]
   sources = [
     "../../utils/power_xcollie.cpp",
@@ -96,6 +103,13 @@ ohos_shared_library("libpower_interface_service_1.4") {
 ##############################################################################################
 
 ohos_shared_library("libpower_driver") {
+  sanitize = {
+    cfi = true
+    cfi_cross_dso = true
+    debug = false
+  }
+  branch_protector_ret = "pac_ret"
+  
   sources = [ "src/power_interface_driver.cpp" ]
 
   external_deps = [
