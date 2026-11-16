@@ -1325,16 +1325,19 @@ static int32_t AudioCaptureRegCallbackVdi(struct IAudioCapture *capture, struct 
         pthread_rwlock_unlock(&g_rwVdiCaptureLock[captureId]);
         return HDF_ERR_INVALID_PARAM;
     }
+    captureInfo->callback = audioCallback;
+    captureInfo->isRegCb = true;
+    pthread_rwlock_unlock(&g_rwVdiCaptureLock[captureId]);
 
     int32_t ret = vdiCapture->RegCallback(vdiCapture, AudioCaptureCallbackVdi, (void *)captureInfo);
     if (ret != HDF_SUCCESS) {
+        pthread_rwlock_wrlock(&g_rwVdiCaptureLock[captureId]);
+        captureInfo->callback = NULL;
+        captureInfo->isRegCb = false;
         pthread_rwlock_unlock(&g_rwVdiCaptureLock[captureId]);
         AUDIO_FUNC_LOGE("audio capture regCallback fail, ret=%{public}d", ret);
         return ret;
     }
-    captureInfo->callback = audioCallback;
-    captureInfo->isRegCb = true;
-    pthread_rwlock_unlock(&g_rwVdiCaptureLock[captureId]);
     AUDIO_FUNC_LOGI("AudioCaptureRegCallbackVdi hdi RegCallback success");
     return HDF_SUCCESS;
 }

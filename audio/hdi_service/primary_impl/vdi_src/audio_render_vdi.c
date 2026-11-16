@@ -263,7 +263,19 @@ static int32_t AudioRenderCallbackVdi(enum  AudioCallbackTypeVdi type, void *res
 {
     CHECK_NULL_PTR_RETURN_VALUE(cookie, HDF_ERR_INVALID_PARAM);
     struct AudioRenderInfo *renderInfo = (struct AudioRenderInfo *)cookie;
+    uint32_t renderId = renderInfo->renderId;
+    if (renderId >= AUDIO_VDI_STREAM_NUM_MAX) {
+        AUDIO_FUNC_LOGE("invalid param");
+        return HDF_ERR_INVALID_PARAM;
+    }
+    pthread_rwlock_rdlock(&g_rwVdiRenderLock[renderId]);
+    if (!renderInfo->isRegCb) {
+        pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
+        AUDIO_FUNC_LOGE("audio render callback is not reg");
+        return HDF_FAILURE;
+    }
     struct IAudioCallback *cb = renderInfo->callback;
+    pthread_rwlock_unlock(&g_rwVdiRenderLock[renderId]);
     CHECK_NULL_PTR_RETURN_VALUE(cb, HDF_ERR_INVALID_PARAM);
     int8_t newCookie = 0;
     int8_t newReserved = 0;
