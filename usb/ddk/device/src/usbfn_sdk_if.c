@@ -236,13 +236,13 @@ int32_t UsbFnRegistInterfaceProp(const struct UsbFnInterface *interface, const s
     return UsbFnCfgMgrRegisterProp(interface, registInfo);
 }
 
-int32_t UsbFnGetInterfaceProp(const struct UsbFnInterface *interface, const char *name, char *value)
+int32_t UsbFnGetInterfaceProp(const struct UsbFnInterface *interface, const char *name, char *value, uint32_t valueLen)
 {
-    if (name == NULL || interface == NULL || value == NULL) {
+    if (name == NULL || interface == NULL || value == NULL || valueLen == 0) {
         HDF_LOGE("%{public}s: INVALID PARAM", __func__);
         return HDF_ERR_INVALID_PARAM;
     }
-    return UsbFnCfgMgrGetProp(interface, name, value);
+    return UsbFnCfgMgrGetProp(interface, name, value, valueLen);
 }
 
 int32_t UsbFnSetInterfaceProp(const struct UsbFnInterface *interface, const char *name, const char *value)

@@ -124,7 +124,7 @@ struct UsbFnCfgPropMgr {
 struct UsbFnDeviceDesc *UsbFnCfgMgrGetInstanceFromHCS(const struct DeviceResourceNode *node);
 void UsbFnCfgMgrFreeUsbFnDeviceDesc(struct UsbFnDeviceDesc *fnDevDesc);
 int32_t UsbFnCfgMgrSetProp(const struct UsbFnInterface *intf, const char *name, const char *value);
-int32_t UsbFnCfgMgrGetProp(const struct UsbFnInterface *intf, const char *name, char *value);
+int32_t UsbFnCfgMgrGetProp(const struct UsbFnInterface *intf, const char *name, char *value, uint32_t valueLen);
 int32_t UsbFnCfgMgrRegisterProp(const struct UsbFnInterface *intf,
     const struct UsbFnRegistInfo *registInfo);
 void UsbFnCfgMgrUnRegisterAllProp(void);

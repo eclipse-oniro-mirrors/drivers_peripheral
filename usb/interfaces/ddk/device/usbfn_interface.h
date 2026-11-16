@@ -354,7 +354,8 @@ int32_t UsbFnRegistInterfaceProp(const struct UsbFnInterface *interface, const s
  * @return Returns <b>0</b> if the operation is successful; returns a negative
  * value defined in {@link UsbErrorType} otherwise.
  */
-int32_t UsbFnGetInterfaceProp(const struct UsbFnInterface *interface, const char *name, char *value);
+int32_t UsbFnGetInterfaceProp(const struct UsbFnInterface *interface, const char *name, char *value,
+    uint32_t valueLen);
 
 /**
  * @brief Sets custom attributes of a USB interface.

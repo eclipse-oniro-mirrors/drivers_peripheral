@@ -705,17 +705,23 @@ static int32_t ControlRequestCompletion(const struct UsbHostRequest *request, st
         goto OUT;
     }
 
-    if ((requestData->requestType & USB_DDK_ENDPOINT_DIR_MASK) == USB_PIPE_DIRECTION_IN) {
-        ret = memcpy_s(requestData->data, request->actualLength + requestData->length, ControlRequestGetData(request),
-            request->actualLength);
-        if (ret != EOK) {
-            HDF_LOGE("%{public}s:%{public}d memcpy_s failed! ret = %{public}d", __func__, __LINE__, ret);
-            goto OUT;
-        }
-    }
-
     switch (request->status) {
         case USB_REQUEST_COMPLETED:
+            if ((requestData->requestType & USB_DDK_ENDPOINT_DIR_MASK) == USB_PIPE_DIRECTION_IN) {
+                if (requestData->data == NULL || requestData->length <= 0 ||
+                    request->actualLength > (uint32_t)requestData->length) {
+                    HDF_LOGE("%{public}s:%{public}d invalid copy length, actualLength=%{public}u length=%{public}d",
+                        __func__, __LINE__, request->actualLength, requestData->length);
+                    ret = HDF_ERR_INVALID_PARAM;
+                    goto OUT;
+                }
+                ret = memcpy_s(requestData->data, (size_t)requestData->length, ControlRequestGetData(request),
+                    request->actualLength);
+                if (ret != EOK) {
+                    HDF_LOGE("%{public}s:%{public}d memcpy_s failed! ret = %{public}d", __func__, __LINE__, ret);
+                    goto OUT;
+                }
+            }
             ret = request->actualLength;
             break;
         case USB_REQUEST_TIMEOUT:

@@ -464,7 +464,7 @@ HWTEST_F(UsbDeviceSdkIfTest, CheckDeviceSdkIfGetProp001, TestSize.Level1)
     char buffer[BUFFER_LEN] = {0};
     EXPECT_NE(nullptr, g_acmDevice);
     EXPECT_NE(nullptr, g_acmDevice->ctrlIface.fn);
-    ret = UsbFnGetInterfaceProp(g_acmDevice->ctrlIface.fn, "name_test", buffer);
+    ret = UsbFnGetInterfaceProp(g_acmDevice->ctrlIface.fn, "name_test", buffer, sizeof(buffer));
     EXPECT_TRUE(HDF_SUCCESS == ret);
     EXPECT_TRUE(strcmp(buffer, "test_value") == 0);
 }
@@ -475,7 +475,7 @@ HWTEST_F(UsbDeviceSdkIfTest, CheckDeviceSdkIfGetProp002, TestSize.Level1)
     char buffer[BUFFER_LEN] = {0};
     EXPECT_NE(nullptr, g_acmDevice);
     EXPECT_NE(nullptr, g_acmDevice->ctrlIface.fn);
-    ret = UsbFnGetInterfaceProp(g_acmDevice->ctrlIface.fn, "unknown", buffer);
+    ret = UsbFnGetInterfaceProp(g_acmDevice->ctrlIface.fn, "unknown", buffer, sizeof(buffer));
     EXPECT_TRUE(HDF_SUCCESS != ret);
 }
 
@@ -485,7 +485,7 @@ HWTEST_F(UsbDeviceSdkIfTest, CheckDeviceSdkIfGetProp003, TestSize.Level1)
     char buffer[BUFFER_LEN] = {0};
     EXPECT_NE(nullptr, g_acmDevice);
     EXPECT_NE(nullptr, g_acmDevice->ctrlIface.fn);
-    ret = UsbFnGetInterfaceProp(g_acmDevice->ctrlIface.fn, "idProduct", buffer);
+    ret = UsbFnGetInterfaceProp(g_acmDevice->ctrlIface.fn, "idProduct", buffer, sizeof(buffer));
     EXPECT_TRUE(HDF_SUCCESS == ret);
 }
 
@@ -495,7 +495,7 @@ HWTEST_F(UsbDeviceSdkIfTest, CheckDeviceSdkIfGetProp004, TestSize.Level1)
     char buffer[BUFFER_LEN] = {0};
     EXPECT_NE(nullptr, g_acmDevice);
     EXPECT_NE(nullptr, g_acmDevice->ctrlIface.fn);
-    ret = UsbFnGetInterfaceProp(nullptr, "idProduct", buffer);
+    ret = UsbFnGetInterfaceProp(nullptr, "idProduct", buffer, sizeof(buffer));
     EXPECT_TRUE(HDF_SUCCESS != ret);
 }
 
@@ -504,7 +504,7 @@ HWTEST_F(UsbDeviceSdkIfTest, CheckDeviceSdkIfGetProp005, TestSize.Level1)
     int32_t ret;
     EXPECT_NE(nullptr, g_acmDevice);
     EXPECT_NE(nullptr, g_acmDevice->ctrlIface.fn);
-    ret = UsbFnGetInterfaceProp(g_acmDevice->ctrlIface.fn, "idProduct", nullptr);
+    ret = UsbFnGetInterfaceProp(g_acmDevice->ctrlIface.fn, "idProduct", nullptr, 0);
     EXPECT_TRUE(HDF_SUCCESS == ret);
 }
 #endif
@@ -513,7 +513,7 @@ HWTEST_F(UsbDeviceSdkIfTest, CheckDeviceSdkIfGetProp006, TestSize.Level1)
 {
     int32_t ret;
     char buffer[BUFFER_LEN] = {0};
-    ret = UsbFnGetInterfaceProp(nullptr, "idProduct", buffer);
+    ret = UsbFnGetInterfaceProp(nullptr, "idProduct", buffer, sizeof(buffer));
     EXPECT_TRUE(HDF_SUCCESS != ret);
 }
 
@@ -524,7 +524,7 @@ HWTEST_F(UsbDeviceSdkIfTest, CheckDeviceSdkIfGetProp007, TestSize.Level1)
     char buffer[BUFFER_LEN] = {0};
     EXPECT_NE(nullptr, g_acmDevice);
     EXPECT_NE(nullptr, g_acmDevice->dataIface.fn);
-    ret = UsbFnGetInterfaceProp(g_acmDevice->dataIface.fn, "name_test", buffer);
+    ret = UsbFnGetInterfaceProp(g_acmDevice->dataIface.fn, "name_test", buffer, sizeof(buffer));
     EXPECT_TRUE(HDF_SUCCESS == ret);
     EXPECT_TRUE(strcmp(buffer, "test_value") == 0);
 }
@@ -535,7 +535,7 @@ HWTEST_F(UsbDeviceSdkIfTest, CheckDeviceSdkIfGetProp008, TestSize.Level1)
     char buffer[BUFFER_LEN] = {0};
     EXPECT_NE(nullptr, g_acmDevice);
     EXPECT_NE(nullptr, g_acmDevice->dataIface.fn);
-    ret = UsbFnGetInterfaceProp(g_acmDevice->dataIface.fn, "idProduct", buffer);
+    ret = UsbFnGetInterfaceProp(g_acmDevice->dataIface.fn, "idProduct", buffer, sizeof(buffer));
     EXPECT_TRUE(HDF_SUCCESS == ret);
 }
 

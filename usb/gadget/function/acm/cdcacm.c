@@ -804,7 +804,7 @@ static int32_t UsbSerialGetProp(struct UsbAcmDevice *acmDevice, struct HdfSBuf *
         HDF_LOGE("%{public}s: sbuf read buffer failed.", __func__);
         return HDF_ERR_IO;
     }
-    ret = UsbFnGetInterfaceProp(intf, propName, propValue);
+    ret = UsbFnGetInterfaceProp(intf, propName, propValue, sizeof(propValue));
     if (ret) {
         HDF_LOGE("%{public}s: get interface face prop failed.", __func__);
         return HDF_ERR_IO;
