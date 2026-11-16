@@ -2334,27 +2334,50 @@ int32_t UsbImpl::BindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
         HDF_LOGE("%{public}s:subscriber is  null", __func__);
         return HDF_ERR_INVALID_PARAM;
     }
-    std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
     const sptr<IRemoteObject> &remote = OHOS::HDI::hdi_objcast<IUsbdSubscriber>(subscriber);
-    int32_t i = FindSubscriberIndex(remote);
-    if (i < MAX_SUBSCRIBER) {
-        HDF_LOGI("%{public}s: current subscriber was bind", __func__);
-        return HDF_SUCCESS;
+    int32_t i = MAX_SUBSCRIBER;
+    {
+        std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
+        i = FindSubscriberIndex(remote);
+        if (i < MAX_SUBSCRIBER) {
+            HDF_LOGI("%{public}s: current subscriber was bind", __func__);
+            return HDF_SUCCESS;
+        }
+        i = FindFreeSubscriberIndex();
+        if (i == MAX_SUBSCRIBER) {
+            HDF_LOGE("%{public}s: too many listeners", __func__);
+            return HDF_ERR_OUT_OF_RANGE;
+        }
+        int32_t ret = RegisterSubscriber(i, subscriber, remote);
+        if (ret != HDF_SUCCESS) {
+            return ret;
+        }
     }
-    i = FindFreeSubscriberIndex();
-    if (i == MAX_SUBSCRIBER) {
-        HDF_LOGE("%{public}s: too many listeners", __func__);
-        return HDF_ERR_OUT_OF_RANGE;
-    }
-    int32_t ret = RegisterSubscriber(i, subscriber, remote);
-    if (ret != HDF_SUCCESS) {
-        return ret;
-    }
+    // DdkListenerMgrAdd 会同步回调 UsbdPnpLoaderEventReceived -> GetUsbdSubscriber，
+    // 不能在持有 subscribersMutex_ 的情况下调用，否则同线程二次加锁死锁
     if (DdkListenerMgrAdd(&subscribers_[i].usbPnpListener) != HDF_SUCCESS) {
         HDF_LOGE("%{public}s: register listerer failed", __func__);
+        CleanupSubscriber(i, subscriber, remote);
         return HDF_FAILURE;
     }
     return HDF_SUCCESS;
+}
+
+void UsbImpl::CleanupSubscriber(int32_t i, const sptr<IUsbdSubscriber> &subscriber,
+    const sptr<IRemoteObject> &remote)
+{
+    (void)DdkListenerMgrRemove(&subscribers_[i].usbPnpListener);
+    std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
+    if (subscribers_[i].subscriber != subscriber) {
+        return;
+    }
+    if (subscribers_[i].deathRecipient != nullptr) {
+        remote->RemoveDeathRecipient(static_cast<UsbDeathRecipient *>(subscribers_[i].deathRecipient));
+        delete static_cast<UsbDeathRecipient *>(subscribers_[i].deathRecipient);
+        subscribers_[i].deathRecipient = nullptr;
+    }
+    subscribers_[i].subscriber = nullptr;
+    subscribers_[i].remote = nullptr;
 }
 
 int32_t UsbImpl::UnbindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
@@ -2363,27 +2386,24 @@ int32_t UsbImpl::UnbindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
         HDF_LOGE("%{public}s:subscriber is  null", __func__);
         return HDF_ERR_INVALID_PARAM;
     }
-    std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
-    int32_t i;
     const sptr<IRemoteObject> &remote = OHOS::HDI::hdi_objcast<IUsbdSubscriber>(subscriber);
-    for (i = 0; i < MAX_SUBSCRIBER; i++) {
-        if (subscribers_[i].remote == remote) {
-            break;
+    int32_t i = MAX_SUBSCRIBER;
+    {
+        std::unique_lock<std::shared_mutex> lock(subscribersMutex_);
+        i = FindSubscriberIndex(remote);
+        if (i == MAX_SUBSCRIBER) {
+            HDF_LOGE("%{public}s: current subscriber not bind", __func__);
+            return HDF_DEV_ERR_NO_DEVICE;
         }
+        bool result = remote->RemoveDeathRecipient(static_cast<UsbDeathRecipient *>(subscribers_[i].deathRecipient));
+        if (!result) {
+            HDF_LOGE("%{public}s:RemoveUsbDeathRecipient failed", __func__);
+            return HDF_FAILURE;
+        }
+        subscribers_[i].subscriber = nullptr;
+        subscribers_[i].remote = nullptr;
+        subscribers_[i].deathRecipient = nullptr;
     }
-    if (i == MAX_SUBSCRIBER) {
-        HDF_LOGE("%{public}s: current subscriber not bind", __func__);
-        return HDF_DEV_ERR_NO_DEVICE;
-    }
-    bool result = remote->RemoveDeathRecipient(static_cast<UsbDeathRecipient *>(subscribers_[i].deathRecipient));
-    if (!result) {
-        HDF_LOGE("%{public}s:RemoveUsbDeathRecipient failed", __func__);
-        return HDF_FAILURE;
-    }
-
-    subscribers_[i].subscriber = nullptr;
-    subscribers_[i].remote = nullptr;
-    subscribers_[i].deathRecipient = nullptr;
     if (DdkListenerMgrRemove(&subscribers_[i].usbPnpListener) != HDF_SUCCESS) {
         HDF_LOGE("%{public}s: remove listerer failed", __func__);
         return HDF_FAILURE;
@@ -2393,20 +2413,22 @@ int32_t UsbImpl::UnbindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
 
 void UsbImpl::UsbDeathRecipient::OnRemoteDied(const wptr<IRemoteObject> &object)
 {
-    std::unique_lock<std::shared_mutex> lock(UsbImpl::subscribersMutex_);
-    int32_t i;
-    for (i = 0; i < MAX_SUBSCRIBER; i++) {
-        if (UsbImpl::subscribers_[i].subscriber == deathSubscriber_) {
-            break;
+    int32_t i = MAX_SUBSCRIBER;
+    {
+        std::unique_lock<std::shared_mutex> lock(UsbImpl::subscribersMutex_);
+        for (i = 0; i < MAX_SUBSCRIBER; i++) {
+            if (UsbImpl::subscribers_[i].subscriber == deathSubscriber_) {
+                break;
+            }
         }
+        if (i == MAX_SUBSCRIBER) {
+            HDF_LOGE("%{public}s: current subscriber not bind", __func__);
+            return;
+        }
+        UsbImpl::subscribers_[i].subscriber = nullptr;
+        UsbImpl::subscribers_[i].remote = nullptr;
+        UsbImpl::subscribers_[i].deathRecipient = nullptr;
     }
-    if (i == MAX_SUBSCRIBER) {
-        HDF_LOGE("%{public}s: current subscriber not bind", __func__);
-        return;
-    }
-    UsbImpl::subscribers_[i].subscriber = nullptr;
-    subscribers_[i].remote = nullptr;
-    subscribers_[i].deathRecipient = nullptr;
     if (DdkListenerMgrRemove(&UsbImpl::subscribers_[i].usbPnpListener) != HDF_SUCCESS) {
         HDF_LOGE("%{public}s: remove listerer failed", __func__);
     }

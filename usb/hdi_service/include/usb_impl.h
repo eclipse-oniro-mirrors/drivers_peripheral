@@ -166,6 +166,8 @@ private:
     static int32_t FindFreeSubscriberIndex();
     int32_t RegisterSubscriber(int32_t index, const sptr<IUsbdSubscriber> &subscriber,
         const sptr<IRemoteObject> &remote);
+    void CleanupSubscriber(int32_t index, const sptr<IUsbdSubscriber> &subscriber,
+        const sptr<IRemoteObject> &remote);
     class UsbDeathRecipient : public IRemoteObject::DeathRecipient {
     public:
         explicit UsbDeathRecipient(const sptr<IUsbdSubscriber> &deathSubscriber) : deathSubscriber_(deathSubscriber) {};
