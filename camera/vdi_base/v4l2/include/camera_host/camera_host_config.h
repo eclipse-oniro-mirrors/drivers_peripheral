@@ -19,6 +19,7 @@
 #include <vector>
 #include <map>
 #include <list>
+#include <mutex>
 #include "utils.h"
 #include "camera.h"
 
@@ -76,6 +77,7 @@ private:
     using CameraIdMap = std::map<std::string, std::vector<std::string>>;
     CameraIdMap cameraIdMap_;
     std::vector<std::string> usbCameraIdVector_;
+    std::recursive_mutex mapMutex_;
 };
 } // end namespace OHOS::Camera
 #endif // CAMERA_HOST_CONFIG_MANAGER_H

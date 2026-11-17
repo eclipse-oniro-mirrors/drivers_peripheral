@@ -174,14 +174,19 @@ int32_t CameraHostService::GetCameraIds(std::vector<std::string> &cameraIds)
 {
     CameraHalHicollie cameraHalHicollie("CameraHost:GetCameraIds");
     std::vector<std::string>().swap(cameraIds);
-    if (cameraIdInfoList_.size() == 0) {
-        int32_t ret = UpdateCameraIdMapList();
-        if (ret != OHOS::HDI::Camera::V1_0::NO_ERROR) {
-            CAMERA_LOGE("Camera get cameraIds failed");
-            return ret;
+    std::vector<CameraIdInfo> snapshot;
+    {
+        std::lock_guard<std::recursive_mutex> lock(GetCameraIdInfoListMutex());
+        if (cameraIdInfoList_.size() == 0) {
+            int32_t ret = UpdateCameraIdMapList();
+            if (ret != OHOS::HDI::Camera::V1_0::NO_ERROR) {
+                CAMERA_LOGE("Camera get cameraIds failed");
+                return ret;
+            }
         }
+        snapshot = cameraIdInfoList_;
     }
-    for (auto cameraIdInfo : cameraIdInfoList_) {
+    for (const auto &cameraIdInfo : snapshot) {
         if (cameraIdInfo.isDeleted == false) {
             cameraIds.push_back(cameraIdInfo.currentCameraId);
         }
@@ -272,7 +277,7 @@ static inline const std::string vdiCameraIdToPrefix(const std::string &id)
 
 int32_t CameraHostService::UpdateCameraIdMapList()
 {
-    std::vector<CameraIdInfo>().swap(cameraIdInfoList_);
+    std::vector<CameraIdInfo> cameraIdInfoList;
     int32_t currentCameraIndex = 1;
     for (auto cameraHostVdi : cameraHostVdiList_) {
         CHECK_IF_PTR_NULL_RETURN_VALUE(cameraHostVdi, OHOS::HDI::Camera::V1_0::INVALID_ARGUMENT);
@@ -291,16 +296,19 @@ int32_t CameraHostService::UpdateCameraIdMapList()
             cameraIdInfo.cameraHostVdi = cameraHostVdi;
             cameraIdInfo.vendorCameraId = id;
             cameraIdInfo.isDeleted = false;
-            cameraIdInfoList_.push_back(cameraIdInfo);
+            cameraIdInfoList.push_back(cameraIdInfo);
             currentCameraIndex++;
         }
     }
+    std::lock_guard<std::recursive_mutex> lock(GetCameraIdInfoListMutex());
+    cameraIdInfoList_.swap(cameraIdInfoList);
 
     return OHOS::HDI::Camera::V1_0::NO_ERROR;
 }
 
 ICameraHostVdi* CameraHostService::GetCameraHostVdi(const std::string &currentCameraId)
 {
+    std::lock_guard<std::recursive_mutex> lock(GetCameraIdInfoListMutex());
     auto itr = std::find_if(cameraIdInfoList_.begin(), cameraIdInfoList_.end(),
         [&currentCameraId](const struct CameraIdInfo &cameraIdInfo) {
             return currentCameraId == cameraIdInfo.currentCameraId;
@@ -316,6 +324,7 @@ ICameraHostVdi* CameraHostService::GetCameraHostVdi(const std::string &currentCa
 
 const std::string CameraHostService::GetVendorCameraId(const std::string &currentCameraId)
 {
+    std::lock_guard<std::recursive_mutex> lock(GetCameraIdInfoListMutex());
     auto itr = std::find_if(cameraIdInfoList_.begin(), cameraIdInfoList_.end(),
         [&currentCameraId](const struct CameraIdInfo &cameraIdInfo) {
             return currentCameraId == cameraIdInfo.currentCameraId;

@@ -38,6 +38,8 @@ CameraHostConfig::AutoRelease CameraHostConfig::autoRelease_;
 
 CameraHostConfig *CameraHostConfig::GetInstance()
 {
+    static std::mutex instanceMutex;
+    std::lock_guard<std::mutex> l(instanceMutex);
     if (instance_ == nullptr) {
         instance_ = new (std::nothrow) CameraHostConfig();
         if (instance_ != nullptr) {
@@ -69,6 +71,7 @@ RetCode CameraHostConfig::ReadConfigFile()
         return rc;
     }
 
+    std::lock_guard<std::recursive_mutex> l(mapMutex_);
     rc = hcsDeal->GetCameraId(cameraIdMap_);
     if (rc != RC_OK || cameraIdMap_.empty()) {
         CAMERA_LOGE("config camera id not found. [pathname = %{public}s]", CONFIG_PATH_NAME.c_str());
@@ -86,6 +89,7 @@ RetCode CameraHostConfig::ReadConfigFile()
 
 RetCode CameraHostConfig::GetCameraIds(std::vector<std::string> &cameraIds)
 {
+    std::lock_guard<std::recursive_mutex> l(mapMutex_);
     auto itr = cameraAbilityMap_.begin();
     for (; itr != cameraAbilityMap_.end(); itr++) {
         cameraIds.push_back(itr->first);
@@ -96,6 +100,7 @@ RetCode CameraHostConfig::GetCameraIds(std::vector<std::string> &cameraIds)
 
 RetCode CameraHostConfig::GetPhysicCameraIds(const std::string &lCameraId, std::vector<std::string> &pCameraIds)
 {
+    std::lock_guard<std::recursive_mutex> l(mapMutex_);
     auto itr = cameraIdMap_.find(lCameraId);
     if (itr != cameraIdMap_.end()) {
         pCameraIds = itr->second;
@@ -107,6 +112,7 @@ RetCode CameraHostConfig::GetPhysicCameraIds(const std::string &lCameraId, std::
 RetCode CameraHostConfig::GetCameraAbility(
     const std::string &cameraId, std::shared_ptr<CameraAbility> &ability)
 {
+    std::lock_guard<std::recursive_mutex> l(mapMutex_);
     auto itr = cameraAbilityMap_.find(cameraId);
     if (itr != cameraAbilityMap_.end()) {
         ability = itr->second;
@@ -119,6 +125,7 @@ RetCode CameraHostConfig::GetCameraAbility(
 RetCode CameraHostConfig::AddCameraId(const std::string &logicalCameraId,
     const std::vector<std::string> &physicalCameraIds, const std::shared_ptr<CameraAbility> ability)
 {
+    std::lock_guard<std::recursive_mutex> l(mapMutex_);
     auto itrCameraId = cameraIdMap_.find(logicalCameraId);
     auto itrCameraAbility = cameraAbilityMap_.find(logicalCameraId);
     if (itrCameraId != cameraIdMap_.end() || itrCameraAbility != cameraAbilityMap_.end()) {
@@ -133,6 +140,11 @@ RetCode CameraHostConfig::AddCameraId(const std::string &logicalCameraId,
 
 std::string CameraHostConfig::SubtractCameraId(const std::vector<std::string> &physicalCameraIds)
 {
+    std::lock_guard<std::recursive_mutex> l(mapMutex_);
+    if (physicalCameraIds.empty()) {
+        CAMERA_LOGE("physicalCameraIds is empty");
+        return std::string("");
+    }
     if (physicalCameraIds.size() > 1) {
         CAMERA_LOGE("physicalCameraIds %{public}d >1 Error", physicalCameraIds.size());
     }
@@ -154,6 +166,7 @@ std::string CameraHostConfig::SubtractCameraId(const std::vector<std::string> &p
 
 std::string CameraHostConfig::ReturnEnableLogicalCameraId()
 {
+    std::lock_guard<std::recursive_mutex> l(mapMutex_);
     std::string logicalCameraId;
     bool logicalCameraIdStatus = false;
     for (int32_t id = 1; id < CAMERA_MAX+1; id++) {
@@ -174,6 +187,7 @@ std::string CameraHostConfig::ReturnEnableLogicalCameraId()
 
 std::string CameraHostConfig::GenerateNewLogicalCameraId(const std::string &cameraName)
 {
+    std::lock_guard<std::recursive_mutex> l(mapMutex_);
     for (int32_t id = 1; id < CAMERA_MAX + 1; id++) {
         std::string logicalCameraId = "lcam00" + std::to_string(id);
         auto itr = cameraIdMap_.find(logicalCameraId);
@@ -196,6 +210,7 @@ std::string CameraHostConfig::ReturnPhysicalCameraIdToString(const CameraId &phy
 
 std::string CameraHostConfig::ReturnLogicalCameraIdToString(const std::string &physicalCameraId)
 {
+    std::lock_guard<std::recursive_mutex> l(mapMutex_);
     for (auto iter = cameraIdMap_.begin(); iter != cameraIdMap_.end(); iter++) {
         if (iter->second[0] == physicalCameraId) {
             return iter->first;
@@ -206,11 +221,13 @@ std::string CameraHostConfig::ReturnLogicalCameraIdToString(const std::string &p
 
 void CameraHostConfig::AddUsbCameraId(std::string cameraId)
 {
+    std::lock_guard<std::recursive_mutex> l(mapMutex_);
     usbCameraIdVector_.push_back(cameraId);
 }
 
 bool CameraHostConfig::SearchUsbCameraId(std::string cameraId)
 {
+    std::lock_guard<std::recursive_mutex> l(mapMutex_);
     auto iter = std::find(usbCameraIdVector_.begin(), usbCameraIdVector_.end(), cameraId);
     if (iter != usbCameraIdVector_.end()) {
         return true;

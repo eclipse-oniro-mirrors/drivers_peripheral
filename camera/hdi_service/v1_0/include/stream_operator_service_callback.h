@@ -16,6 +16,7 @@
 #ifndef STREAM_OPERATOR_SERVICE_CALLBACK
 #define STREAM_OPERATOR_SERVICE_CALLBACK
 
+#include <mutex>
 #include "camera.h"
 #include "v1_0/istream_operator_callback.h"
 #include "v1_0/istream_operator_vdi_callback.h"
@@ -54,6 +55,8 @@ public:
     void OnCallbackDied();
 
 private:
+    OHOS::sptr<IStreamOperatorCallback> GetCallback();
+    std::mutex callbackMutex_;
     OHOS::sptr<IStreamOperatorCallback> streamOperatorCallback_;
     OHOS::sptr<StreamCallbackDeathRecipient> deathRecipient_;
 };

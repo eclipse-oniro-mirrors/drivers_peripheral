@@ -173,14 +173,19 @@ int32_t CameraHostVdiImpl::OpenCamera(const std::string &cameraId, const sptr<IC
         return INVALID_ARGUMENT;
     }
 
-    auto itr = cameraDeviceMap_.find(cameraId);
-    if (itr == cameraDeviceMap_.end()) {
-        CAMERA_LOGE("camera device not found.");
-        return INSUFFICIENT_RESOURCES;
+    std::shared_ptr<CameraDeviceVdiImpl> cameraDevice = nullptr;
+    {
+        std::lock_guard<std::mutex> lck(mtx);
+        auto itr = cameraDeviceMap_.find(cameraId);
+        if (itr == cameraDeviceMap_.end()) {
+            CAMERA_LOGE("Camera device not found.");
+            return INSUFFICIENT_RESOURCES;
+        }
+        cameraDevice = itr->second;
     }
+
     CAMERA_LOGD("OpenCamera cameraId find success.");
 
-    std::shared_ptr<CameraDeviceVdiImpl> cameraDevice = itr->second;
     if (cameraDevice == nullptr) {
         CAMERA_LOGE("camera device is null.");
         return INSUFFICIENT_RESOURCES;
@@ -204,15 +209,18 @@ int32_t CameraHostVdiImpl::OpenCamera(const std::string &cameraId, const sptr<IC
         return DEVICE_ERROR;
     }
 
-    auto sptrDevice = deviceBackup_.find(cameraId);
-    if (sptrDevice == deviceBackup_.end()) {
+    {
+        std::lock_guard<std::mutex> lck(mtx);
+        auto sptrDevice = deviceBackup_.find(cameraId);
+        if (sptrDevice == deviceBackup_.end()) {
 #ifdef CAMERA_BUILT_ON_OHOS_LITE
         deviceBackup_[cameraId] = cameraDevice;
 #else
         deviceBackup_[cameraId] = cameraDevice.get();
 #endif
+        }
+        device = deviceBackup_[cameraId];
     }
-    device = deviceBackup_[cameraId];
     cameraDevice->SetStatus(true);
     CameraDumper& dumper = CameraDumper::GetInstance();
     dumper.DumpStart();
@@ -314,11 +322,14 @@ int32_t CameraHostVdiImpl::SetFlashlight(const std::string &cameraId,  bool isEn
         return INVALID_ARGUMENT;
     }
 
-    for (auto &itr : cameraDeviceMap_) {
-        std::shared_ptr<CameraDeviceVdiImpl> cameraDevice = itr.second;
-        if (cameraDevice->IsOpened()) {
-            CAMERA_LOGE("camera id opend [cameraId = %{public}s].", itr.first.c_str());
-            return METHOD_NOT_SUPPORTED;
+    {
+        std::lock_guard<std::mutex> lck(mtx);
+        for (auto &itr : cameraDeviceMap_) {
+            std::shared_ptr<CameraDeviceVdiImpl> cameraDevice = itr.second;
+            if (cameraDevice != nullptr && cameraDevice->IsOpened()) {
+                CAMERA_LOGE("Camera id opend [cameraId = %{public}s].", itr.first.c_str());
+                return METHOD_NOT_SUPPORTED;
+            }
         }
     }
 
