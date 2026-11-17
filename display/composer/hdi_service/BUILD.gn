@@ -106,6 +106,7 @@ ohos_shared_library("libdisplay_composer_driver_1.0") {
     "drivers_interface_display:libdisplay_composer_stub_1.3",
     "drivers_interface_display:libdisplay_composer_stub_1.4",
     "drivers_interface_display:libdisplay_composer_stub_1.5",
+    "drivers_interface_display:libdisplay_composer_stub_1.6",
     "drivers_interface_display:libhdifd_parcelable",
     "hdf_core:libhdf_host",
     "hdf_core:libhdf_ipc_adapter",
