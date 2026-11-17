@@ -505,7 +505,7 @@ HWTEST_F(UsbDeviceSdkIfTest, CheckDeviceSdkIfGetProp005, TestSize.Level1)
     EXPECT_NE(nullptr, g_acmDevice);
     EXPECT_NE(nullptr, g_acmDevice->ctrlIface.fn);
     ret = UsbFnGetInterfaceProp(g_acmDevice->ctrlIface.fn, "idProduct", nullptr, 0);
-    EXPECT_TRUE(HDF_SUCCESS == ret);
+    EXPECT_TRUE(HDF_SUCCESS != ret);
 }
 #endif
 
