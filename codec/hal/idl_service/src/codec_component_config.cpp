@@ -74,6 +74,7 @@ namespace {
     constexpr char CODEC_CONFIG_KEY_IS_SUPPORT_B_FRAME[] = "isSupportBFrame";
     constexpr char CODEC_CONFIG_KEY_MAX_SUPPORT_B_FRAME_CNT[] = "maxSupportBFrameCnt";
     constexpr char CODEC_CONFIG_KEY_IS_SUPPORT_ONLY_I_FRAME[] = "isSupportOnlyIFrame";
+    constexpr char CODEC_CONFIG_KEY_IS_SUPPORT_OPEN_GOP[] = "isSupportOpenGop";
 
     constexpr char CODEC_CONFIG_KEY_SAMPLE_FORMATS[] = "sampleFormats";
     constexpr char CODEC_CONFIG_KEY_SAMPLE_RATE[] = "sampleRate";
@@ -424,6 +425,8 @@ void CodecComponentConfig::GetVideoPortFeature(const struct DeviceResourceIface 
         { VIDEO_FEATURE_QP_MAP,             CODEC_CONFIG_KEY_IS_SUPPORT_QP_MAP             },
         { static_cast<VideoFeatureKey>(CODEC_VIDEO_FEATURE_ONLY_I_FRAME),
           CODEC_CONFIG_KEY_IS_SUPPORT_ONLY_I_FRAME},
+        { static_cast<VideoFeatureKey>(CODEC_VIDEO_FEATURE_OPEN_GOP),
+          CODEC_CONFIG_KEY_IS_SUPPORT_OPEN_GOP},
     };
     for (auto key: boolKeys) {
         bool support = iface.GetBool(&childNode, key.second.c_str());
