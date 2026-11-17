@@ -1701,10 +1701,12 @@ int32_t UsbfnMtpImpl::UsbMtpPortRxPush(struct UsbMtpPort *mtpPort, struct UsbFnR
         if (req->actual > remaining) {
             HDF_LOGE("%{public}s: buffer overflow: remain %{public}zu, actual %{public}u", __func__, remaining,
                 req->actual);
+            sem_post(&asyncReq_);
             return HDF_FAILURE;
         }
         if (memcpy_s(bufOff, remaining, req->buf, req->actual) != EOK) {
             HDF_LOGE("%{public}s: memcpy_s failed", __func__);
+            sem_post(&asyncReq_);
             return HDF_FAILURE;
         }
         mtpDev->asyncRecvWriteTempCount += req->actual;
