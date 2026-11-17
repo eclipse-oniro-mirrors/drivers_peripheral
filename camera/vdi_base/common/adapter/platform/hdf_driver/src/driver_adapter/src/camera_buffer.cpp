@@ -62,9 +62,12 @@ RetCode CameraBuffer::CameraReqMemory(struct CameraFeature feature, int unsigned
     struct HdfSBuf *respData = HdfSbufObtainDefaultSize();
     CHECK_SBUF_RET(respData);
 
-    mmapArray_.resize(buffCont);
-    offArray_.resize(buffCont);
-    lengthArray_.resize(buffCont);
+    {
+        std::lock_guard<std::recursive_mutex> l(bufferMapMutex_);
+        mmapArray_.resize(buffCont);
+        offArray_.resize(buffCont);
+        lengthArray_.resize(buffCont);
+    }
 
     ret = SendDeviceInfo(reqData, feature, true);
     CHECK_RETURN_RESULT(ret);
@@ -148,6 +151,7 @@ RetCode CameraBuffer::CameraAllocBuffer(struct CameraFeature feature, const std:
         CAMERA_LOGE("error: MEMTYPE[%{public}d] CameraQueryMemory failed: %{public}s\n", memoryType_, strerror(errno));
         return RC_ERROR;
     }
+    std::lock_guard<std::recursive_mutex> l(bufferMapMutex_);
     switch (memoryType_) {
         case MEMTYPE_MMAP:
             fd = open("/dev/MemDev", O_RDWR);
@@ -212,7 +216,10 @@ RetCode CameraBuffer::CameraStreamQueue(struct CameraFeature feature, const std:
         CAMERA_LOGE("error: CMD_STREAM_QUEUE failed, ret = %{public}d", ret);
         return RC_ERROR;
     }
-    bufferMap[frameSpec->buffer_->GetIndex()] = frameSpec;
+    {
+        std::lock_guard<std::recursive_mutex> l(bufferMapMutex_);
+        bufferMap[frameSpec->buffer_->GetIndex()] = frameSpec;
+    }
 
     return ret;
 }
@@ -249,10 +256,22 @@ RetCode CameraBuffer::CameraStreamDequeue(struct CameraFeature feature)
         return RC_ERROR;
     }
 
-    CAMERA_LOGD("lengthArray_[id] = %{public}u\n", lengthArray_[id]);
-
-    memcpy_s(bufferMap[id]->buffer_->GetVirAddress(), lengthArray_[id], mmapArray_[id], lengthArray_[id]);
-    dequeueBuffer_(bufferMap[id]);
+    std::shared_ptr<FrameSpec> frameSpec = nullptr;
+    {
+        std::lock_guard<std::recursive_mutex> l(bufferMapMutex_);
+        auto iter = bufferMap.find(id);
+        if (iter == bufferMap.end() || iter->second == nullptr || iter->second->buffer_ == nullptr ||
+            id >= lengthArray_.size() || id >= mmapArray_.size()) {
+                CAMERA_LOGE("CameraStreamDequeue invalid buffer id = %{public}u", id);
+                return RC_ERROR;
+        }
+        CAMERA_LOGD("lengthArray_[id] = %{public}u\n", lengthArray_[id]);
+        memcpy_s(iter->second->buffer_->GetVirAddress(), lengthArray_[id], mmapArray_[id], lengthArray_[id]);
+        frameSpec = iter->second;
+    }
+    if (dequeueBuffer_ != nullptr) {
+        dequeueBuffer_(frameSpec);
+    }
 
     return ret;
 }
@@ -262,6 +281,7 @@ RetCode CameraBuffer::CameraReleaseBuffers(struct CameraFeature feature)
     struct UserCameraBuffer buf = {};
     struct UserCameraPlane planes[planeCount_] = {};
 
+    std::lock_guard<std::recursive_mutex> l(bufferMapMutex_);
     for (int32_t i = 0; i < mmapArray_.size(); ++i) {
         buf.memType = memoryType_;
         buf.id = i;

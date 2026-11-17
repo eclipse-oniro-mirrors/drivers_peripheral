@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Huawei Device Co., Ltd.
+ * Copyright (c) 2023-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -57,12 +57,17 @@ void ExifNode::DeliverBuffer(std::shared_ptr<IBuffer> &buffer)
         return NodeBase::DeliverBuffer(buffer);
     }
 
-    if (buffer->GetEncodeType() == ENCODE_TYPE_JPEG && gpsInfo_.size() > 0) {
+    std::vector<double> gpsSnapshot;
+    {
+        std::lock_guard<std::mutex> l(gpsMetaDatalock_);
+        gpsSnapshot = gpsInfo_;
+    }
+    if (buffer->GetEncodeType() == ENCODE_TYPE_JPEG && gpsSnapshot.size() >= GPS_GROUP_LEN) {
         int32_t bufferSize = static_cast<int32_t>(buffer->GetSize());
         exif_data exifInfo;
-        exifInfo.latitude = gpsInfo_.at(LATITUDE_INDEX);
-        exifInfo.longitude = gpsInfo_.at(LONGITUDE_INDEX);
-        exifInfo.altitude = gpsInfo_.at(ALTITUDE_INDEX);
+        exifInfo.latitude = gpsSnapshot[LATITUDE_INDEX];
+        exifInfo.longitude = gpsSnapshot[LONGITUDE_INDEX];
+        exifInfo.altitude = gpsSnapshot[ALTITUDE_INDEX];
         EsFrameInfo info = buffer->GetEsFrameInfo();
         CAMERA_LOGI("%{public}s info.size = (%{public}d)\n", __FUNCTION__, info.size);
         if (info.size != -1) {
@@ -146,16 +151,16 @@ RetCode ExifNode::SetGpsInfoMetadata(common_metadata_header_t *data)
     if (ret != 0) {
         return RC_ERROR;
     }
-    constexpr uint32_t groupLen = 3;
     count = entry.count;
     CAMERA_LOGI("%{public}s  gps count %{public}d)\n", __FUNCTION__,  count);
-    if (count != groupLen) {
+    if (count != GPS_GROUP_LEN) {
         CAMERA_LOGE("%{public}s  gps data count error\n", __FUNCTION__);
         return RC_ERROR;
     }
 
+    std::lock_guard<std::mutex> l(gpsMetaDatalock_);
+    gpsInfo_.clear();
     for (uint32_t i = 0; i < count; i++) {
-        std::lock_guard<std::mutex> l(gpsMetaDatalock_);
         gpsInfo_.push_back(*(entry.data.d + i));
     }
     return RC_OK;

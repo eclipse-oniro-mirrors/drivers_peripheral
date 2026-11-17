@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (c) 2022-2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -344,7 +344,7 @@ void CameraDev::LoopBuffers(const std::string &cameraId, int type)
         return;
     }
 
-    while (streamNumber_ > 0) {
+    while (streamNumber_.load(std::memory_order_acquire) > 0) {
         ret = myBuffers_->CameraStreamDequeue(feature);
         if (ret != RC_OK) {
             CAMERA_LOGE("CameraStreamDequeue failed!\n");
@@ -380,15 +380,19 @@ RetCode CameraDev::StartStream(const std::string &cameraId, int type)
         CAMERA_LOGE("error: CameraStreamOn failed\n");
         return RC_ERROR;
     }
-    if (streamNumber_ == 0) {
-        streamThread_ = new (std::nothrow) std::thread([this, cameraId, type] {this->LoopBuffers(cameraId, type);});
-        if (streamThread_ == nullptr) {
-            CAMERA_LOGE("error: start thread failed\n");
-            return RC_ERROR;
+    {
+        std::lock_guard<std::mutex> lock(streamMutex_);
+        if (streamNumber_.load(std::memory_order_acquire) == 0) {
+            streamThread_ = new (std::nothrow) std::thread([this, cameraId, type] {
+                this->LoopBuffers(cameraId, type);
+            });
+            if (streamThread_ == nullptr) {
+                CAMERA_LOGE("error: start thread failed\n");
+                return RC_ERROR;
+            }
         }
+        streamNumber_.fetch_add(1, std::memory_order_acq_rel);
     }
-
-    streamNumber_++;
     return RC_OK;
 }
 
@@ -410,11 +414,16 @@ RetCode CameraDev::StopStream(const std::string &cameraId, int type)
         return RC_ERROR;
     }
 
-    streamNumber_ -= 1;
-    CAMERA_LOGD("streamNumber_ = %{public}d\n", streamNumber_);
-    if (streamNumber_ == 0) {
-        CAMERA_LOGE("waiting LoopBuffers stop\n");
-        streamThread_->join();
+    {
+        std::lock_guard<std::mutex> lock(streamMutex_);
+        if (streamNumber_.load(std::memory_order_acquire) > 0) {
+            streamNumber_.fetch_sub(1, std::memory_order_acq_rel);
+        }
+        CAMERA_LOGD("streamNumber_ = %{public}d\n", streamNumber_.load(std::memory_order_acquire));
+        if (streamNumber_.load(std::memory_order_acquire) == 0 && streamThread_ != nullptr) {
+            CAMERA_LOGE("waiting LoopBuffers stop\n");
+            streamThread_->join();
+        }
     }
 
     if (GetCameraName(cameraId, deviceName) != RC_OK) {
@@ -430,9 +439,12 @@ RetCode CameraDev::StopStream(const std::string &cameraId, int type)
         CAMERA_LOGE("error: CameraStreamOff failed\n");
         return RC_ERROR;
     }
-    if (streamNumber_ == 0) {
-        delete streamThread_;
-        streamThread_ = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(streamMutex_);
+        if (streamNumber_.load(std::memory_order_acquire) == 0 && streamThread_ != nullptr) {
+            delete streamThread_;
+            streamThread_ = nullptr;
+        }
     }
     return RC_OK;
 }
