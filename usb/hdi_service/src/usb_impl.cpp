@@ -1038,7 +1038,7 @@ int32_t UsbImpl::RegisterSubscriber(int32_t i, const sptr<IUsbdSubscriber> &subs
         subscribers_[i].usbPnpListener.priv = nullptr;
         return HDF_FAILURE;
     }
-    subscribers_[i].deathRecipient = recipient;
+    subscribers_[i].deathRecipient = recipient.GetRefPtr();
     bool result = subscribers_[i].remote->AddDeathRecipient(recipient);
     if (!result) {
         HDF_LOGE("%{public}s:AddUsbDeathRecipient failed", __func__);
@@ -2367,7 +2367,9 @@ void UsbImpl::CleanupSubscriber(int32_t i, const sptr<IUsbdSubscriber> &subscrib
         return;
     }
     if (subscribers_[i].deathRecipient != nullptr) {
-        remote->RemoveDeathRecipient(subscribers_[i].deathRecipient);
+        sptr<IRemoteObject::DeathRecipient> recipient(
+            static_cast<UsbDeathRecipient *>(subscribers_[i].deathRecipient));
+        remote->RemoveDeathRecipient(recipient);
         subscribers_[i].deathRecipient = nullptr;
     }
     subscribers_[i].subscriber = nullptr;
@@ -2390,7 +2392,9 @@ int32_t UsbImpl::UnbindUsbdSubscriber(const sptr<IUsbdSubscriber> &subscriber)
             HDF_LOGE("%{public}s: current subscriber not bind", __func__);
             return HDF_DEV_ERR_NO_DEVICE;
         }
-        bool result = remote->RemoveDeathRecipient(subscribers_[i].deathRecipient);
+        sptr<IRemoteObject::DeathRecipient> recipient(
+            static_cast<UsbDeathRecipient *>(subscribers_[i].deathRecipient));
+        bool result = remote->RemoveDeathRecipient(recipient);
         if (!result) {
             HDF_LOGE("%{public}s:RemoveUsbDeathRecipient failed", __func__);
             return HDF_FAILURE;
@@ -2425,7 +2429,8 @@ void UsbImpl::UsbDeathRecipient::OnRemoteDied(const wptr<IRemoteObject> &object)
             return;
         }
         // 持有 self 引用，保证置空槽位后本对象不会在回调返回前被释放
-        self = UsbImpl::subscribers_[i].deathRecipient;
+        self = sptr<IRemoteObject::DeathRecipient>(
+            static_cast<UsbDeathRecipient *>(UsbImpl::subscribers_[i].deathRecipient));
         UsbImpl::subscribers_[i].subscriber = nullptr;
         UsbImpl::subscribers_[i].remote = nullptr;
         UsbImpl::subscribers_[i].deathRecipient = nullptr;
