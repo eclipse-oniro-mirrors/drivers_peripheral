@@ -18,6 +18,7 @@
 
 #include <map>
 #include <mutex>
+#include <shared_mutex>
 
 #include "hdf_slist.h"
 #include "hdf_usb_pnp_manage.h"
@@ -160,6 +161,13 @@ private:
     static int32_t UsbdPnpNotifyAddAndRemoveDevice(HdfSBuf *data, UsbdSubscriber *usbdSubscriber, uint32_t id);
     static int32_t UsbdPnpLoaderEventReceived(void *priv, uint32_t id, HdfSBuf *data);
     static int32_t UsbdLoadServiceCallback(void *priv, uint32_t id, HdfSBuf *data);
+    static sptr<IUsbdSubscriber> GetUsbdSubscriber(UsbdSubscriber *usbdSubscriber);
+    static int32_t FindSubscriberIndex(const sptr<IRemoteObject> &remote);
+    static int32_t FindFreeSubscriberIndex();
+    int32_t RegisterSubscriber(int32_t index, const sptr<IUsbdSubscriber> &subscriber,
+        const sptr<IRemoteObject> &remote);
+    void CleanupSubscriber(int32_t index, const sptr<IUsbdSubscriber> &subscriber,
+        const sptr<IRemoteObject> &remote);
     class UsbDeathRecipient : public IRemoteObject::DeathRecipient {
     public:
         explicit UsbDeathRecipient(const sptr<IUsbdSubscriber> &deathSubscriber) : deathSubscriber_(deathSubscriber) {};
@@ -189,6 +197,8 @@ private:
 private:
     static HdfDevEventlistener listenerForLoadService_;
     static UsbdSubscriber subscribers_[MAX_SUBSCRIBER];
+    static std::shared_mutex subscribersMutex_;
+    static std::mutex subscriberOpMutex_;
     static bool isGadgetConnected_;
     static uint32_t attachCount_;
     static uint32_t attachFailedCount_;
