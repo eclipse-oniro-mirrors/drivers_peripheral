@@ -1151,13 +1151,13 @@ HWTEST_F(LibusbAdapterTest, LibusbAdapterBulkCancelCallbackRace001, TestSize.Lev
     if (!FindBulkInEndpoint(dev, intfId, endpointId)) {
         HDF_LOGI("LibusbAdapterTest::BulkCancelCallbackRace001 no bulk in endpoint, skip");
         g_libusbAdapter->CloseDevice(dev);
-        return;
+        GTEST_SKIP() << "BulkCancelCallbackRace001: precondition not met, no bulk IN endpoint on device";
     }
     ret = g_libusbAdapter->ClaimInterface(dev, intfId, 0);
     if (ret != HDF_SUCCESS) {
         HDF_LOGI("LibusbAdapterTest::BulkCancelCallbackRace001 claim interface failed ret=%{public}d", ret);
         g_libusbAdapter->CloseDevice(dev);
-        return;
+        GTEST_SKIP() << "BulkCancelCallbackRace001: precondition not met, claim interface failed ret=" << ret;
     }
     UsbPipe pipe = {intfId, endpointId};
     sptr<UsbdBulkCallbackTest> usbdBulkCallback = new UsbdBulkCallbackTest();
@@ -1165,7 +1165,7 @@ HWTEST_F(LibusbAdapterTest, LibusbAdapterBulkCancelCallbackRace001, TestSize.Lev
         HDF_LOGE("LibusbAdapterTest::BulkCancelCallbackRace001 new callback failed");
         g_libusbAdapter->ReleaseInterface(dev, intfId);
         g_libusbAdapter->CloseDevice(dev);
-        return;
+        GTEST_SKIP() << "BulkCancelCallbackRace001: precondition not met, new bulk callback allocation failed";
     }
     sptr<Ashmem> ashmem;
     (void)InitAshmemOne(ashmem, MAX_BUFFER_LENGTH, 1);
@@ -1206,13 +1206,13 @@ HWTEST_F(LibusbAdapterTest, LibusbAdapterBulkReadBusyReject001, TestSize.Level1)
     if (!FindBulkInEndpoint(dev, intfId, endpointId)) {
         HDF_LOGI("LibusbAdapterTest::BulkReadBusyReject001 no bulk in endpoint, skip");
         g_libusbAdapter->CloseDevice(dev);
-        return;
+        GTEST_SKIP() << "BulkReadBusyReject001: precondition not met, no bulk IN endpoint on device";
     }
     ret = g_libusbAdapter->ClaimInterface(dev, intfId, 0);
     if (ret != HDF_SUCCESS) {
         HDF_LOGI("LibusbAdapterTest::BulkReadBusyReject001 claim interface failed ret=%{public}d", ret);
         g_libusbAdapter->CloseDevice(dev);
-        return;
+        GTEST_SKIP() << "BulkReadBusyReject001: precondition not met, claim interface failed ret=" << ret;
     }
     UsbPipe pipe = {intfId, endpointId};
     sptr<UsbdBulkCallbackTest> usbdBulkCallback = new UsbdBulkCallbackTest();
@@ -1220,7 +1220,7 @@ HWTEST_F(LibusbAdapterTest, LibusbAdapterBulkReadBusyReject001, TestSize.Level1)
         HDF_LOGE("LibusbAdapterTest::BulkReadBusyReject001 new callback failed");
         g_libusbAdapter->ReleaseInterface(dev, intfId);
         g_libusbAdapter->CloseDevice(dev);
-        return;
+        GTEST_SKIP() << "BulkReadBusyReject001: precondition not met, new bulk callback allocation failed";
     }
     sptr<Ashmem> ashmem;
     (void)InitAshmemOne(ashmem, MAX_BUFFER_LENGTH, 1);
