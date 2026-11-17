@@ -118,7 +118,6 @@ public:
     int32_t GetDisplayClientTargetProperty(uint32_t devId, int32_t& pixelFormat, int32_t& dataspace) override;
     int32_t SetDisplayColorGamut(uint32_t devId, ColorGamut gamut) override;
     int32_t GetLayerColor(uint32_t devId, uint32_t layerId, LayerColor &color) override;
-    int32_t SetDisplayReadBack(uint32_t devId, bool disableReadback) override;
 
 private:
     void HidumperInit();

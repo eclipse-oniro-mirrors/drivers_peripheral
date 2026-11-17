@@ -1336,11 +1336,6 @@ int32_t DisplayComposerService::GetLayerColor(uint32_t devId, uint32_t layerId, 
         DISPLAY_LOGE("%{public}s fail ret:%{public}d, devId:%{public}u", __func__, ret, devId));
     return ret;
 }
-
-int32_t DisplayComposerService::SetDisplayReadBack(uint32_t devId, bool disableReadback)
-{
-    return HDF_SUCCESS;
-}
 } // namespace Composer
 } // namespace Display
 } // namespace HDI
