@@ -685,16 +685,28 @@ static int32_t DescToConfig(const uint8_t *buf, int32_t size, struct UsbRawConfi
     return ret;
 }
 
+static int32_t ControlRequestCopyInData(const struct UsbHostRequest *request,
+    const struct UsbControlRequestData *requestData)
+{
+    if (requestData->data == NULL || requestData->length <= 0 ||
+        request->actualLength > (uint32_t)requestData->length) {
+        HDF_LOGE("%{public}s:%{public}d invalid copy length, actualLength=%{public}u length=%{public}d",
+            __func__, __LINE__, request->actualLength, requestData->length);
+        return HDF_ERR_INVALID_PARAM;
+    }
+    int32_t ret = memcpy_s(requestData->data, (size_t)requestData->length, ControlRequestGetData(request),
+        request->actualLength);
+    if (ret != EOK) {
+        HDF_LOGE("%{public}s:%{public}d memcpy_s failed! ret = %{public}d", __func__, __LINE__, ret);
+        return HDF_FAILURE;
+    }
+    return HDF_SUCCESS;
+}
+
 static int32_t ControlRequestCompletion(const struct UsbHostRequest *request, struct UsbControlRequestData *requestData)
 {
     int32_t ret;
-    uint32_t waitTime;
-
-    if (request->timeout == USB_RAW_REQUEST_TIME_ZERO_MS) {
-        waitTime = HDF_WAIT_FOREVER;
-    } else {
-        waitTime = request->timeout;
-    }
+    uint32_t waitTime = (request->timeout == USB_RAW_REQUEST_TIME_ZERO_MS) ? HDF_WAIT_FOREVER : request->timeout;
 
     ret = OsalSemWait((struct OsalSem *)&request->sem, waitTime);
     if (ret == HDF_ERR_TIMEOUT) {
@@ -708,17 +720,8 @@ static int32_t ControlRequestCompletion(const struct UsbHostRequest *request, st
     switch (request->status) {
         case USB_REQUEST_COMPLETED:
             if ((requestData->requestType & USB_DDK_ENDPOINT_DIR_MASK) == USB_PIPE_DIRECTION_IN) {
-                if (requestData->data == NULL || requestData->length <= 0 ||
-                    request->actualLength > (uint32_t)requestData->length) {
-                    HDF_LOGE("%{public}s:%{public}d invalid copy length, actualLength=%{public}u length=%{public}d",
-                        __func__, __LINE__, request->actualLength, requestData->length);
-                    ret = HDF_ERR_INVALID_PARAM;
-                    goto OUT;
-                }
-                ret = memcpy_s(requestData->data, (size_t)requestData->length, ControlRequestGetData(request),
-                    request->actualLength);
-                if (ret != EOK) {
-                    HDF_LOGE("%{public}s:%{public}d memcpy_s failed! ret = %{public}d", __func__, __LINE__, ret);
+                ret = ControlRequestCopyInData(request, requestData);
+                if (ret != HDF_SUCCESS) {
                     goto OUT;
                 }
             }
