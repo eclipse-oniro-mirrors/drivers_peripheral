@@ -217,20 +217,20 @@ void SerialDeviceManager::AddVirtualUsbDevice(std::vector<SerialDeviceInfo>& dev
     HexStrToInt(vendorId, info.vendorId);
     devices.push_back(info);
     availableDevices_[fullPath] = info;
-    HDF_LOGD("found device:%{public}s!", fullPath.c_str());
+    HDF_LOGD("found device!");
 }
 
 void SerialDeviceManager::AddNormalSerialDevice(std::vector<SerialDeviceInfo>& devices, const std::string& fullPath)
 {
     auto elem = supportTtyhws_.find(fullPath);
     if (elem == supportTtyhws_.end()) {
-        HDF_LOGD("not support this device:%{public}s!", fullPath.c_str());
+        HDF_LOGD("not support this device!");
         return;
     }
     SerialDeviceInfo info{fullPath, "", "", 0, 0};
     devices.push_back(info);
     availableDevices_[fullPath] = info;
-    HDF_LOGD("found device:%{public}s!", fullPath.c_str());
+    HDF_LOGD("found device!");
 }
 
 bool SerialDeviceManager::IsPcieSerialName(const std::string& name)
@@ -322,8 +322,8 @@ void SerialDeviceManager::AddPcieSerialDevice(std::vector<SerialDeviceInfo>& dev
     HexStrToInt(vendorIdStr, info.vendorId);
     devices.push_back(info);
     availableDevices_[fullPath] = info;
-    HDF_LOGI("found PCIE device:%{public}s, vendorId=0x%{public}04x, productId=0x%{public}04x",
-        fullPath.c_str(), info.vendorId, info.productId);
+    HDF_LOGI("vendorId=0x%{public}04x, productId=0x%{public}04x",
+        info.vendorId, info.productId);
 }
 
 static bool IsUsbSerialName(const std::string& name)
