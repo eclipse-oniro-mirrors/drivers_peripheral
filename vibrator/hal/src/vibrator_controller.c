@@ -14,6 +14,7 @@
  */
 
 #include "vibrator_controller.h"
+#include <pthread.h>
 #include <securec.h>
 #include "hdf_base.h"
 #include "vibrator_uhdf_log.h"
@@ -35,6 +36,12 @@ static struct VibratorDevice *GetVibratorDevicePriv(void)
 
     return &vibratorDeviceData;
 }
+
+// Fix FCT bug1: serialize the one-shot lazy init of the process-wide
+// VibratorDevice (NewVibratorInterfaceInstance is called from every IPC entry
+// of VibratorInterfaceImpl). A plain OsalMutex cannot be statically
+// initialized, so use a pthread mutex guarding the OsalMutexInit itself.
+static pthread_mutex_t g_instanceMutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int32_t SendVibratorMsg(uint32_t cmd, struct HdfSBuf *msg, struct HdfSBuf *reply)
 {
@@ -148,13 +155,18 @@ static int32_t EnableVibratorModulation(uint32_t duration, uint16_t intensity, i
     int32_t ret;
     struct VibratorDevice *priv = GetVibratorDevicePriv();
 
+    // Fix FCT bug6: take priv->mutex before ValidityJudgment so the unlocked
+    // 6-field read of vibratorInfoEntry is serialized against the locked
+    // memcpy_s writer in ReadVibratorInfo (previously the lock was taken only
+    // after the check, leaving a torn-read window).
+    (void)OsalMutexLock(&priv->mutex);
     ret = ValidityJudgment(duration, intensity, frequency);
     if (ret != HDF_SUCCESS) {
         HDF_LOGE("%{public}s: effect is false", __func__);
+        (void)OsalMutexUnlock(&priv->mutex);
         return ret;
     }
 
-    (void)OsalMutexLock(&priv->mutex);
     struct HdfSBuf *msg = HdfSbufObtainDefaultSize();
     if (msg == NULL) {
         HDF_LOGE("%{public}s: get sbuf failed", __func__);
@@ -382,7 +394,13 @@ const struct VibratorInterface *NewVibratorInterfaceInstance(void)
     if (priv == NULL) {
         return &vibratorDevInstance;
     }
+
+    // Fix FCT bug1: the whole check-then-act lazy init must be serialized;
+    // concurrent first calls previously raced on OsalMutexInit, the function
+    // table fill and the ioService bind/release.
+    (void)pthread_mutex_lock(&g_instanceMutex);
     if (priv->initState) {
+        (void)pthread_mutex_unlock(&g_instanceMutex);
         return &vibratorDevInstance;
     }
 
@@ -402,10 +420,12 @@ const struct VibratorInterface *NewVibratorInterfaceInstance(void)
     if (priv->ioService == NULL) {
         HDF_LOGE("%s: get vibrator ioService failed", __func__);
         OsalMutexDestroy(&priv->mutex);
+        (void)pthread_mutex_unlock(&g_instanceMutex);
         return NULL;
     }
 
     priv->initState = true;
+    (void)pthread_mutex_unlock(&g_instanceMutex);
     HDF_LOGD("get vibrator devInstance success");
     return &vibratorDevInstance;
 }
@@ -416,16 +436,22 @@ int32_t FreeVibratorInterfaceInstance(void)
 
     CHECK_NULL_PTR_RETURN_VALUE(priv, HDF_FAILURE);
 
+    // Fix FCT bug1: symmetric serialization with NewVibratorInterfaceInstance.
+    (void)pthread_mutex_lock(&g_instanceMutex);
     if (!priv->initState) {
+        (void)pthread_mutex_unlock(&g_instanceMutex);
         HDF_LOGD("%s: vibrator instance had released", __func__);
         return HDF_SUCCESS;
     }
 
     if (priv->ioService != NULL) {
         HdfIoServiceRecycle(priv->ioService);
+        priv->ioService = NULL;
     }
 
     OsalMutexDestroy(&priv->mutex);
+    priv->initState = false;
+    (void)pthread_mutex_unlock(&g_instanceMutex);
 
     return HDF_SUCCESS;
 }

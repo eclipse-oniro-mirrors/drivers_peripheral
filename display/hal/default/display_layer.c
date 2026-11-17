@@ -425,6 +425,10 @@ static int32_t GetLayerBuffer(uint32_t devId, uint32_t layerId, LayerBuffer *buf
     return DISPLAY_SUCCESS;
 }
 
+// Fix FCT bug10/bug11: serialize the lFuncs DCL, the PTHREAD_PROCESS_SHARED
+// manager mutex init and the count RMW shared by LayerInitialize/Uninitialize.
+static pthread_mutex_t g_layerInitMutex = PTHREAD_MUTEX_INITIALIZER;
+
 int32_t LayerInitialize(LayerFuncs **funcs)
 {
     static LayerFuncs *lFuncs = NULL;
@@ -433,10 +437,12 @@ int32_t LayerInitialize(LayerFuncs **funcs)
         HDF_LOGE("%s: funcs is null", __func__);
         return DISPLAY_NULL_PTR;
     }
+    pthread_mutex_lock(&g_layerInitMutex);
     if (lFuncs == NULL) {
         lFuncs = (LayerFuncs *)OsalMemCalloc(sizeof(LayerFuncs));
         if (lFuncs == NULL) {
             HDF_LOGE("%s: lFuncs is null", __func__);
+            pthread_mutex_unlock(&g_layerInitMutex);
             return DISPLAY_NULL_PTR;
         }
         pthread_mutexattr_init(&g_layerManager.mutexattr);
@@ -452,6 +458,7 @@ int32_t LayerInitialize(LayerFuncs **funcs)
     }
     *funcs = lFuncs;
     GetLayerMgr();
+    pthread_mutex_unlock(&g_layerInitMutex);
     HDF_LOGI("%s: success", __func__);
     return DISPLAY_SUCCESS;
 }
@@ -462,11 +469,15 @@ int32_t LayerUninitialize(LayerFuncs *funcs)
         HDF_LOGE("%s: funcs is null", __func__);
         return DISPLAY_NULL_PTR;
     }
+    // Fix FCT bug10/bug11: serialize the count decrement and the
+    // destroy-on-zero with Initialize and with lock holders.
+    pthread_mutex_lock(&g_layerInitMutex);
     if (PutLayerMgr() == 0) {
         pthread_mutexattr_destroy(&g_layerManager.mutexattr);
         pthread_mutex_destroy(&g_layerManager.mutex);
         OsalMemFree(funcs);
     }
+    pthread_mutex_unlock(&g_layerInitMutex);
     HDF_LOGI("%s: layer uninitialize success", __func__);
     return DISPLAY_SUCCESS;
 }

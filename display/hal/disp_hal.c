@@ -14,6 +14,7 @@
  */
 
 #include "disp_hal.h"
+#include <pthread.h>
 #include <securec.h>
 #include "hdf_io_service_if.h"
 #include "hdf_log.h"
@@ -188,14 +189,20 @@ static int32_t GetBacklight(uint32_t devId, uint32_t *level)
     return DispGetParaProcess(devId, DISP_CMD_GET_BACKLIGHT, level);
 }
 
+// Fix FCT bug14: the static hFuncs lazy init is a broken DCL under concurrent
+// first calls; serialize it.
+static pthread_mutex_t g_halFuncsMutex = PTHREAD_MUTEX_INITIALIZER;
+
 HalFuncs *GetHalFuncs(void)
 {
     static HalFuncs *hFuncs = NULL;
 
+    pthread_mutex_lock(&g_halFuncsMutex);
     if (hFuncs == NULL) {
         hFuncs = (HalFuncs *)malloc(sizeof(HalFuncs));
         if (hFuncs == NULL) {
             HDF_LOGE("%s: malloc fail", __func__);
+            pthread_mutex_unlock(&g_halFuncsMutex);
             return NULL;
         }
         (void)memset_s(hFuncs, sizeof(HalFuncs), 0, sizeof(HalFuncs));
@@ -205,5 +212,6 @@ HalFuncs *GetHalFuncs(void)
         hFuncs->GetBacklight = GetBacklight;
         hFuncs->GetInfo = GetInfo;
     }
+    pthread_mutex_unlock(&g_halFuncsMutex);
     return hFuncs;
 }

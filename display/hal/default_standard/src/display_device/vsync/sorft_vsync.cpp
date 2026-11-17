@@ -84,10 +84,18 @@ void SorftVsync::WorkThread()
         // wait the vblank
         usleep(SIXTY_HZ_OF_TIME);
         seq++;
-        if (callback_ != nullptr) {
+        // Fix FCT bug2: take a locked snapshot of callback_ so the read cannot
+        // race with ReqesterVBlankCb re-registration (fb path registers a new
+        // callback on every IPC RegDisplayVBlankCallback).
+        std::shared_ptr<VsyncCallBack> cb;
+        {
+            std::lock_guard<std::mutex> lg(mutext_);
+            cb = callback_;
+        }
+        if (cb != nullptr) {
             clock_gettime(CLOCK_MONOTONIC, &ts);
             uint64_t time = ts.tv_nsec;
-            callback_->Vsync(seq, time);
+            cb->Vsync(seq, time);
         } else {
             DISPLAY_LOGE("the callbac is nullptr");
         }
@@ -98,6 +106,8 @@ void SorftVsync::ReqesterVBlankCb(const std::shared_ptr<VsyncCallBack> &cb)
 {
     DISPLAY_LOGD();
     DISPLAY_CHK_RETURN_NOT_VALUE((cb == nullptr), DISPLAY_LOGE("the VBlankCallback is nullptr "));
+    // Fix FCT bug2: serialize the callback assignment with the worker's locked read.
+    std::lock_guard<std::mutex> lg(mutext_);
     callback_ = cb;
 }
 } // namespace OHOS

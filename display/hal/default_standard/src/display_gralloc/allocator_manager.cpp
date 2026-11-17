@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "allocator_manager.h"
+#include <mutex>
 #include "display_common.h"
 #include "framebuffer_allocator.h"
 #include "dmabufferheap_allocator.h"
@@ -21,9 +22,15 @@
 namespace OHOS {
 namespace HDI {
 namespace DISPLAY {
+// Fix FCT bug3: AllocatorManager is a process-wide singleton with no lock;
+// GrallocInitialize/Uninitialize and the per-call AllocMem/FreeMem paths can
+// race on init_/allocator_/frameBufferAllocator_. Serialize all access.
+static std::mutex g_allocatorMutex;
+
 int32_t AllocatorManager::Init()
 {
     DISPLAY_LOGD("AllocatorManager::Init");
+    std::lock_guard<std::mutex> lock(g_allocatorMutex);
     if (init_) {
         DISPLAY_LOGW("allocator has initialized");
         return DISPLAY_SUCCESS;
@@ -57,6 +64,7 @@ int32_t AllocatorManager::Init()
 int32_t AllocatorManager::DeInit()
 {
     DISPLAY_LOGD();
+    std::lock_guard<std::mutex> lock(g_allocatorMutex);
     init_ = false;
     frameBufferAllocator_.reset();
     allocator_.reset();
@@ -66,11 +74,15 @@ int32_t AllocatorManager::DeInit()
 Allocator* AllocatorManager::GetAllocator(uint64_t usage)
 {
     DISPLAY_LOGD();
-    if ((usage & HBM_USE_MEM_FB) != 0) {
-        return frameBufferAllocator_.get();
-    } else {
-        return allocator_.get();
+    // Fix FCT bug3: read the shared_ptr members under the lock (copy the
+    // shared_ptr first, then call get()) so the read does not race with a
+    // concurrent Init/DeInit resetting the members.
+    std::shared_ptr<Allocator> allocator;
+    {
+        std::lock_guard<std::mutex> lock(g_allocatorMutex);
+        allocator = ((usage & HBM_USE_MEM_FB) != 0) ? frameBufferAllocator_ : allocator_;
     }
+    return allocator.get();
 }
 }  // namespace DISPLAY
 }  // namespace HDI
