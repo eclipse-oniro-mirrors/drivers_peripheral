@@ -394,28 +394,12 @@ int32_t LibusbAdapter::OpenDevice(const UsbDev &dev)
         ReportUsbdRecognitionFailSysEvent("OpenDevice", ret, "GetUsbDevice failed");
         return HDF_DEV_ERR_NO_DEVICE;
     }
-    libusb_device_handle* devHandle = nullptr;
-    uint32_t result = (static_cast<uint32_t>(dev.busNum) << DISPLACEMENT_NUMBER) |
-        static_cast<uint32_t>(dev.devAddr);
-    ret = FindHandleByDev(dev, &devHandle);
-    if (ret != HDF_SUCCESS || devHandle == nullptr) {
-        ret = libusb_open(device, &devHandle);
-        if (ret != HDF_SUCCESS || devHandle == nullptr) {
-            HDF_LOGE("%{public}s:Opening device failed ret = %{public}d", __func__, ret);
-            ReportUsbdRecognitionFailSysEvent("OpenDevice", ret, "Opening device failed");
-            libusb_unref_device(device);
-            return HDF_FAILURE;
-        }
-        std::unique_lock<std::shared_mutex> lock(g_mapMutexHandleMap);
-        g_handleMap[result] = {devHandle, 1};
-    } else {
-        std::unique_lock<std::shared_mutex> lock(g_mapMutexHandleMap);
-        auto it = g_handleMap.find(result);
-        if (it != g_handleMap.end() && (it->second.handle != nullptr)) {
-            it->second.count++;
-        }
-    }
+    libusb_device_handle *devHandle = nullptr;
+    ret = OpenDeviceHandle(dev, device, devHandle);
     libusb_unref_device(device);
+    if (ret != HDF_SUCCESS) {
+        return HDF_FAILURE;
+    }
     TransferInit(dev);
     BulkTransferInit(dev);
     int32_t currentConfig = -1;
@@ -429,6 +413,40 @@ int32_t LibusbAdapter::OpenDevice(const UsbDev &dev)
     g_deviceSettingsMap[devHandle].configurationIndex = currentConfig;
     HDF_LOGI("%{public}s succeeded", __func__);
     return HDF_SUCCESS;
+}
+
+int32_t LibusbAdapter::OpenDeviceHandle(const UsbDev &dev, libusb_device *device, libusb_device_handle *&devHandle)
+{
+    uint32_t result = (static_cast<uint32_t>(dev.busNum) << DISPLACEMENT_NUMBER) |
+        static_cast<uint32_t>(dev.devAddr);
+    devHandle = nullptr;
+    int32_t ret = FindHandleByDev(dev, &devHandle);
+    if (ret != HDF_SUCCESS || devHandle == nullptr) {
+        ret = libusb_open(device, &devHandle);
+        if (ret != HDF_SUCCESS || devHandle == nullptr) {
+            HDF_LOGE("%{public}s:Opening device failed ret = %{public}d", __func__, ret);
+            ReportUsbdRecognitionFailSysEvent("OpenDevice", ret, "Opening device failed");
+            return HDF_FAILURE;
+        }
+        std::unique_lock<std::shared_mutex> lock(g_mapMutexHandleMap);
+        auto it = g_handleMap.find(result);
+        if (it != g_handleMap.end() && it->second.handle != nullptr) {
+            libusb_close(devHandle);
+            devHandle = it->second.handle;
+            it->second.count++;
+        } else {
+            g_handleMap[result] = {devHandle, 1};
+        }
+        return HDF_SUCCESS;
+    }
+    std::unique_lock<std::shared_mutex> lock(g_mapMutexHandleMap);
+    auto it = g_handleMap.find(result);
+    if (it != g_handleMap.end() && (it->second.handle != nullptr)) {
+        it->second.count++;
+        return HDF_SUCCESS;
+    }
+    HDF_LOGE("%{public}s: handle entry not found after FindHandleByDev, concurrent close", __func__);
+    return HDF_FAILURE;
 }
 
 int32_t LibusbAdapter::CloseDevice(const UsbDev &dev, bool isDetach)
@@ -2737,6 +2755,7 @@ void LibusbAdapter::BulkFeedbackToBase(struct libusb_transfer *transfer)
     HDF_LOGI("%{public}s: enter, actual_length=%{public}d", __func__, transfer->actual_length);
     LibusbBulkTransfer *bulkTransfer = reinterpret_cast<LibusbBulkTransfer *>(transfer->user_data);
     sptr<V2_0::IUsbdBulkCallback> callback = bulkTransfer->bulkCbRef;
+    bulkTransfer->isTransferring = false;
 
     int32_t ret = 0;
     if ((transfer->endpoint & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_IN) {
@@ -2748,7 +2767,6 @@ void LibusbAdapter::BulkFeedbackToBase(struct libusb_transfer *transfer)
         HDF_LOGE("%{public}s: feedback callback failed", __func__);
         return;
     }
-    bulkTransfer->isTransferring = false;
     HDF_LOGI("%{public}s: call feedback callback success", __func__);
 }
 
@@ -2789,6 +2807,11 @@ void LIBUSB_CALL LibusbAdapter::HandleBulkResult(struct libusb_transfer *transfe
 
     if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
         HDF_LOGE("%{public}s: bulk transfer has been canceled", __func__);
+        if (transfer->buffer != nullptr) {
+            OsalMemFree(transfer->buffer);
+            transfer->buffer = nullptr;
+        }
+        bulkTransfer->isTransferring = false;
         return;
     }
     if (transfer->status != LIBUSB_TRANSFER_COMPLETED && transfer->actual_length <= 0) {
@@ -2808,6 +2831,10 @@ void LIBUSB_CALL LibusbAdapter::HandleBulkResult(struct libusb_transfer *transfe
     }
 
     BulkFeedbackToBase(transfer);
+    if (transfer->buffer != nullptr) {
+        OsalMemFree(transfer->buffer);
+        transfer->buffer = nullptr;
+    }
     HDF_LOGI("%{public}s: handle bulk transfer success", __func__);
 }
 
@@ -2828,10 +2855,14 @@ int32_t LibusbAdapter::BulkRead(const UsbDev &dev, const UsbPipe &pipe, const sp
     }
 
     std::lock_guard<std::mutex> lock(g_bulkManager.bulkTransferVecLock);
-    LibusbBulkTransfer *bulkTransfer = FindBulkTransfer(dev, pipe, ashmem);
+    LibusbBulkTransfer *bulkTransfer = FindBulkTransfer(dev, pipe);
     if (bulkTransfer == nullptr) {
         HDF_LOGE("%{public}s: create libusb bulk transfer failed", __func__);
         return HDF_FAILURE;
+    }
+    if (bulkTransfer->isTransferring) {
+        HDF_LOGE("%{public}s: bulk transfer is transferring, submit rejected", __func__);
+        return LIBUSB_ERROR_BUSY;
     }
     int32_t length = libusb_get_max_packet_size(libusb_get_device(devHandle), pipe.endpointId);
     unsigned char *buffer = AllocBulkBuffer(pipe, length, ashmem);
@@ -2839,6 +2870,7 @@ int32_t LibusbAdapter::BulkRead(const UsbDev &dev, const UsbPipe &pipe, const sp
         HDF_LOGE("%{public}s: alloc bulk buffer failed", __func__);
         return HDF_FAILURE;
     }
+    bulkTransfer->buikAshmemRef = ashmem;
 
     libusb_fill_bulk_transfer(bulkTransfer->bulkTransferRef, devHandle, pipe.endpointId, buffer, length,
         HandleBulkResult, bulkTransfer, USB_CTRL_SET_TIMEOUT);
@@ -2846,6 +2878,10 @@ int32_t LibusbAdapter::BulkRead(const UsbDev &dev, const UsbPipe &pipe, const sp
     ret = libusb_submit_transfer(bulkTransfer->bulkTransferRef);
     if (ret < 0) {
         HDF_LOGE("%{public}s: libusb submit transfer failed, ret: %{public}d", __func__, ret);
+        if (bulkTransfer->bulkTransferRef->buffer != nullptr) {
+            OsalMemFree(bulkTransfer->bulkTransferRef->buffer);
+            bulkTransfer->bulkTransferRef->buffer = nullptr;
+        }
         return ret;
     }
     bulkTransfer->isTransferring = true;
@@ -2868,10 +2904,14 @@ int32_t LibusbAdapter::BulkWrite(const UsbDev &dev, const UsbPipe &pipe, const s
     }
 
     std::lock_guard<std::mutex> lock(g_bulkManager.bulkTransferVecLock);
-    LibusbBulkTransfer *bulkTransfer = FindBulkTransfer(dev, pipe, ashmem);
+    LibusbBulkTransfer *bulkTransfer = FindBulkTransfer(dev, pipe);
     if (bulkTransfer == nullptr) {
         HDF_LOGE("%{public}s: create libusb bulk transfer failed", __func__);
         return HDF_FAILURE;
+    }
+    if (bulkTransfer->isTransferring) {
+        HDF_LOGE("%{public}s: bulk transfer is transferring, submit rejected", __func__);
+        return LIBUSB_ERROR_BUSY;
     }
     int32_t length = libusb_get_max_packet_size(libusb_get_device(devHandle), pipe.endpointId);
     unsigned char *buffer = AllocBulkBuffer(pipe, length, ashmem);
@@ -2879,6 +2919,7 @@ int32_t LibusbAdapter::BulkWrite(const UsbDev &dev, const UsbPipe &pipe, const s
         HDF_LOGE("%{public}s: alloc bulk buffer failed", __func__);
         return HDF_FAILURE;
     }
+    bulkTransfer->buikAshmemRef = ashmem;
 
     libusb_fill_bulk_transfer(bulkTransfer->bulkTransferRef, devHandle, pipe.endpointId, buffer, length,
         HandleBulkResult, bulkTransfer, USB_CTRL_SET_TIMEOUT);
@@ -2886,6 +2927,10 @@ int32_t LibusbAdapter::BulkWrite(const UsbDev &dev, const UsbPipe &pipe, const s
     ret = libusb_submit_transfer(bulkTransfer->bulkTransferRef);
     if (ret < 0) {
         HDF_LOGE("%{public}s: libusb submit transfer failed, ret: %{public}d", __func__, ret);
+        if (bulkTransfer->bulkTransferRef->buffer != nullptr) {
+            OsalMemFree(bulkTransfer->bulkTransferRef->buffer);
+            bulkTransfer->bulkTransferRef->buffer = nullptr;
+        }
         return ret;
     }
     bulkTransfer->isTransferring = true;
@@ -2930,13 +2975,7 @@ int32_t LibusbAdapter::BulkCancel(const UsbDev &dev, const UsbPipe &pipe)
         HDF_LOGE("%{public}s: libusb cancel transfer fail ret=%{public}d", __func__, ret);
         return HDF_FAILURE;
     }
-    if (transferCancle->bulkTransferRef->buffer != nullptr) {
-        OsalMemFree(transferCancle->bulkTransferRef->buffer);
-        transferCancle->bulkTransferRef->buffer = nullptr;
-    }
-    wrapper->bulkTransferList.erase(transferCancle);
-    delete transferCancle;
-    transferCancle = nullptr;
+    HDF_LOGI("%{public}s: cancel submitted, cleanup deferred to completion callback", __func__);
     return HDF_SUCCESS;
 }
 
@@ -3006,6 +3045,10 @@ void LibusbAdapter::ClearBulkTranfer(LibusbBulkWrapper *bulkWrapper)
             continue;
         }
         if (bulkTransfer->bulkTransferRef != nullptr) {
+            if (bulkTransfer->bulkTransferRef->buffer != nullptr) {
+                OsalMemFree(bulkTransfer->bulkTransferRef->buffer);
+                bulkTransfer->bulkTransferRef->buffer = nullptr;
+            }
             HDF_LOGI("%{public}s: clear bulk tranfer libusb free transfer", __func__);
             libusb_free_transfer(bulkTransfer->bulkTransferRef);
             bulkTransfer->bulkTransferRef = nullptr;
@@ -3017,8 +3060,7 @@ void LibusbAdapter::ClearBulkTranfer(LibusbBulkWrapper *bulkWrapper)
     bulkWrapper = nullptr;
 }
 
-LibusbBulkTransfer *LibusbAdapter::FindBulkTransfer(const UsbDev &dev, const UsbPipe &pipe,
-    const sptr<Ashmem> &ashmem)
+LibusbBulkTransfer *LibusbAdapter::FindBulkTransfer(const UsbDev &dev, const UsbPipe &pipe)
 {
     HDF_LOGI("%{public}s: enter", __func__);
     auto it = std::find_if(
@@ -3043,9 +3085,7 @@ LibusbBulkTransfer *LibusbAdapter::FindBulkTransfer(const UsbDev &dev, const Usb
             return pair.second->endpoint == pipe.endpointId;
     });
     if (bulkPair != wrapper->bulkTransferList.end()) {
-        LibusbBulkTransfer* transferCancle = bulkPair->first;
-        transferCancle->buikAshmemRef = ashmem;
-        return transferCancle;
+        return bulkPair->first;
     }
     HDF_LOGI("%{public}s:not find BulkTransfer", __func__);
     return nullptr;
@@ -3058,11 +3098,6 @@ int32_t LibusbAdapter::RegBulkCallback(const UsbDev &dev, const UsbPipe &pipe, c
         HDF_LOGE("%{public}s: cb is nullptr", __func__);
         return HDF_FAILURE;
     }
-    LibusbBulkTransfer *bulkTransfer = new(std::nothrow) LibusbBulkTransfer();
-    if (bulkTransfer == nullptr) {
-        HDF_LOGE("%{public}s: bulkTransfer is nullptr", __func__);
-        return HDF_FAILURE;
-    }
     std::lock_guard<std::mutex> lock(g_bulkManager.bulkTransferVecLock);
     auto it = std::find_if(
         g_bulkManager.bulktransferVec.begin(), g_bulkManager.bulktransferVec.end(),
@@ -3071,22 +3106,37 @@ int32_t LibusbAdapter::RegBulkCallback(const UsbDev &dev, const UsbPipe &pipe, c
     });
     if (it == g_bulkManager.bulktransferVec.end()) {
         HDF_LOGE("%{public}s: Wrapper not found, device does not exist", __func__);
-        delete bulkTransfer;
-        bulkTransfer = nullptr;
         return HDF_FAILURE;
     }
     LibusbBulkWrapper* wrapper = it->second;
     if (wrapper == nullptr) {
         HDF_LOGE("%{public}s: Wrapper is nullptr", __func__);
-        delete bulkTransfer;
-        bulkTransfer = nullptr;
+        return HDF_FAILURE;
+    }
+    std::lock_guard<std::mutex> listLock(wrapper->bulkTransferLock);
+    auto transferIt = std::find_if(
+        wrapper->bulkTransferList.begin(), wrapper->bulkTransferList.end(),
+        [&pipe](const auto& pair) {
+            return pair.second->endpoint == pipe.endpointId;
+    });
+    if (transferIt != wrapper->bulkTransferList.end()) {
+        if (transferIt->first->isTransferring) {
+            HDF_LOGE("%{public}s: endpoint is transferring, cannot update callback", __func__);
+            return HDF_FAILURE;
+        }
+        HDF_LOGI("%{public}s: endpoint already registered, update callback", __func__);
+        transferIt->first->bulkCbRef = cb;
+        return HDF_SUCCESS;
+    }
+    LibusbBulkTransfer *bulkTransfer = new(std::nothrow) LibusbBulkTransfer();
+    if (bulkTransfer == nullptr) {
+        HDF_LOGE("%{public}s: bulkTransfer is nullptr", __func__);
         return HDF_FAILURE;
     }
     bulkTransfer->busNum = dev.busNum;
     bulkTransfer->devAddr = dev.devAddr;
     bulkTransfer->bulkCbRef = cb;
     bulkTransfer->bulkTransferRef->endpoint = pipe.endpointId;
-    std::lock_guard<std::mutex> listLock(wrapper->bulkTransferLock);
     wrapper->bulkTransferList.emplace(bulkTransfer, bulkTransfer->bulkTransferRef);
     return HDF_SUCCESS;
 }
@@ -3129,6 +3179,9 @@ int32_t LibusbAdapter::UnRegBulkCallback(const UsbDev &dev, const UsbPipe &pipe)
         return HDF_FAILURE;
     }
     transferCancle->bulkCbRef = nullptr;
+    wrapper->bulkTransferList.erase(transferIt);
+    delete transferCancle;
+    transferCancle = nullptr;
     return HDF_SUCCESS;
 }
 

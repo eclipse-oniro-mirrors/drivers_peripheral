@@ -224,6 +224,7 @@ private:
     void GetCurrentDevList(libusb_context *ctx, sptr<V1_2::LibUsbSaSubscriber> libUsbSaSubscriber);
     int32_t GetUsbDevice(const UsbDev &dev, libusb_device **device, bool addRefCount = false);
     int32_t FindHandleByDev(const UsbDev &dev, libusb_device_handle **handle);
+    int32_t OpenDeviceHandle(const UsbDev &dev, libusb_device *device, libusb_device_handle *&devHandle);
     void DeleteSettingsMap(libusb_device_handle* handle);
     int32_t DoControlTransfer(const UsbDev &dev, const UsbCtrlTransfer &ctrl, std::vector<uint8_t> &data);
     int32_t ReadDescriptors(int32_t fd, void **descriptors, size_t &descriptorsLength);
@@ -285,7 +286,7 @@ private:
     void DeleteBulkDevRequest(const UsbDev &dev);
     void ClearBulkTranfer(LibusbBulkWrapper *bulkWrapper);
     static LibusbBulkWrapper *GetBulkWrapper(const UsbDev &dev);
-    LibusbBulkTransfer *FindBulkTransfer(const UsbDev &dev, const UsbPipe &pipe, const sptr<Ashmem> &ashmem);
+    LibusbBulkTransfer *FindBulkTransfer(const UsbDev &dev, const UsbPipe &pipe);
     static bool IsExistBulkTransfer(struct libusb_transfer *transfer);
 
     static int HotplugCallback(libusb_context* ctx, libusb_device* device,
