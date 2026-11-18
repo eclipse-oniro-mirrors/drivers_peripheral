@@ -62,7 +62,7 @@ static int32_t ReadBh1750RawData(struct SensorCfgData *data, struct BH1750AlsDat
 static int32_t ReadBh1750Data(struct SensorCfgData *data)
 {
     int32_t ret;
-    static int32_t als;
+    int32_t als = 0;
     struct BH1750AlsData rawData = { 0 };
     struct SensorReportEvent event;
 

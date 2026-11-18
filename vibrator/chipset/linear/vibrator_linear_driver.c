@@ -154,10 +154,10 @@ static void ReleaseLinearVibratorDriver(struct HdfDeviceObject *device)
         return;
     }
 
-    OsalMemFree(drvData->linearCfgData);
     device->service = NULL;
-    OsalMemFree(drvData);
     g_linearVibratorData = NULL;
+    OsalMemFree(drvData->linearCfgData);
+    OsalMemFree(drvData);
 }
 
 struct HdfDriverEntry g_linearVibratorDriverEntry = {

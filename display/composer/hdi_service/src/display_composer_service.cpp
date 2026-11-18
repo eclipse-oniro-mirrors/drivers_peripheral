@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+
 #include "display_composer_service.h"
 
 #include <mutex>

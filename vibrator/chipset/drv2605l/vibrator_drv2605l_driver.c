@@ -189,11 +189,13 @@ static int32_t SetModulationParameter(uint16_t intensity, int16_t frequency)
 
     CHECK_VIBRATOR_NULL_PTR_RETURN_VALUE(drvData, HDF_FAILURE);
 
+    (void)OsalMutexLock(&drvData->i2cMutex);
     if (intensity != 0) {
         value[DRV2605L_ADDR_INDEX] = (uint8_t)DRV2605_REG_RTPIN;
         value[DRV2605L_VALUE_INDEX] = (uint8_t)INTENSITY_MAPPING_VALUE(intensity);
         if (WriteDrv2605l(&drvData->drv2605lCfgData->vibratorBus.i2cCfg, value, sizeof(value)) != HDF_SUCCESS) {
             HDF_LOGE("%s: i2c addr [%0X] write failed", __func__, value[DRV2605L_ADDR_INDEX]);
+            (void)OsalMutexUnlock(&drvData->i2cMutex);
             return HDF_FAILURE;
         }
     } else {
@@ -206,6 +208,7 @@ static int32_t SetModulationParameter(uint16_t intensity, int16_t frequency)
         value[DRV2605L_VALUE_INDEX] = (uint8_t)FREQUENCY_MAPPING_VALUE(frequency);
         if (WriteDrv2605l(&drvData->drv2605lCfgData->vibratorBus.i2cCfg, value, sizeof(value)) != HDF_SUCCESS) {
             HDF_LOGE("%s: i2c addr [%0X] write failed", __func__, value[DRV2605L_ADDR_INDEX]);
+            (void)OsalMutexUnlock(&drvData->i2cMutex);
             return HDF_FAILURE;
         }
     } else {
@@ -213,6 +216,7 @@ static int32_t SetModulationParameter(uint16_t intensity, int16_t frequency)
             will be set as the system default frequency", __func__);
     }
 
+    (void)OsalMutexUnlock(&drvData->i2cMutex);
     return HDF_SUCCESS;
 }
 
@@ -224,13 +228,16 @@ static int32_t StartModulationParameter(void)
 
     CHECK_VIBRATOR_NULL_PTR_RETURN_VALUE(drvData, HDF_FAILURE);
 
+    (void)OsalMutexLock(&drvData->i2cMutex);
     value[DRV2605L_ADDR_INDEX] = (uint8_t)DRV2605_REG_MODE;
     value[DRV2605L_VALUE_INDEX] = (uint8_t)DRV2605_MODE_REALTIME;
     if (WriteDrv2605l(&drvData->drv2605lCfgData->vibratorBus.i2cCfg, value, sizeof(value)) != HDF_SUCCESS) {
         HDF_LOGE("%s: i2c addr [%0X] write failed", __func__, value[DRV2605L_ADDR_INDEX]);
+        (void)OsalMutexUnlock(&drvData->i2cMutex);
         return HDF_FAILURE;
     }
 
+    (void)OsalMutexUnlock(&drvData->i2cMutex);
     return HDF_SUCCESS;
 }
 
@@ -243,10 +250,12 @@ static int32_t StopModulationParameter(void)
     CHECK_VIBRATOR_NULL_PTR_RETURN_VALUE(drvData, HDF_FAILURE);
     CHECK_VIBRATOR_NULL_PTR_RETURN_VALUE(drvData->drv2605lCfgData, HDF_FAILURE);
 
+    (void)OsalMutexLock(&drvData->i2cMutex);
     value[DRV2605L_ADDR_INDEX] = (uint8_t)DRV2605_REG_MODE;
     value[DRV2605L_VALUE_INDEX] = (uint8_t)DRV2605_MODE_STANDBY;
     if (WriteDrv2605l(&drvData->drv2605lCfgData->vibratorBus.i2cCfg, value, sizeof(value)) != HDF_SUCCESS) {
         HDF_LOGE("%s: i2c addr [%0X] write failed", __func__, value[DRV2605L_ADDR_INDEX]);
+        (void)OsalMutexUnlock(&drvData->i2cMutex);
         return HDF_FAILURE;
     }
 
@@ -254,6 +263,7 @@ static int32_t StopModulationParameter(void)
     value[DRV2605L_VALUE_INDEX] = (uint8_t)&drvData->drv2605lCfgData->vibratorAttr.defaultIntensity;
     if (WriteDrv2605l(&drvData->drv2605lCfgData->vibratorBus.i2cCfg, value, sizeof(value)) != HDF_SUCCESS) {
         HDF_LOGE("%s: i2c addr [%0X] write failed", __func__, value[DRV2605L_ADDR_INDEX]);
+        (void)OsalMutexUnlock(&drvData->i2cMutex);
         return HDF_FAILURE;
     }
 
@@ -261,9 +271,11 @@ static int32_t StopModulationParameter(void)
     value[DRV2605L_VALUE_INDEX] = (uint8_t)&drvData->drv2605lCfgData->vibratorAttr.defaultFrequency;
     if (WriteDrv2605l(&drvData->drv2605lCfgData->vibratorBus.i2cCfg, value, sizeof(value)) != HDF_SUCCESS) {
         HDF_LOGE("%s: i2c addr [%0X] write failed", __func__, value[DRV2605L_ADDR_INDEX]);
+        (void)OsalMutexUnlock(&drvData->i2cMutex);
         return HDF_FAILURE;
     }
 
+    (void)OsalMutexUnlock(&drvData->i2cMutex);
     return HDF_SUCCESS;
 }
 
@@ -306,6 +318,11 @@ static int32_t InitDrv2605lDriver(struct HdfDeviceObject *device)
     ops.Start = StartModulationParameter;
     ops.Stop = StopModulationParameter;
     ops.StartEffect = NULL;
+
+    if (OsalMutexInit(&drvData->i2cMutex) != HDF_SUCCESS) {
+        HDF_LOGE("%s: init i2c mutex failed", __func__);
+        return HDF_FAILURE;
+    }
 
     drvData->drv2605lCfgData = (struct VibratorCfgData *)OsalMemCalloc(sizeof(*drvData->drv2605lCfgData));
     CHECK_VIBRATOR_NULL_PTR_RETURN_VALUE(drvData->drv2605lCfgData, HDF_ERR_MALLOC_FAIL);
@@ -352,13 +369,16 @@ static void ReleaseDrv2605lDriver(struct HdfDeviceObject *device)
         HDF_LOGE("%s: drvData is null", __func__);
         return;
     }
+    device->service = NULL;
+    g_drv2605lDrvData = NULL;
     if (drvData->drv2605lCfgData != NULL) {
+        (void)OsalMutexLock(&drvData->i2cMutex);
         ReleaseDrv2605lBusHandle(&drvData->drv2605lCfgData->vibratorBus.i2cCfg);
+        (void)OsalMutexUnlock(&drvData->i2cMutex);
         OsalMemFree(drvData->drv2605lCfgData);
     }
-    device->service = NULL;
+    (void)OsalMutexDestroy(&drvData->i2cMutex);
     OsalMemFree(drvData);
-    g_drv2605lDrvData = NULL;
 }
 
 struct HdfDriverEntry g_drv2605lDriverEntry = {

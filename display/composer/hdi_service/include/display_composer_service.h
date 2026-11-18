@@ -143,6 +143,7 @@ private:
     DisplayComposerVdiAdapter* vdiAdapter_;
     std::mutex exitMutex_;
     std::shared_ptr<DeviceCacheManager> cacheMgr_;
+    std::mutex cbMutex_;
     sptr<IHotPlugCallback> hotPlugCb_;
     sptr<IVBlankCallback> vBlankCb_;
     sptr<IModeCallback> modeCb_;
