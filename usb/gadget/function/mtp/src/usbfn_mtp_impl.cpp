@@ -16,7 +16,6 @@
 #include "usbfn_mtp_impl.h"
 #include <unistd.h>
 #include <cinttypes>
-#include <ctime>
 #include <string>
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -130,6 +129,7 @@ constexpr uint32_t ZERO_LENGTH_PACKET_JIFFIES = 100;  /* sync timeout, set to 0 
 constexpr uint32_t ZERO_LENGTH_PACKET = 0;
 constexpr int32_t WAIT_READY_TIME = 10;
 constexpr int32_t MAX_WAIT_READY_TIME = 1000;
+constexpr int32_t MAX_CANCEL_WAIT_READY_TIME = 21;
 static constexpr int32_t WAIT_UDC_MAX_LOOP = 3;
 static constexpr uint32_t WAIT_UDC_TIME = 300000;
 static constexpr uint32_t REQ_ACTUAL_DEFAULT_LENGTH = 0;
@@ -1123,29 +1123,20 @@ int32_t UsbfnMtpImpl::UsbMtpDeviceFree()
     return HDF_SUCCESS;
 }
 
-void UsbfnMtpImpl::WaitRequestCancel()
+void UsbfnMtpImpl::WaitRequestCancel(int32_t maxWaitReadyTime)
 {
-    struct timespec begin = {0};
-    struct timespec end = {0};
-    (void)clock_gettime(CLOCK_MONOTONIC, &begin);
     int32_t time = 0;
     while (mtpPort_ != nullptr &&
         (mtpPort_->readStarted > 0 || mtpPort_->writeStarted > 0)) {
         OsalMSleep(WAIT_READY_TIME);
         time += WAIT_READY_TIME;
-        if (time >= MAX_WAIT_READY_TIME) {
+        if (time >= maxWaitReadyTime) {
             HDF_LOGW("%{public}s: wait request cancel timeout, readStarted=%{public}d, writeStarted=%{public}d",
                 __func__, mtpPort_->readStarted, mtpPort_->writeStarted);
             break;
         }
     }
-    (void)clock_gettime(CLOCK_MONOTONIC, &end);
-    int32_t readStarted = (mtpPort_ == nullptr) ? 0 : mtpPort_->readStarted;
-    int32_t writeStarted = (mtpPort_ == nullptr) ? 0 : mtpPort_->writeStarted;
-    int64_t elapsedUs = (end.tv_sec - begin.tv_sec) * 1000000LL +
-        (end.tv_nsec - begin.tv_nsec) / 1000;
-    HDF_LOGI("%{public}s: request cancel ready, readStarted=%{public}d, writeStarted=%{public}d, "
-        "elapsed=%{public}" PRId64 "us", __func__, readStarted, writeStarted, elapsedUs);
+    HDF_LOGI("%{public}s: request cancel ready.", __func__);
 }
 
 int32_t UsbfnMtpImpl::Init()
@@ -1234,7 +1225,7 @@ int32_t UsbfnMtpImpl::Release()
         (void)UsbMtpPortCancelRequest(mtpPort_);
     }
     pthread_rwlock_unlock(&mtpRunrwLock_);
-    (void)WaitRequestCancel();
+    (void)WaitRequestCancel(MAX_WAIT_READY_TIME);
     pthread_rwlock_wrlock(&mtpRunrwLock_);
     if (mtpPort_ == nullptr || mtpDev_ == nullptr) {
         pthread_rwlock_unlock(&mtpRunrwLock_);
@@ -1855,7 +1846,7 @@ int32_t UsbfnMtpImpl::ReceiveFileEx()
     }
     HDF_LOGD("%{public}s: wait async rx", __func__);
     sem_wait(&asyncReq_);
-    WaitRequestCancel();
+    WaitRequestCancel(MAX_CANCEL_WAIT_READY_TIME);
     (void)OsalMemFree(mtpDev_->asyncRecvWriteTempContent);
     mtpDev_->asyncRecvWriteTempContent = nullptr;
     if (syncfs(mtpDev_->xferFd) != 0) {
