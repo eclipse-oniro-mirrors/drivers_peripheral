@@ -43,7 +43,7 @@ namespace Composer {
 const std::string BOOTEVENT_COMPOSER_HOST_READY = "bootevent.composer_host.ready";
 static std::shared_mutex g_respMapMutex;
 
-extern "C" V1_5::IDisplayComposer* DisplayComposerImplGetInstance(void)
+extern "C" V1_6::IDisplayComposer* DisplayComposerImplGetInstance(void)
 {
     return new (std::nothrow) DisplayComposerService();
 }
@@ -286,6 +286,9 @@ void DisplayComposerService::LoadVdiFuncPart3()
         reinterpret_cast<GetDisplayConnectionTypeFunc>(dlsym(libHandle_, "GetDisplayConnectionType"));
     vdiAdapter_->GetDisplayClientTargetProperty =
         reinterpret_cast<GetDisplayClientTargetPropertyFunc>(dlsym(libHandle_, "GetDisplayClientTargetProperty"));
+    vdiAdapter_->GetDisplayClientTargetPropertyInfo =
+        reinterpret_cast<GetDisplayClientTargetPropertyInfoFunc>(
+            dlsym(libHandle_, "GetDisplayClientTargetPropertyInfo"));
     vdiAdapter_->SetDisplayColorGamut =
         reinterpret_cast<SetDisplayColorGamutFunc>(dlsym(libHandle_, "SetDisplayColorGamut"));
     vdiAdapter_->GetDisplayVCPFeature =
@@ -1290,6 +1293,17 @@ int32_t DisplayComposerService::GetDisplayClientTargetProperty(uint32_t devId, i
     CHECK_NULLPOINTER_RETURN_VALUE(vdiAdapter_, HDF_FAILURE);
     CHECK_NULLPOINTER_RETURN_VALUE(vdiAdapter_->GetDisplayClientTargetProperty, HDF_ERR_NOT_SUPPORT);
     int32_t ret = vdiAdapter_->GetDisplayClientTargetProperty(devId, pixelFormat, dataspace);
+    DISPLAY_CHK_RETURN(ret != HDF_SUCCESS, HDF_FAILURE, DISPLAY_LOGE(" fail"));
+    return ret;
+}
+
+int32_t DisplayComposerService::GetDisplayClientTargetPropertyInfo(uint32_t devId, ClientTargetPropertyInfo& property)
+{
+    DISPLAY_TRACE;
+
+    CHECK_NULLPOINTER_RETURN_VALUE(vdiAdapter_, HDF_FAILURE);
+    CHECK_NULLPOINTER_RETURN_VALUE(vdiAdapter_->GetDisplayClientTargetPropertyInfo, HDF_ERR_NOT_SUPPORT);
+    int32_t ret = vdiAdapter_->GetDisplayClientTargetPropertyInfo(devId, property);
     DISPLAY_CHK_RETURN(ret != HDF_SUCCESS, HDF_FAILURE, DISPLAY_LOGE(" fail"));
     return ret;
 }

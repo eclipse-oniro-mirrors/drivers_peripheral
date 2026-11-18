@@ -557,6 +557,16 @@ int TestGetDisplayClientTargetProperty(uint32_t devId)
     return ret;
 }
 
+int TestGetDisplayClientTargetPropertyInfo(uint32_t devId)
+{
+    OHOS::HDI::Display::Composer::V1_6::ClientTargetPropertyInfo property = {};
+    int32_t ret = g_composerInterface->GetDisplayClientTargetPropertyInfo(devId, property);
+    if (ret != DISPLAY_SUCCESS && ret != DISPLAY_NOT_SUPPORT) {
+        HDF_LOGE("%{public}s: failed, ret:%{public}d, devId:%{public}u", __func__, ret, devId);
+    }
+    return ret;
+}
+
 int TestSetDisplayColorGamut(uint32_t devId)
 {
     ColorGamut gamut = COLOR_GAMUT_SRGB;
@@ -603,6 +613,7 @@ TestFuncs g_testFuncs = {
     TestRegHwcEventCallback,
     TestGetDisplayConnectionType,
     TestGetDisplayClientTargetProperty,
+    TestGetDisplayClientTargetPropertyInfo,
     TestSetDisplayColorGamut,
 };
 

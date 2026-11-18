@@ -946,6 +946,26 @@ BENCHMARK_REGISTER_F(DisplayBenchmarkTest, GetDisplayClientTargetPropertyTest)->
     Iterations(30)->Repetitions(3)->ReportAggregatesOnly();
 
 /**
+  * @tc.name: GetDisplayClientTargetPropertyInfoTest
+  * @tc.desc: Benchmarktest for interface GetDisplayClientTargetPropertyInfo.
+  */
+BENCHMARK_F(DisplayBenchmarkTest, GetDisplayClientTargetPropertyInfoTest)(benchmark::State &state)
+{
+    int32_t ret = 0;
+    OHOS::HDI::Display::Composer::V1_6::ClientTargetPropertyInfo property = {};
+    for (auto _ : state) {
+        ret = g_composerDevice->GetDisplayClientTargetPropertyInfo(g_displayIds[0], property);
+    }
+    if (ret == DISPLAY_NOT_SUPPORT) {
+        return;
+    }
+    EXPECT_EQ(DISPLAY_SUCCESS, ret);
+}
+
+BENCHMARK_REGISTER_F(DisplayBenchmarkTest, GetDisplayClientTargetPropertyInfoTest)->
+    Iterations(30)->Repetitions(3)->ReportAggregatesOnly();
+
+/**
   * @tc.name: SetDisplayColorGamutTest
   * @tc.desc: Benchmarktest for interface SetDisplayColorGamut.
   */
