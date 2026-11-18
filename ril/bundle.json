@@ -25,7 +25,8 @@
         "hdf_core",
         "hilog",
         "ipc",
-        "ril_adapter"
+        "ril_adapter",
+        "bounds_checking_function"
       ]
     },
     "build": {
