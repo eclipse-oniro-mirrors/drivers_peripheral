@@ -14,20 +14,28 @@
  */
 
 #include "stream_operator_callback_wrapper.h"
+#include <mutex>
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 static OHOS::sptr<OHOS::Camera::IStreamOperatorCallback> g_streamCallback;
+static std::mutex g_streamCallbackMutex;
 
 void BindStreamOperatorCallback(const OHOS::sptr<OHOS::Camera::IStreamOperatorCallback>& callback)
 {
+    std::lock_guard<std::mutex> l(g_streamCallbackMutex);
     g_streamCallback = callback;
 }
 
 void StreamCBOnCaptureStarted(int captureId, const int* streamId, int count)
 {
-    if (g_streamCallback == nullptr) {
+    OHOS::sptr<OHOS::Camera::IStreamOperatorCallback> callback;
+    {
+        std::lock_guard<std::mutex> l(g_streamCallbackMutex);
+        callback = g_streamCallback;
+    }
+    if (callback == nullptr) {
         return;
     }
     std::vector<int> ids = {};
@@ -35,12 +43,17 @@ void StreamCBOnCaptureStarted(int captureId, const int* streamId, int count)
         ids.push_back(streamId[i]);
     }
 
-    g_streamCallback->OnCaptureStarted(captureId, ids);
+    callback->OnCaptureStarted(captureId, ids);
 }
 
 void StreamCBOnCaptureEnded(int captureId, CaptureEndedInfoCIF* info, int count)
 {
-    if (g_streamCallback == nullptr) {
+    OHOS::sptr<OHOS::Camera::IStreamOperatorCallback> callback;
+    {
+        std::lock_guard<std::mutex> l(g_streamCallbackMutex);
+        callback = g_streamCallback;
+    }
+    if (callback == nullptr) {
         return;
     }
 
@@ -56,14 +69,19 @@ void StreamCBOnCaptureEnded(int captureId, CaptureEndedInfoCIF* info, int count)
         ends.push_back(it);
     }
 
-    g_streamCallback->OnCaptureEnded(captureId, ends);
+    callback->OnCaptureEnded(captureId, ends);
 
     return;
 }
 
 void StreamCBOnCaptureError(int captureId, CaptureErrorInfoCIF* info, int count)
 {
-    if (g_streamCallback == nullptr) {
+    OHOS::sptr<OHOS::Camera::IStreamOperatorCallback> callback;
+    {
+        std::lock_guard<std::mutex> l(g_streamCallbackMutex);
+        callback = g_streamCallback;
+    }
+    if (callback == nullptr) {
         return;
     }
 
@@ -79,14 +97,19 @@ void StreamCBOnCaptureError(int captureId, CaptureErrorInfoCIF* info, int count)
         errors.push_back(it);
     }
 
-    g_streamCallback->OnCaptureError(captureId, errors);
+    callback->OnCaptureError(captureId, errors);
 
     return;
 }
 
 void StreamCBOnFrameShutter(int captureId, const int* streamId, int count, uint64_t timestamp)
 {
-    if (g_streamCallback == nullptr) {
+    OHOS::sptr<OHOS::Camera::IStreamOperatorCallback> callback;
+    {
+        std::lock_guard<std::mutex> l(g_streamCallbackMutex);
+        callback = g_streamCallback;
+    }
+    if (callback == nullptr) {
         return;
     }
 
@@ -98,7 +121,7 @@ void StreamCBOnFrameShutter(int captureId, const int* streamId, int count, uint6
     for (int i = 0; i < count; i++) {
         ids.push_back(streamId[i]);
     }
-    g_streamCallback->OnFrameShutter(captureId, ids, timestamp);
+    callback->OnFrameShutter(captureId, ids, timestamp);
 
     return;
 }

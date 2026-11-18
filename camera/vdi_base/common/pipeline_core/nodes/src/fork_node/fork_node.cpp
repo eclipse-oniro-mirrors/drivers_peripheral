@@ -189,7 +189,7 @@ void ForkNode::DeliverBuffer(std::shared_ptr<IBuffer>& buffer)
             forkBuffer->SetCurHeight(buffer->GetCurHeight());
             forkBuffer->SetIsValidDataInSurfaceBuffer(false);
             if (isDeliveryForkBufferInAloneThread_) {
-                std::lock_guard<std::mutex> l(mtx_);
+                std::lock_guard<std::mutex> l(bufferMtx);
                 bufferQueue_.push(forkBuffer);
                 CAMERA_LOGI("fork node deliver buffer streamid = %{public}d, in alone thread, index = %{public}d",
                     forkBuffer->GetStreamId(), forkBuffer->GetIndex());
@@ -245,6 +245,7 @@ void ForkNode::DeliverForkBuffer(std::shared_ptr<IBuffer>& forkBuffer)
 
 void ForkNode::DeliverBufferToNextNode()
 {
+    std::shared_ptr<IBuffer> forkBuffer;
     {
         std::unique_lock<std::mutex> l(bufferMtx);
         CAMERA_LOGD("ForkNode DeliverBufferToNextNode");
@@ -253,16 +254,12 @@ void ForkNode::DeliverBufferToNextNode()
                 stopForkThread_ ? 0 : 1, bufferQueue_.empty() ? 0 : 1);
             return stopForkThread_ || !bufferQueue_.empty();
         });
+        if (bufferQueue_.empty()) {
+            return;
+        }
+        forkBuffer = bufferQueue_.front();
+        bufferQueue_.pop();
     }
-
-    mtx_.lock();
-    if (bufferQueue_.empty()) {
-        mtx_.unlock();
-        return;
-    }
-    std::shared_ptr<IBuffer> forkBuffer = bufferQueue_.front();
-    bufferQueue_.pop();
-    mtx_.unlock();
     DeliverForkBuffer(forkBuffer);
 }
 

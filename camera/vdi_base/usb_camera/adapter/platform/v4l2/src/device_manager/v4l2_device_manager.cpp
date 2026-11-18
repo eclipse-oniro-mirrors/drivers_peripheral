@@ -98,8 +98,13 @@ RetCode V4L2DeviceManager::PowerUp(CameraId cameraId)
     if (CheckCameraIdList(cameraId) == false) {
         return RC_ERROR;
     }
+    std::vector<std::shared_ptr<IManager>> managers;
+    {
+        std::lock_guard<std::mutex> l(mtx_);
+        managers = managerList_;
+    }
     RetCode rc = RC_OK;
-    for (auto iter = managerList_.cbegin(); iter != managerList_.cend(); iter++) {
+    for (auto iter = managers.cbegin(); iter != managers.cend(); iter++) {
         rc = (*iter)->PowerUp(CameraIdToHardware(cameraId, (*iter)->GetManagerId()));
         if (rc == RC_ERROR) {
             return RC_ERROR;
@@ -113,8 +118,13 @@ RetCode V4L2DeviceManager::PowerDown(CameraId cameraId)
     if (CheckCameraIdList(cameraId) == false) {
         return RC_ERROR;
     }
+    std::vector<std::shared_ptr<IManager>> managers;
+    {
+        std::lock_guard<std::mutex> l(mtx_);
+        managers = managerList_;
+    }
     RetCode rc = RC_OK;
-    for (auto iter = managerList_.cbegin(); iter != managerList_.cend(); iter++) {
+    for (auto iter = managers.cbegin(); iter != managers.cend(); iter++) {
         rc = (*iter)->PowerDown(CameraIdToHardware(cameraId, (*iter)->GetManagerId()));
         if (rc == RC_ERROR) {
             return RC_ERROR;
@@ -147,6 +157,7 @@ std::shared_ptr<ISensor> V4L2DeviceManager::GetSensor(CameraId cameraId)
 
 std::shared_ptr<IManager> V4L2DeviceManager::GetManager(ManagerId managerId)
 {
+    std::lock_guard<std::mutex> l(mtx_);
     for (auto iter = managerList_.cbegin(); iter != managerList_.cend(); iter++) {
         if ((*iter)->GetManagerId() == managerId) {
             return (*iter);
@@ -187,6 +198,7 @@ RetCode V4L2DeviceManager::CreateManager()
             if (rc == RC_ERROR) {
                 return RC_ERROR;
             } else {
+                std::lock_guard<std::mutex> l(mtx_);
                 managerList_.push_back(manager);
             }
         }
@@ -200,7 +212,12 @@ RetCode V4L2DeviceManager::DestroyManager()
 std::shared_ptr<IController> V4L2DeviceManager::GetController(CameraId cameraId, ManagerId managerId,
     ControllerId controllerId)
 {
-    for (auto iter = managerList_.cbegin(); iter != managerList_.cend(); iter++) {
+    std::vector<std::shared_ptr<IManager>> managers;
+    {
+        std::lock_guard<std::mutex> l(mtx_);
+        managers = managerList_;
+    }
+    for (auto iter = managers.cbegin(); iter != managers.cend(); iter++) {
         if ((*iter)->GetManagerId() == managerId) {
             return (*iter)->GetController(controllerId, CameraIdToHardware(cameraId, (*iter)->GetManagerId()));
         }
@@ -259,6 +276,7 @@ bool V4L2DeviceManager::CheckCameraIdList(CameraId cameraId)
 
 bool V4L2DeviceManager::CheckManagerList(ManagerId managerId)
 {
+    std::lock_guard<std::mutex> l(mtx_);
     if (managerList_.size() == 0) {
         return false;
     }
@@ -272,8 +290,13 @@ bool V4L2DeviceManager::CheckManagerList(ManagerId managerId)
 
 void V4L2DeviceManager::Configure(std::shared_ptr<CameraMetadata> meta)
 {
-    if (managerList_.size() != 0) {
-        for (auto iter = managerList_.cbegin(); iter != managerList_.cend(); iter++) {
+    std::vector<std::shared_ptr<IManager>> managers;
+    {
+        std::lock_guard<std::mutex> l(mtx_);
+        managers = managerList_;
+    }
+    if (managers.size() != 0) {
+        for (auto iter = managers.cbegin(); iter != managers.cend(); iter++) {
             (*iter)->Configure(meta);
         }
     }
@@ -292,10 +315,15 @@ RetCode V4L2DeviceManager::SetFlashlight(FlashMode flashMode, bool enable, Camer
 
 void V4L2DeviceManager::SetMetaDataCallBack(const MetaDataCb cb, CameraId cameraId)
 {
-    if (managerList_.size() == 0) {
+    std::vector<std::shared_ptr<IManager>> managers;
+    {
+        std::lock_guard<std::mutex> l(mtx_);
+        managers = managerList_;
+    }
+    if (managers.size() == 0) {
         return;
     }
-    for (auto iter = managerList_.cbegin(); iter != managerList_.cend(); iter++) {
+    for (auto iter = managers.cbegin(); iter != managers.cend(); iter++) {
         if ((*iter)->GetManagerId() == DM_M_SENSOR) {
             if (cameraId == CAMERA_MAX) {
                 (std::static_pointer_cast<SensorManager>(*iter))->SetMetaDataCallBack(cb,
@@ -312,12 +340,17 @@ void V4L2DeviceManager::SetAbilityMetaDataTag(std::vector<int32_t> abilityMetaDa
 {
     CAMERA_LOGI("V4L2DeviceManager %{public}s: line: %{public}d", __FUNCTION__, __LINE__);
     CameraId cameraId = CAMERA_FIRST;
-    if (managerList_.size() == 0) {
+    std::vector<std::shared_ptr<IManager>> managers;
+    {
+        std::lock_guard<std::mutex> l(mtx_);
+        managers = managerList_;
+    }
+    if (managers.size() == 0) {
         CAMERA_LOGE("%{public}s managerList_ size is 0.", __FUNCTION__);
         return;
     }
 
-    for (auto iter = managerList_.cbegin(); iter != managerList_.cend(); iter++) {
+    for (auto iter = managers.cbegin(); iter != managers.cend(); iter++) {
         if ((*iter)->GetManagerId() == DM_M_SENSOR) {
             if (cameraId == CAMERA_MAX) {
                 (std::static_pointer_cast<SensorManager>(*iter))->SetAbilityMetaDataTag(abilityMetaDataTag,
@@ -505,10 +538,15 @@ CameraId V4L2DeviceManager::ReturnEnableCameraId(std::string hardwareName)
 
 void V4L2DeviceManager::SetMemoryType(uint8_t &memType)
 {
-    if (managerList_.size() == 0) {
+    std::vector<std::shared_ptr<IManager>> managers;
+    {
+        std::lock_guard<std::mutex> l(mtx_);
+        managers = managerList_;
+    }
+    if (managers.size() == 0) {
         return;
     }
-    for (auto iter = managerList_.cbegin(); iter != managerList_.cend(); iter++) {
+    for (auto iter = managers.cbegin(); iter != managers.cend(); iter++) {
         if ((*iter)->GetManagerId() == DM_M_SENSOR) {
             (std::static_pointer_cast<SensorManager>(*iter))->SetMemoryType(memType);
         }
