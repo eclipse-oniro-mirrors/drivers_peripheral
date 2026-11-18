@@ -62,3 +62,68 @@ ohos_unittest("test_libusb_adapter_mock") {
   }
   module_out_path = module_output_path
 }
+
+# Synchronous transfer tests: bulk / interrupt / control / iso / descriptors.
+# Same compilation strategy as test_libusb_adapter_mock (mock libusb + real
+# LibusbAdapter source), but uses adapter_transfer_test.cpp instead.
+ohos_unittest("test_libusb_adapter_transfer_mock") {
+  sources = [
+    "mock/mock_libusb.cpp",
+    "${usb_driver_path}/libusb_adapter/src/libusb_adapter.cpp",
+    "src/adapter_transfer_test.cpp",
+  ]
+
+  configs = [ ":mock_libusb_private_config" ]
+
+  if (is_standard_system) {
+    external_deps = [
+      "access_token:libaccesstoken_compat_sdk",
+      "bounds_checking_function:libsec_shared",
+      "c_utils:utils",
+      "drivers_interface_usb:libusb_proxy_1.2",
+      "drivers_interface_usb:libusb_proxy_2.0",
+      "googletest:gtest_main",
+      "hdf_core:libhdf_host",
+      "hdf_core:libhdf_utils",
+      "hilog:libhilog",
+      "hisysevent:libhisysevent",
+      "hitrace:hitrace_meter",
+      "ipc:ipc_single",
+    ]
+  } else {
+    external_deps = [ "hilog:libhilog" ]
+  }
+  module_out_path = module_output_path
+}
+
+# Synchronous transfer edge cases: config descriptors, fault injection,
+# direction validation, second config FIXED data, missing device paths.
+ohos_unittest("test_libusb_adapter_transfer_edge_mock") {
+  sources = [
+    "mock/mock_libusb.cpp",
+    "${usb_driver_path}/libusb_adapter/src/libusb_adapter.cpp",
+    "src/adapter_transfer_edge_test.cpp",
+  ]
+
+  configs = [ ":mock_libusb_private_config" ]
+
+  if (is_standard_system) {
+    external_deps = [
+      "access_token:libaccesstoken_compat_sdk",
+      "bounds_checking_function:libsec_shared",
+      "c_utils:utils",
+      "drivers_interface_usb:libusb_proxy_1.2",
+      "drivers_interface_usb:libusb_proxy_2.0",
+      "googletest:gtest_main",
+      "hdf_core:libhdf_host",
+      "hdf_core:libhdf_utils",
+      "hilog:libhilog",
+      "hisysevent:libhisysevent",
+      "hitrace:hitrace_meter",
+      "ipc:ipc_single",
+    ]
+  } else {
+    external_deps = [ "hilog:libhilog" ]
+  }
+  module_out_path = module_output_path
+}
