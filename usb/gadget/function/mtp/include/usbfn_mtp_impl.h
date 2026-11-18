@@ -196,6 +196,7 @@ private:
     static int32_t UsbMtpPortSubmitAsyncTxReq(struct UsbMtpPort *mtpPort, struct UsbFnRequest *req);
     static int32_t UsbMtpPortStartTxAsync(struct UsbMtpPort *mtpPort, bool callByComplete);
     static int32_t UsbMtpPortProcessAsyncRxDone(struct UsbMtpPort *mtpPort);
+    static int32_t UsbMtpPortAbortRx(struct UsbMtpPort *mtpPort);
     static int32_t UsbMtpPortRxPush(struct UsbMtpPort *mtpPort, struct UsbFnRequest *req);
     static int32_t UsbMtpPortStartSubmitRxReq(struct UsbMtpPort *mtpPort, bool needZLP);
     static int32_t UsbMtpPortStartRxAsync(struct UsbMtpPort *mtpPort);

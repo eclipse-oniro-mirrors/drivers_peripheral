@@ -16,6 +16,7 @@
 #include "usbfn_mtp_impl.h"
 #include <unistd.h>
 #include <cinttypes>
+#include <ctime>
 #include <string>
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -170,7 +171,7 @@ void UsbfnMtpImpl::UsbFnRequestReadComplete(uint8_t pipe, struct UsbFnRequest *r
         return;
     }
     UsbMtpPortReleaseRxReq(mtpPort, req);
-    if (mtpPort->mtpDev->mtpState == MTP_STATE_CANCELED) {
+    if (mtpPort->mtpDev->mtpState == MTP_STATE_CANCELED || mtpPort->mtpDev->mtpState == MTP_STATE_ERROR) {
         CopyReqToStandbyReqPool(req, mtpPort->standbyReq);
         pthread_rwlock_unlock(&mtpRunrwLock_);
         HDF_LOGD("%{public}s, mtpState: %{public}d.", __func__, mtpPort->mtpDev->mtpState);
@@ -1124,6 +1125,9 @@ int32_t UsbfnMtpImpl::UsbMtpDeviceFree()
 
 void UsbfnMtpImpl::WaitRequestCancel()
 {
+    struct timespec begin = {0};
+    struct timespec end = {0};
+    (void)clock_gettime(CLOCK_MONOTONIC, &begin);
     int32_t time = 0;
     while (mtpPort_ != nullptr &&
         (mtpPort_->readStarted > 0 || mtpPort_->writeStarted > 0)) {
@@ -1135,7 +1139,13 @@ void UsbfnMtpImpl::WaitRequestCancel()
             break;
         }
     }
-    HDF_LOGI("%{public}s: request cancel ready.", __func__);
+    (void)clock_gettime(CLOCK_MONOTONIC, &end);
+    int32_t readStarted = (mtpPort_ == nullptr) ? 0 : mtpPort_->readStarted;
+    int32_t writeStarted = (mtpPort_ == nullptr) ? 0 : mtpPort_->writeStarted;
+    int64_t elapsedUs = (end.tv_sec - begin.tv_sec) * 1000000LL +
+        (end.tv_nsec - begin.tv_nsec) / 1000;
+    HDF_LOGI("%{public}s: request cancel ready, readStarted=%{public}d, writeStarted=%{public}d, "
+        "elapsed=%{public}" PRId64 "us", __func__, readStarted, writeStarted, elapsedUs);
 }
 
 int32_t UsbfnMtpImpl::Init()
@@ -1680,6 +1690,22 @@ int32_t UsbfnMtpImpl::UsbMtpPortProcessAsyncRxDone(struct UsbMtpPort *mtpPort)
     return HDF_SUCCESS;
 }
 
+int32_t UsbfnMtpImpl::UsbMtpPortAbortRx(struct UsbMtpPort *mtpPort)
+{
+    struct UsbMtpDevice *mtpDev = mtpPort->mtpDev;
+    mtpDev->mtpState = MTP_STATE_ERROR;
+    DListHead *queueHead = &mtpPort->readQueue;
+    if (!DListIsEmpty(queueHead)) {
+        struct UsbFnRequest *queueReq = nullptr;
+        struct UsbFnRequest *queueReqTmp = nullptr;
+        DLIST_FOR_EACH_ENTRY_SAFE(queueReq, queueReqTmp, queueHead, struct UsbFnRequest, list) {
+            (void)UsbFnCancelRequest(queueReq);
+        }
+    }
+    sem_post(&asyncReq_);
+    return HDF_FAILURE;
+}
+
 int32_t UsbfnMtpImpl::UsbMtpPortRxPush(struct UsbMtpPort *mtpPort, struct UsbFnRequest *req)
 {
     HITRACE_METER_NAME(HITRACE_TAG_HDF, MTP_FUNCTION);
@@ -1701,13 +1727,11 @@ int32_t UsbfnMtpImpl::UsbMtpPortRxPush(struct UsbMtpPort *mtpPort, struct UsbFnR
         if (req->actual > remaining) {
             HDF_LOGE("%{public}s: buffer overflow: remain %{public}zu, actual %{public}u", __func__, remaining,
                 req->actual);
-            sem_post(&asyncReq_);
-            return HDF_FAILURE;
+            return UsbMtpPortAbortRx(mtpPort);
         }
         if (memcpy_s(bufOff, remaining, req->buf, req->actual) != EOK) {
             HDF_LOGE("%{public}s: memcpy_s failed", __func__);
-            sem_post(&asyncReq_);
-            return HDF_FAILURE;
+            return UsbMtpPortAbortRx(mtpPort);
         }
         mtpDev->asyncRecvWriteTempCount += req->actual;
         if (mtpDev->asyncRecvWriteTempCount >= WRITE_FILE_TEMP_SLICE) {
@@ -1715,9 +1739,7 @@ int32_t UsbfnMtpImpl::UsbMtpPortRxPush(struct UsbMtpPort *mtpPort, struct UsbFnR
                 static_cast<size_t>(WRITE_FILE_TEMP_SLICE));
             if (writeRet != static_cast<ssize_t>(WRITE_FILE_TEMP_SLICE)) {
                 HDF_LOGE("%{public}s: write temp failed: %{public}zd", __func__, writeRet);
-                mtpDev->asyncXferFile = ASYNC_XFER_FILE_DONE;
-                sem_post(&asyncReq_);
-                return HDF_FAILURE;
+                return UsbMtpPortAbortRx(mtpPort);
             }
             mtpDev->asyncRecvWriteTempCount = 0;
         }
@@ -1728,9 +1750,7 @@ int32_t UsbfnMtpImpl::UsbMtpPortRxPush(struct UsbMtpPort *mtpPort, struct UsbFnR
             static_cast<size_t>(mtpDev->asyncRecvWriteTempCount));
         if (writeRet != static_cast<ssize_t>(mtpDev->asyncRecvWriteTempCount)) {
             HDF_LOGE("%{public}s: write last failed: %{public}d", __func__, mtpDev->asyncRecvWriteTempCount);
-            mtpDev->asyncXferFile = ASYNC_XFER_FILE_DONE;
-            sem_post(&asyncReq_);
-            return HDF_FAILURE;
+            return UsbMtpPortAbortRx(mtpPort);
         }
         return UsbMtpPortProcessAsyncRxDone(mtpPort);
     }
@@ -1835,6 +1855,7 @@ int32_t UsbfnMtpImpl::ReceiveFileEx()
     }
     HDF_LOGD("%{public}s: wait async rx", __func__);
     sem_wait(&asyncReq_);
+    WaitRequestCancel();
     (void)OsalMemFree(mtpDev_->asyncRecvWriteTempContent);
     mtpDev_->asyncRecvWriteTempContent = nullptr;
     if (syncfs(mtpDev_->xferFd) != 0) {
