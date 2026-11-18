@@ -41,10 +41,18 @@ StreamOperatorServiceCallback::StreamOperatorServiceCallback(OHOS::sptr<IStreamO
 
 StreamOperatorServiceCallback::~StreamOperatorServiceCallback()
 {
-    if (deathRecipient_ != nullptr && streamOperatorCallback_ != nullptr) {
-        const sptr<IRemoteObject> remote = OHOS::HDI::hdi_objcast<IStreamOperatorCallback>(streamOperatorCallback_);
+    OHOS::sptr<IStreamOperatorCallback> callback;
+    OHOS::sptr<StreamCallbackDeathRecipient> recipient;
+    {
+        std::lock_guard<std::mutex> lock(callbackMutex_);
+        callback = streamOperatorCallback_;
+        recipient = deathRecipient_;
+        streamOperatorCallback_ = nullptr;
+    }
+    if (recipient != nullptr && callback != nullptr) {
+        const sptr<IRemoteObject> remote = OHOS::HDI::hdi_objcast<IStreamOperatorCallback>(callback);
         if (remote != nullptr) {
-            remote->RemoveDeathRecipient(deathRecipient_);
+            remote->RemoveDeathRecipient(recipient);
         }
     }
 }

@@ -61,6 +61,7 @@ private:
     using CameraDeviceMap = std::map<std::string, std::shared_ptr<CameraDeviceVdiImpl>>;
     std::mutex mtx;
     CameraDeviceMap cameraDeviceMap_;
+    std::mutex callbackMutex_;
     OHOS::sptr<ICameraHostVdiCallback> cameraHostCallback_;
     // to keep remote object OHOS::sptr<ICameraDeviceVdi> alive
     std::map<std::string, OHOS::sptr<ICameraDeviceVdi>> deviceBackup_ = {};

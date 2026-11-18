@@ -132,10 +132,26 @@ void PcForkNode::DeliverBuffer(std::shared_ptr<IBuffer>& buffer)
 
     if (buffer->GetBufferStatus() == CAMERA_BUFFER_STATUS_OK && bufferPool_ != nullptr) {
         bool skipFork = false;
+        std::shared_ptr<IBuffer> forkBuffer;
         {
             std::lock_guard<std::mutex> l(requestLock_);
             if (captureRequests_.count(streamId_) == 0 || captureRequests_[streamId_].empty()) {
                 skipFork = true;
+            } else {
+                forkBuffer = bufferPool_->AcquireBuffer(0);
+                if (forkBuffer != nullptr) {
+                    forkBuffer->SetBufferStatus(CAMERA_BUFFER_STATUS_OK);
+                    auto id = forkBuffer->GetStreamId();
+                    if (captureRequests_.count(id) == 0 || captureRequests_[id].empty()) {
+                        forkBuffer->SetBufferStatus(CAMERA_BUFFER_STATUS_INVALID);
+                        CAMERA_LOGV("queue size: 0");
+                    } else {
+                        forkBuffer->SetCaptureId(captureRequests_[id].front());
+                        captureRequests_[id].pop_front();
+                        CAMERA_LOGV("queue size:%{public}u, CaptureId = %{public}d ",
+                            captureRequests_[id].size(), forkBuffer->GetCaptureId());
+                    }
+                }
             }
         }
         if (skipFork) {
@@ -143,29 +159,14 @@ void PcForkNode::DeliverBuffer(std::shared_ptr<IBuffer>& buffer)
             NodeBase::DeliverBuffer(buffer);
             return;
         }
-        std::shared_ptr<IBuffer> forkBuffer = bufferPool_->AcquireBuffer(0);
         if (forkBuffer != nullptr) {
             CopyBufferToForkBuffer(buffer, forkBuffer);
             forkBuffer->SetIsValidDataInSurfaceBuffer(false);
             forkBuffer->SetCurFormat(buffer->GetCurFormat());
             forkBuffer->SetCurWidth(buffer->GetCurWidth());
             forkBuffer->SetCurHeight(buffer->GetCurHeight());
-            forkBuffer->SetBufferStatus(CAMERA_BUFFER_STATUS_OK);
             CameraDumper& dumper = CameraDumper::GetInstance();
             dumper.DumpBuffer("PcForkNode", ENABLE_FORK_NODE_CONVERTED, buffer);
-            auto id = forkBuffer->GetStreamId();
-            {
-                std::lock_guard<std::mutex> l(requestLock_);
-                if (captureRequests_.count(id) == 0 || captureRequests_[id].empty()) {
-                    forkBuffer->SetBufferStatus(CAMERA_BUFFER_STATUS_INVALID);
-                    CAMERA_LOGV("queue size: 0");
-                } else {
-                    forkBuffer->SetCaptureId(captureRequests_[id].front());
-                    captureRequests_[id].pop_front();
-                    CAMERA_LOGV("queue size:%{public}u, CaptureId = %{public}d ",\
-                        captureRequests_[id].size(), forkBuffer->GetCaptureId());
-                }
-            }
             CAMERA_LOGI("DeliverForkBuffer,streamId:%{public}d,index:%{public}d,status=%{public}d,format =%{public}d",
                 forkBuffer->GetStreamId(), forkBuffer->GetIndex(),
                 forkBuffer->GetBufferStatus(), forkBuffer->GetFormat());

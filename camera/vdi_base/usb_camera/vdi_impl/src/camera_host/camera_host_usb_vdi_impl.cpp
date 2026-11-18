@@ -99,7 +99,10 @@ int32_t CameraHostVdiImpl::SetCallback(const OHOS::sptr<ICameraHostVdiCallback> 
         return VDI::Camera::V1_0::INVALID_ARGUMENT;
     }
 
-    cameraHostCallback_ = callbackObj;
+    {
+        std::lock_guard<std::mutex> lck(callbackMutex_);
+        cameraHostCallback_ = callbackObj;
+    }
 
     DFX_LOCAL_HITRACE_END;
     return VDI::Camera::V1_0::NO_ERROR;
@@ -245,8 +248,11 @@ RetCode CameraHostVdiImpl::CameraPowerUp(const std::string &cameraId,
     if (rc != RC_OK) {
         CAMERA_LOGW("Flash light close failed. [cameraId = %{public}s]", cameraId.c_str());
     }
-    if (cameraHostCallback_ != nullptr) {
-        cameraHostCallback_->OnFlashlightStatus(cameraId, flashlightStatus);
+    {
+        std::lock_guard<std::mutex> lck(callbackMutex_);
+        if (cameraHostCallback_ != nullptr) {
+            cameraHostCallback_->OnFlashlightStatus(cameraId, flashlightStatus);
+        }
     }
 
     std::shared_ptr<IDeviceManager> deviceManager = IDeviceManager::GetInstance();
@@ -331,6 +337,7 @@ int32_t CameraHostVdiImpl::SetFlashlight(const std::string &cameraId,  bool isEn
     VdiFlashlightStatus flashlightStatus = VDI::Camera::V1_0::FLASHLIGHT_UNAVAILABLE;
     rc = SetFlashlight(phyCameraIds, isEnable, flashlightStatus);
     if (rc == RC_OK && flashlightStatus != VDI::Camera::V1_0::FLASHLIGHT_UNAVAILABLE) {
+        std::lock_guard<std::mutex> lck(callbackMutex_);
         if (cameraHostCallback_ != nullptr) {
             cameraHostCallback_->OnFlashlightStatus(cameraId, flashlightStatus);
         }
@@ -392,9 +399,14 @@ void CameraHostVdiImpl::OnCameraStatus(CameraId cameraId,
         if (rc == RC_OK && logicalCameraId.size() > 0) {
             CAMERA_LOGI("Add physicalCameraIds %{public}d logicalCameraId %{public}s",
                 static_cast<int>(cameraId), logicalCameraId.c_str());
-            if (cameraHostCallback_ != nullptr) {
-                cameraHostCallback_->OnCameraEvent(logicalCameraId, CAMERA_EVENT_DEVICE_ADD);
-                cameraHostCallback_->OnCameraStatus(logicalCameraId, status);
+            OHOS::sptr<ICameraHostVdiCallback> callback;
+            {
+                std::lock_guard<std::mutex> lck(callbackMutex_);
+                callback = cameraHostCallback_;
+            }
+            if (callback != nullptr) {
+                callback->OnCameraEvent(logicalCameraId, CAMERA_EVENT_DEVICE_ADD);
+                callback->OnCameraStatus(logicalCameraId, status);
             }
         }
         std::shared_ptr<CameraDeviceVdiImpl> cameraDevice = CameraDeviceVdiImpl::CreateCameraDevice(logicalCameraId);
@@ -407,9 +419,14 @@ void CameraHostVdiImpl::OnCameraStatus(CameraId cameraId,
         if (logicalCameraId.size() > 0) {
             CAMERA_LOGI("PhysicalCameraIds %{public}d logicalCameraId %{public}s",
                 static_cast<int>(cameraId), logicalCameraId.c_str());
-            if (cameraHostCallback_ != nullptr) {
-                cameraHostCallback_->OnCameraStatus(logicalCameraId, status);
-                cameraHostCallback_->OnCameraEvent(logicalCameraId, CAMERA_EVENT_DEVICE_RMV);
+            OHOS::sptr<ICameraHostVdiCallback> callback;
+            {
+                std::lock_guard<std::mutex> lck(callbackMutex_);
+                callback = cameraHostCallback_;
+            }
+            if (callback != nullptr) {
+                callback->OnCameraStatus(logicalCameraId, status);
+                callback->OnCameraEvent(logicalCameraId, CAMERA_EVENT_DEVICE_RMV);
             }
             std::lock_guard<std::mutex> lck (mtx);
             cameraDeviceMap_.erase(logicalCameraId);

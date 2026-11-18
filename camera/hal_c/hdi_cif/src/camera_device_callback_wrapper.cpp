@@ -14,36 +14,49 @@
  */
 
 #include "camera_device_callback_wrapper.h"
+#include <mutex>
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 static OHOS::sptr<OHOS::Camera::ICameraDeviceCallback> g_deviceCallback;
+static std::mutex g_deviceCallbackMutex;
 
 void BindCameraDeviceCallback(const OHOS::sptr<OHOS::Camera::ICameraDeviceCallback>& callback)
 {
+    std::lock_guard<std::mutex> l(g_deviceCallbackMutex);
     g_deviceCallback = callback;
 }
 
 void DeviceCBOnError(int type, int errorMsg)
 {
-    if (g_deviceCallback == nullptr) {
+    OHOS::sptr<OHOS::Camera::ICameraDeviceCallback> callback;
+    {
+        std::lock_guard<std::mutex> l(g_deviceCallbackMutex);
+        callback = g_deviceCallback;
+    }
+    if (callback == nullptr) {
         return;
     }
 
-    g_deviceCallback->OnError(static_cast<OHOS::Camera::ErrorType>(type), errorMsg);
+    callback->OnError(static_cast<OHOS::Camera::ErrorType>(type), errorMsg);
 
     return;
 }
 
 void DeviceCBOnResult(uint64_t timestamp, CameraResultCIF* result)
 {
-    if (g_deviceCallback == nullptr) {
+    OHOS::sptr<OHOS::Camera::ICameraDeviceCallback> callback;
+    {
+        std::lock_guard<std::mutex> l(g_deviceCallbackMutex);
+        callback = g_deviceCallback;
+    }
+    if (callback == nullptr) {
         return;
     }
 
     std::shared_ptr<CameraMetadata> meta = std::make_shared<CameraMetadata>(0, 0);
-    g_deviceCallback->OnResult(timestamp, meta);
+    callback->OnResult(timestamp, meta);
 
     return;
 }

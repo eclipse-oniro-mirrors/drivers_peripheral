@@ -79,29 +79,46 @@ RetCode SourceNode::Start(const int32_t streamId)
 
 RetCode SourceNode::Flush(const int32_t streamId)
 {
-    CHECK_IF_NOT_EQUAL_RETURN_VALUE(handler_.count(streamId) > 0, true, RC_ERROR);
-    handler_[streamId]->StopCollectBuffers();
+    std::shared_ptr<PortHandler> ph;
+    {
+        std::lock_guard<std::mutex> l(hndl_);
+        auto it = handler_.find(streamId);
+        if (it == handler_.end() || it->second == nullptr) {
+            CAMERA_LOGW("SourceNode::Flush: handler for stream %{public}d gone", streamId);
+            return RC_ERROR;
+        }
+        ph = it->second;
+    }
+    ph->StopCollectBuffers();
     return RC_OK;
 }
 
 RetCode SourceNode::Stop(const int32_t streamId)
 {
-    CHECK_IF_NOT_EQUAL_RETURN_VALUE(handler_.count(streamId) > 0, true, RC_ERROR);
-    handler_[streamId]->StopDistributeBuffers();
-
+    std::shared_ptr<PortHandler> ph;
     {
         std::lock_guard<std::mutex> l(hndl_);
         auto it = handler_.find(streamId);
-        if (it != handler_.end()) {
-            handler_.erase(it);
+        if (it == handler_.end() || it->second == nullptr) {
+            CAMERA_LOGW("SourceNode::Stop: handler for stream %{public}d gone", streamId);
+            return RC_ERROR;
         }
+        ph = it->second;
+        handler_.erase(it);
     }
+    ph->StopDistributeBuffers();
     return RC_OK;
 }
 
 RetCode SourceNode::Config(const int32_t streamId, const CaptureMeta& meta)
 {
-    CHECK_IF_NOT_EQUAL_RETURN_VALUE(handler_.count(streamId) > 0, true, RC_ERROR);
+    {
+        std::lock_guard<std::mutex> l(hndl_);
+        if (handler_.count(streamId) == 0) {
+            CAMERA_LOGW("SourceNode::Config: handler for stream %{public}d gone", streamId);
+            return RC_ERROR;
+        }
+    }
     (void)meta;
     return RC_OK;
 }
@@ -135,7 +152,17 @@ void SourceNode::OnPackBuffer(std::shared_ptr<FrameSpec> frameSpec)
     CHECK_IF_PTR_NULL_RETURN_VOID(frameSpec);
     auto buffer = frameSpec->buffer_;
     CHECK_IF_PTR_NULL_RETURN_VOID(buffer);
-    handler_[buffer->GetStreamId()]->OnBuffer(buffer);
+    std::shared_ptr<PortHandler> ph;
+    {
+        std::lock_guard<std::mutex> l(hndl_);
+        auto it = handler_.find(buffer->GetStreamId());
+        if (it == handler_.end() || it->second == nullptr) {
+            CAMERA_LOGW("OnPackBuffer: handler for stream %{public}d gone", buffer->GetStreamId());
+            return;
+        }
+        ph = it->second;
+    }
+    ph->OnBuffer(buffer);
 
     CAMERA_LOGI("SourceNode::OnPackBuffer exit");
     return;
