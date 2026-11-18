@@ -129,7 +129,7 @@ constexpr uint32_t ZERO_LENGTH_PACKET_JIFFIES = 100;  /* sync timeout, set to 0 
 constexpr uint32_t ZERO_LENGTH_PACKET = 0;
 constexpr int32_t WAIT_READY_TIME = 10;
 constexpr int32_t MAX_WAIT_READY_TIME = 1000;
-/* 这个值实测10.5ms回收，21为安全值。50是AI推荐的值 */
+/* measured ~10.5ms cancel drain; 50 per AI review */
 constexpr int32_t MAX_CANCEL_WAIT_READY_TIME = 50;
 static constexpr int32_t WAIT_UDC_MAX_LOOP = 3;
 static constexpr uint32_t WAIT_UDC_TIME = 300000;
