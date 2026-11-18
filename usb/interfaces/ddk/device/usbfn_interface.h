@@ -350,6 +350,7 @@ int32_t UsbFnRegistInterfaceProp(const struct UsbFnInterface *interface, const s
  * @param name Indicates the pointer to the attribute name of the string type.
  * @param value Indicates the pointer to the attribute value of the string type. Except integer data,
  * which is a string converted from hex data, all the other types of data are strings by default.
+ * @param valueLen Indicates the maximum length of the <b>value</b> buffer, in bytes.
  *
  * @return Returns <b>0</b> if the operation is successful; returns a negative
  * value defined in {@link UsbErrorType} otherwise.
