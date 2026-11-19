@@ -1,5 +1,17 @@
 #!/vendor/bin/sh
- 
+# Copyright (c) 2026 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 function print_kernel_message()
 {
     if [ -e /dev/kmsg ]
@@ -8,7 +20,7 @@ function print_kernel_message()
     fi
     echo $1
 }
- 
+
 function insmod_kernel_usbmon()
 {
     usbmon_file_path=$1
@@ -28,7 +40,7 @@ function insmod_kernel_usbmon()
     fi
     return 0
 }
- 
+
 function write_ko_load_fini()
 {
     if [ ! -f /proc/sys/kernel/boot-stage ]; then
@@ -39,7 +51,7 @@ function write_ko_load_fini()
     echo -n "ko-load-fini" > /proc/sys/kernel/boot-stage
     return 0
 }
- 
+
 function insmod_kernel_usbmons()
 {
     insmod_kernel_usbmon /vendor/lib64/modules/usb/usbmon.ko
@@ -50,7 +62,7 @@ function insmod_kernel_usbmons()
     print_kernel_message "insmod usbmon kernel modules succ"
     return 0
 }
- 
+
 function load_drivers()
 {
     result=$(param get security.dsl.usbmon.state)
@@ -67,7 +79,7 @@ function load_drivers()
     write_ko_load_fini
     return $?
 }
- 
+
 function main_user()
 {
     print_kernel_message "load usbmon driver start, mode:$1"
@@ -80,7 +92,7 @@ function main_user()
         return 1;
     fi
 }
- 
+
 #--------------------main-----------------
 #in normal mode, the service run without argument.
 if [ $# == 0 ] ; then
