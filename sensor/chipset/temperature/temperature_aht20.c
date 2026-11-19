@@ -74,7 +74,7 @@ static int32_t ReadAht20RawData(struct SensorCfgData *data, struct TemperatureDa
 static int32_t ReadAht20Data(struct SensorCfgData *data)
 {
     int32_t ret;
-    static int32_t temperature;
+    int32_t temperature = 0;
     struct TemperatureData rawData = { 0 };
     OsalTimespec time;
     struct SensorReportEvent event;

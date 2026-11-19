@@ -11,6 +11,7 @@
 
 #include "sensor_als_driver.h"
 #include "sensor_config_parser.h"
+#include "osal_mutex.h"
 
 /* ALS DATA REGISTERS ADDR */
 #define BH1745_ALS_R_LSB_ADDR                     0X50
@@ -96,6 +97,7 @@ struct Bh1745DrvData {
     struct IDeviceIoService ioService;
     struct HdfDeviceObject *device;
     struct SensorCfgData *sensorCfg;
+    struct OsalMutex dataMutex;
 };
 
 #endif /* ALS_BH1745_H */

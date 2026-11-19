@@ -8,6 +8,8 @@
 
 #include "ppg_cs1262_spi.h"
 #include "spi_if.h"
+#include "osal_mutex.h"
+#include "stdbool.h"
 
 #define HDF_LOG_TAG khdf_sensor_ppg_driver
 
@@ -17,6 +19,8 @@
 #define OFFSET_BITS_2 2
 
 static struct SensorBusCfg *g_busCfg = NULL;
+static struct OsalMutex g_cs1262SpiMutex;
+static bool g_cs1262SpiMutexInited = false;
 
 static inline uint16_t ReverseEndianInt16(uint16_t data)
 {
@@ -39,20 +43,30 @@ static inline uint8_t Cs1262GetHighByteInt16(uint16_t data)
 
 static inline uint8_t Cs1262GetLowByteInt16(uint16_t data)
 {
-    return data & 0x00FF;
+    return data & 0xFF;
 }
 
-void Cs1262ReleaseSpi(struct SensorBusCfg *busCfg)
+static void Cs1262ReleaseSpiLocked(struct SensorBusCfg *busCfg)
 {
     SpiClose(busCfg->spiCfg.handle);
     busCfg->spiCfg.handle = NULL;
     g_busCfg = NULL;
 }
 
-int32_t Cs1262InitSpi(struct SensorBusCfg *busCfg)
+void Cs1262ReleaseSpi(struct SensorBusCfg *busCfg)
+{
+    if (busCfg == NULL) {
+        HDF_LOGE("%s: busCfg invalid", __func__);
+        return;
+    }
+    (void)OsalMutexLock(&g_cs1262SpiMutex);
+    Cs1262ReleaseSpiLocked(busCfg);
+    (void)OsalMutexUnlock(&g_cs1262SpiMutex);
+}
+
+static int32_t Cs1262InitSpiLocked(struct SensorBusCfg *busCfg)
 {
     int32_t ret;
-    CHECK_NULL_PTR_RETURN_VALUE(busCfg, HDF_ERR_INVALID_PARAM);
     struct SpiDevInfo spiDevinfo = {
         .busNum = busCfg->spiCfg.busNum,
         .csNum = busCfg->spiCfg.csNum,
@@ -81,9 +95,29 @@ int32_t Cs1262InitSpi(struct SensorBusCfg *busCfg)
     return HDF_SUCCESS;
 }
 
-int32_t Cs1262ReadFifoReg(Cs1262FifoVal *fifoBuf, uint16_t fifoLen)
+int32_t Cs1262InitSpi(struct SensorBusCfg *busCfg)
 {
-    CHECK_NULL_PTR_RETURN_VALUE(fifoBuf, HDF_ERR_INVALID_PARAM);
+    int32_t ret;
+
+    CHECK_NULL_PTR_RETURN_VALUE(busCfg, HDF_ERR_INVALID_PARAM);
+
+    if (!g_cs1262SpiMutexInited) {
+        if (OsalMutexInit(&g_cs1262SpiMutex) != HDF_SUCCESS) {
+            HDF_LOGE("%s: init spi mutex failed", __func__);
+            return HDF_FAILURE;
+        }
+        g_cs1262SpiMutexInited = true;
+    }
+
+    (void)OsalMutexLock(&g_cs1262SpiMutex);
+    ret = Cs1262InitSpiLocked(busCfg);
+    (void)OsalMutexUnlock(&g_cs1262SpiMutex);
+
+    return ret;
+}
+
+static int32_t Cs1262ReadFifoRegLocked(Cs1262FifoVal *fifoBuf, uint16_t fifoLen)
+{
     CHECK_NULL_PTR_RETURN_VALUE(g_busCfg, HDF_ERR_NOT_SUPPORT);
 
     uint8_t headBuf[CS1262_HEAD_BUF_FULL_LEN] = {
@@ -122,9 +156,21 @@ int32_t Cs1262ReadFifoReg(Cs1262FifoVal *fifoBuf, uint16_t fifoLen)
     return HDF_SUCCESS;
 }
 
-int32_t Cs1262ReadRegs(uint16_t regAddr, uint16_t *dataBuf, uint16_t dataLen)
+int32_t Cs1262ReadFifoReg(Cs1262FifoVal *fifoBuf, uint16_t fifoLen)
 {
-    CHECK_NULL_PTR_RETURN_VALUE(dataBuf, HDF_ERR_INVALID_PARAM);
+    int32_t ret;
+
+    CHECK_NULL_PTR_RETURN_VALUE(fifoBuf, HDF_ERR_INVALID_PARAM);
+
+    (void)OsalMutexLock(&g_cs1262SpiMutex);
+    ret = Cs1262ReadFifoRegLocked(fifoBuf, fifoLen);
+    (void)OsalMutexUnlock(&g_cs1262SpiMutex);
+
+    return ret;
+}
+
+static int32_t Cs1262ReadRegsLocked(uint16_t regAddr, uint16_t *dataBuf, uint16_t dataLen)
+{
     CHECK_NULL_PTR_RETURN_VALUE(g_busCfg, HDF_ERR_NOT_SUPPORT);
 
     uint8_t headBuf[CS1262_HEAD_BUF_FULL_LEN] = {
@@ -172,9 +218,21 @@ int32_t Cs1262ReadRegs(uint16_t regAddr, uint16_t *dataBuf, uint16_t dataLen)
     return HDF_SUCCESS;
 }
 
-int32_t Cs1262WriteRegs(uint16_t regAddr, uint16_t *dataBuf, uint16_t dataLen)
+int32_t Cs1262ReadRegs(uint16_t regAddr, uint16_t *dataBuf, uint16_t dataLen)
 {
+    int32_t ret;
+
     CHECK_NULL_PTR_RETURN_VALUE(dataBuf, HDF_ERR_INVALID_PARAM);
+
+    (void)OsalMutexLock(&g_cs1262SpiMutex);
+    ret = Cs1262ReadRegsLocked(regAddr, dataBuf, dataLen);
+    (void)OsalMutexUnlock(&g_cs1262SpiMutex);
+
+    return ret;
+}
+
+static int32_t Cs1262WriteRegsLocked(uint16_t regAddr, uint16_t *dataBuf, uint16_t dataLen)
+{
     CHECK_NULL_PTR_RETURN_VALUE(g_busCfg, HDF_ERR_NOT_SUPPORT);
 
     uint8_t headBuf[CS1262_HEAD_BUF_FULL_LEN] = {
@@ -222,14 +280,26 @@ int32_t Cs1262WriteRegs(uint16_t regAddr, uint16_t *dataBuf, uint16_t dataLen)
     return HDF_SUCCESS;
 }
 
+int32_t Cs1262WriteRegs(uint16_t regAddr, uint16_t *dataBuf, uint16_t dataLen)
+{
+    int32_t ret;
+
+    CHECK_NULL_PTR_RETURN_VALUE(dataBuf, HDF_ERR_INVALID_PARAM);
+
+    (void)OsalMutexLock(&g_cs1262SpiMutex);
+    ret = Cs1262WriteRegsLocked(regAddr, dataBuf, dataLen);
+    (void)OsalMutexUnlock(&g_cs1262SpiMutex);
+
+    return ret;
+}
+
 inline int32_t Cs1262WriteReg(uint16_t regAddr, uint16_t data)
 {
     return Cs1262WriteRegs(regAddr, &data, 1);
 }
 
-int32_t Cs1262WriteData(uint8_t *data, uint16_t dataLen)
+static int32_t Cs1262WriteDataLocked(uint8_t *data, uint16_t dataLen)
 {
-    CHECK_NULL_PTR_RETURN_VALUE(data, HDF_ERR_INVALID_PARAM);
     CHECK_NULL_PTR_RETURN_VALUE(g_busCfg, HDF_ERR_NOT_SUPPORT);
     struct SpiMsg msg = {
         .wbuf = data,
@@ -240,6 +310,19 @@ int32_t Cs1262WriteData(uint8_t *data, uint16_t dataLen)
         .speed = g_busCfg->spiCfg.spi.maxSpeedHz
     };
     return SpiTransfer(g_busCfg->spiCfg.handle, &msg, 1);
+}
+
+int32_t Cs1262WriteData(uint8_t *data, uint16_t dataLen)
+{
+    int32_t ret;
+
+    CHECK_NULL_PTR_RETURN_VALUE(data, HDF_ERR_INVALID_PARAM);
+
+    (void)OsalMutexLock(&g_cs1262SpiMutex);
+    ret = Cs1262WriteDataLocked(data, dataLen);
+    (void)OsalMutexUnlock(&g_cs1262SpiMutex);
+
+    return ret;
 }
 
 int32_t Cs1262WriteRegbit(uint16_t regAddr, uint16_t setbit, Cs1262BitStatus bitval)

@@ -246,10 +246,15 @@ static int32_t ReadBh1745Data(struct SensorCfgData *data, struct SensorReportEve
     struct AlsData rawData = { 0, 0, 0, 0 };
     uint32_t tmp[ALS_LIGHT_NUM];
     static struct AlsReportData reportData;
+    struct Bh1745DrvData *drvData = g_bh1745DrvData;
 
+    CHECK_NULL_PTR_RETURN_VALUE(drvData, HDF_ERR_INVALID_PARAM);
+
+    (void)OsalMutexLock(&drvData->dataMutex);
     ret = ReadBh1745RawData(data, &rawData, &event->timestamp);
     if (ret != HDF_SUCCESS) {
         HDF_LOGE("%s: BH1745 read raw data failed", __func__);
+        (void)OsalMutexUnlock(&drvData->dataMutex);
         return HDF_FAILURE;
     }
 
@@ -263,10 +268,15 @@ static int32_t ReadBh1745Data(struct SensorCfgData *data, struct SensorReportEve
     tmp[ALS_C] = rawData.clear;
 
     ret = RawDataConvert(data, &reportData, tmp);
-    CHECK_PARSER_RESULT_RETURN_VALUE(ret, "RawDataConvert");
+    if (ret != HDF_SUCCESS) {
+        HDF_LOGE("%s: RawDataConvert failed", __func__);
+        (void)OsalMutexUnlock(&drvData->dataMutex);
+        return ret;
+    }
 
     event->dataLen = sizeof(reportData.als);
     event->data = (uint8_t *)&reportData.als;
+    (void)OsalMutexUnlock(&drvData->dataMutex);
 
     return ret;
 }
@@ -343,6 +353,11 @@ static int32_t Bh1745InitDriver(struct HdfDeviceObject *device)
         return HDF_FAILURE;
     }
 
+    if (OsalMutexInit(&drvData->dataMutex) != HDF_SUCCESS) {
+        HDF_LOGE("%s: init data mutex failed", __func__);
+        return HDF_FAILURE;
+    }
+
     drvData->sensorCfg = AlsCreateCfgData(device->property);
     if (drvData->sensorCfg == NULL || drvData->sensorCfg->root == NULL) {
         HDF_LOGD("%s: Creating alscfg failed because detection failed", __func__);
@@ -377,6 +392,7 @@ static void Bh1745ReleaseDriver(struct HdfDeviceObject *device)
         AlsReleaseCfgData(drvData->sensorCfg);
         drvData->sensorCfg = NULL;
     }
+    (void)OsalMutexDestroy(&drvData->dataMutex);
     OsalMemFree(drvData);
 }
 
