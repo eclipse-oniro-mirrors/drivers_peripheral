@@ -21,6 +21,12 @@ config("pcie_ddk_service_config") {
 }
 
 ohos_shared_library("libpcie_ddk_service_1.0") {
+  branch_protector_ret = "pac_ret"
+  sanitize = {
+    cfi = true
+    cfi_cross_dso = true
+    debug = false
+  }
   output_name = "libpcie_interface_service_1.0"
   sources = [ "src/pcie_ddk_service.cpp" ]
 
