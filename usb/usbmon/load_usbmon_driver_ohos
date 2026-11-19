@@ -41,17 +41,6 @@ function insmod_kernel_usbmon()
     return 0
 }
 
-function write_ko_load_fini()
-{
-    if [ ! -f /proc/sys/kernel/boot-stage ]; then
-        print_kernel_message "file boot stage not exist"
-        return 1;
-    fi
-    print_kernel_message "write ko load fini now ..."
-    echo -n "ko-load-fini" > /proc/sys/kernel/boot-stage
-    return 0
-}
-
 function insmod_kernel_usbmons()
 {
     insmod_kernel_usbmon /vendor/lib64/modules/usb/usbmon.ko
@@ -76,7 +65,6 @@ function load_drivers()
     else
         print_kernel_message "err insmod usbmon modules"
     fi
-    write_ko_load_fini
     return $?
 }
 
