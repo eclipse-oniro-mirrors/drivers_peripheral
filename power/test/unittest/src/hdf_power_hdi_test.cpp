@@ -42,6 +42,7 @@ class HdfPowerHdiTest : public testing::Test {
 public:
     static void SetUpTestCase();
     std::string ReadFile(const std::string& file);
+    bool IsSysfsNodeExist(const std::string& file);
 };
 
 void HdfPowerHdiTest::SetUpTestCase()
@@ -61,6 +62,12 @@ std::string HdfPowerHdiTest::ReadFile(const std::string& file)
 
     ifs.close();
     return line;
+}
+
+bool HdfPowerHdiTest::IsSysfsNodeExist(const std::string& file)
+{
+    std::ifstream ifs(file);
+    return ifs.is_open();
 }
 }
 
@@ -115,6 +122,9 @@ HWTEST_F(HdfPowerHdiTest, HdfPowerHdiTest003, TestSize.Level0)
   */
 HWTEST_F(HdfPowerHdiTest, HdfPowerHdiTest005, TestSize.Level0)
 {
+    if (!IsSysfsNodeExist(LOCK_PATH)) {
+        GTEST_SKIP() << LOCK_PATH << " does not exist, platform does not support wakelock";
+    }
     std::string testName = "HdfPowerHdiTest005";
     int32_t ret = g_powerInterface->SuspendBlock(testName);
     EXPECT_EQ(0, ret);
@@ -140,6 +150,9 @@ HWTEST_F(HdfPowerHdiTest, HdfPowerHdiTest005, TestSize.Level0)
   */
 HWTEST_F(HdfPowerHdiTest, HdfPowerHdiTest006, TestSize.Level0)
 {
+    if (!IsSysfsNodeExist(LOCK_PATH) || !IsSysfsNodeExist(UNLOCK_PATH)) {
+        GTEST_SKIP() << "wake_lock or wake_unlock does not exist, platform does not support wakelock";
+    }
     std::string testName = "HdfPowerHdiTest006";
     g_powerInterface->SuspendBlock(testName);
     sleep(WAIT_TIME);
