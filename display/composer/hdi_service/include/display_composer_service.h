@@ -32,6 +32,7 @@
 #include "v1_5/idisplay_composer.h"
 #include "v1_5/display_composer_type.h"
 #include "v1_6/display_command/display_cmd_responser.h"
+#include "v1_6/idisplay_composer.h"
 #include "v1_6/display_composer_type.h"
 #include "common/include/display_config.h"
 #include "common/include/display_vdi_adapter_interface.h"
@@ -43,7 +44,7 @@ namespace Display {
 namespace Composer {
 using namespace OHOS::HDI::Display::Composer::V1_6;
 
-class DisplayComposerService : public V1_5::IDisplayComposer {
+class DisplayComposerService : public V1_6::IDisplayComposer {
 public:
     DisplayComposerService();
     virtual ~DisplayComposerService();

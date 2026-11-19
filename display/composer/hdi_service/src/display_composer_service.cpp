@@ -43,7 +43,7 @@ namespace Composer {
 const std::string BOOTEVENT_COMPOSER_HOST_READY = "bootevent.composer_host.ready";
 static std::shared_mutex g_respMapMutex;
 
-extern "C" V1_5::IDisplayComposer* DisplayComposerImplGetInstance(void)
+extern "C" V1_6::IDisplayComposer* DisplayComposerImplGetInstance(void)
 {
     return new (std::nothrow) DisplayComposerService();
 }
