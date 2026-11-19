@@ -18,6 +18,12 @@ config("pcie_driver_host_service_config") {
 }
 
 ohos_static_library("pcie_driver_host_service_core") {
+  branch_protector_ret = "pac_ret"
+  sanitize = {
+    cfi = true
+    cfi_cross_dso = true
+    debug = false
+  }
   sources = [
     "src/pcie_host_service.cpp",
     "src/pcie_sysfs_scanner.cpp",
@@ -41,6 +47,12 @@ ohos_static_library("pcie_driver_host_service_core") {
 }
 
 ohos_shared_library("libpcie_driver_host_driver") {
+  branch_protector_ret = "pac_ret"
+  sanitize = {
+    cfi = true
+    cfi_cross_dso = true
+    debug = false
+  }
   sources = [ "src/pcie_host.cpp" ]
 
   public_configs = [ ":pcie_driver_host_service_config" ]
