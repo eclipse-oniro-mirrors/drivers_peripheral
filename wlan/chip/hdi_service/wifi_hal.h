@@ -45,7 +45,8 @@ typedef enum {
     HAL_TYPE_AP  = 1,
     HAL_TYPE_P2P = 2,
     HAL_TYPE_NAN = 3,
-    HAL_TYPE_WDLENHANCE = 4
+    HAL_TYPE_WDLENHANCE = 4,
+    HAL_TYPE_CHBA = 5
 } HalIfaceType;
 
 typedef enum {
@@ -153,7 +154,9 @@ typedef struct {
     WifiError (*setProjectionScreenParam)(wifiInterfaceHandle handle,
         const OHOS::HDI::Wlan::Chip::V2_0::ProjectionScreenCmdParam& param);
     WifiError (*sendP2pCmdToDriver)(wifiInterfaceHandle handle, const char *interfaceName, int32_t cmdId,
- 	                                const std::vector<int8_t> &paramBuf, std::vector<int8_t> &result);
+        const std::vector<int8_t> &paramBuf, std::vector<int8_t> &result);
+    WifiError (*sendExtCmdToDriver)(wifiInterfaceHandle handle, const char* ifName, int32_t cmdId,
+        const std::vector<int8_t>& paramBuf, std::vector<int8_t>& result);
 } WifiHalFn;
 
 WifiError InitWifiVendorHalFuncTable(WifiHalFn *fn);

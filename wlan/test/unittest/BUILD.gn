@@ -260,6 +260,7 @@ if (defined(ohos_lite)) {
       "protected = public",
       "P2P_NAME=\"$drivers_peripheral_wlan_p2p_name\"",
       "WDLENHANCE_NAME=\"$drivers_peripheral_wlan_wdlenhance_name\"",
+      "CHBA_NAME=\"$drivers_peripheral_wlan_chba_name\"",
       "HAL_SO_NAME=\"$drivers_peripheral_wlan_feature_vendor\"",
     ]
 

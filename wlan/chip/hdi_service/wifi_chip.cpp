@@ -665,6 +665,8 @@ int32_t WifiChip::CreateExtService(const std::string& ifName, sptr<IChipIface>& 
     HalIfaceType ifaceType = HalIfaceType::HAL_TYPE_P2P;
     if (ifName == WDLENHANCE_NAME) {
         ifaceType = HalIfaceType::HAL_TYPE_WDLENHANCE;
+    } else if (ifName == CHBA_NAME) {
+        ifaceType = HalIfaceType::HAL_TYPE_CHBA;
     }
     WifiError status = vendorHalLock->CreateVirtualInterface(ifName, ifaceType);
     if (status != WifiError::HAL_SUCCESS) {
