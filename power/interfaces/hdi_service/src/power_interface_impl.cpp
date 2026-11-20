@@ -292,6 +292,7 @@ int32_t PowerInterfaceImpl::UnRegisterPowerCallbackExt(const sptr<V1_3::IPowerHd
 void PowerInterfaceImpl::PowerDeathRecipientExt::OnRemoteDied(const wptr<IRemoteObject>& object)
 {
     HDF_LOGI("PowerDeathRecipientExt OnRemoteDied");
+    Power::PowerXCollie powerXcollie("Power_OnRemoteDied");
     powerInterfaceImpl_->UnRegisterPowerCallbackExt(g_callbackExt);
     RunningLockImpl::Clean();
 }
@@ -503,6 +504,7 @@ int32_t PowerInterfaceImpl::RemovePowerDeathRecipient(
 void PowerInterfaceImpl::PowerDeathRecipient::OnRemoteDied(const wptr<IRemoteObject> &object)
 {
     HDF_LOGI("PowerDeathRecipient OnRemoteDied");
+    Power::PowerXCollie powerXcollie("Power_OnRemoteDied");
     powerInterfaceImpl_->UnRegister();
     RunningLockImpl::Clean();
 }
