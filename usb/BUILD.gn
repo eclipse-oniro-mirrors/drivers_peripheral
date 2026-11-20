@@ -32,6 +32,7 @@ if (defined(ohos_lite)) {
       "./net:libusbhost_ecm",
       "./net:libusbhost_rndis_rawapi",
       "./serial:usbhost_acm",
+      "./usbmon:usb_load_usbmon_driver",
     ]
 
     if (drivers_peripheral_usb_feature_ddk_service) {

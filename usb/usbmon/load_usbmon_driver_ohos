@@ -1,0 +1,88 @@
+#!/vendor/bin/sh
+# Copyright (c) 2026 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+function print_kernel_message()
+{
+    if [ -e /dev/kmsg ]
+    then
+        echo $1 > /dev/kmsg
+    fi
+    echo $1
+}
+
+function insmod_kernel_usbmon()
+{
+    usbmon_file_path=$1
+    if [ -e $usbmon_file_path ]
+    then
+        insmod $usbmon_file_path
+        if [ $? -eq 0 ]
+        then
+            print_kernel_message "kernel usbmon insmod succ"
+        else
+            print_kernel_message "kernel usbmon insmod failed!ret=$?"
+            return 1
+        fi
+    else
+        print_kernel_message "kernel usbmon file not exist"
+        return 1
+    fi
+    return 0
+}
+
+function insmod_kernel_usbmons()
+{
+    insmod_kernel_usbmon /vendor/lib64/modules/usb/usbmon.ko
+    if [ $? -ne 0 ]
+    then
+        return 1;
+    fi
+    print_kernel_message "insmod usbmon kernel modules succ"
+    return 0
+}
+
+function load_drivers()
+{
+    result=$(param get security.dsl.usbmon.state)
+	print_kernel_message "insmod usbmon result:[$result]"
+	result_first_char=${result:0:1}
+    if [ "$result_first_char" = "1" ]; then
+        print_kernel_message "insmod usbmon modules start"
+        insmod_kernel_usbmons
+    elif [ "$result_first_char" = "0" ]; then
+        print_kernel_message "no need insmod usbmon modules"
+    else
+        print_kernel_message "err insmod usbmon modules"
+    fi
+    return $?
+}
+
+function main_user()
+{
+    print_kernel_message "load usbmon driver start, mode:$1"
+ 
+    load_drivers
+    if [ $? -eq 0 ];then
+        print_kernel_message "load usbmon kernel succ"
+    else
+        print_kernel_message "load usbmon kernel fail"
+        return 1;
+    fi
+}
+
+#--------------------main-----------------
+#in normal mode, the service run without argument.
+if [ $# == 0 ] ; then
+    main_user normal 
+fi
