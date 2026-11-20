@@ -116,6 +116,7 @@ public:
     int32_t RegHwcEventCallback(const sptr<IHwcEventCallback>& cb) override;
     int32_t GetDisplayConnectionType(uint32_t devId, V1_4::DisplayConnectionType& outType) override;
     int32_t GetDisplayClientTargetProperty(uint32_t devId, int32_t& pixelFormat, int32_t& dataspace) override;
+    int32_t GetDisplayClientTargetPropertyInfo(uint32_t devId, ClientTargetPropertyInfo& property) override;
     int32_t SetDisplayColorGamut(uint32_t devId, ColorGamut gamut) override;
     int32_t GetLayerColor(uint32_t devId, uint32_t layerId, LayerColor &color) override;
 

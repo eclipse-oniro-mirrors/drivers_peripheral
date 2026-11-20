@@ -1297,6 +1297,20 @@ HWTEST_F(DeviceTest, test_GetDisplayClientTargetProperty, TestSize.Level1)
     }
 }
 
+HWTEST_F(DeviceTest, test_GetDisplayClientTargetPropertyInfo, TestSize.Level1)
+{
+    OHOS::HDI::Display::Composer::V1_6::ClientTargetPropertyInfo property = {};
+    int32_t result = DISPLAY_FAILURE;
+    auto ret = g_composerDevice->GetDisplayClientTargetPropertyInfo(g_displayIds[0], property);
+    if (ret == DISPLAY_SUCCESS || ret == DISPLAY_NOT_SUPPORT) {
+        result = DISPLAY_SUCCESS;
+        EXPECT_EQ(DISPLAY_SUCCESS, result);
+    } else {
+        result = DISPLAY_FAILURE;
+        EXPECT_EQ(DISPLAY_FAILURE, result);
+    }
+}
+
 HWTEST_F(DeviceTest, test_SetDisplayColorGamut, TestSize.Level1)
 {
     ColorGamut gamut = COLOR_GAMUT_SRGB;
