@@ -381,7 +381,11 @@ void DisplayComposerService::OnHotPlug(uint32_t outputId, bool connected, void* 
         }
     }
 
-    sptr<IHotPlugCallback> remoteCb = compService->hotPlugCb_;
+    sptr<IHotPlugCallback> remoteCb;
+    {
+        std::lock_guard<std::mutex> lock(compService->cbMutex_);
+        remoteCb = compService->hotPlugCb_;
+    }
     DISPLAY_CHK_RETURN_NOT_VALUE(remoteCb == nullptr,
         DISPLAY_LOGI("hotPlugCb_ is nullptr during bootstrap outputId:%{public}u, connected:%{public}d",
             outputId, connected));
@@ -437,7 +441,10 @@ int32_t DisplayComposerService::RegHotPlugCallback(const sptr<IHotPlugCallback>&
     DISPLAY_TRACE;
 
     CHECK_NULLPOINTER_RETURN_VALUE(vdiAdapter_, HDF_FAILURE);
-    hotPlugCb_ = cb;
+    {
+        std::lock_guard<std::mutex> lock(cbMutex_);
+        hotPlugCb_ = cb;
+    }
     int32_t ret = vdiAdapter_->RegHotPlugCallback(OnHotPlug, this);
     DISPLAY_CHK_RETURN(ret != HDF_SUCCESS, HDF_FAILURE, DISPLAY_LOGE("%{public}s fail", __func__));
     return ret;
@@ -766,6 +773,7 @@ int32_t DisplayComposerService::RegSeamlessChangeCallback(const sptr<ISeamlessCh
     DISPLAY_CHK_RETURN(ret != HDF_SUCCESS && ret != HDF_ERR_NOT_SUPPORT, HDF_FAILURE,
         DISPLAY_LOGE("%{public}s fail", __func__));
     if (ret == HDF_SUCCESS) {
+        std::lock_guard<std::mutex> lock(cbMutex_);
         seamlessChangeCb_ = cb;
     }
     return ret;
@@ -791,7 +799,11 @@ void DisplayComposerService::OnMode(uint32_t modeId, uint64_t vBlankPeriod, void
         return;
     }
 
-    sptr<IModeCallback> remoteCb = reinterpret_cast<DisplayComposerService*>(data)->modeCb_;
+    sptr<IModeCallback> remoteCb;
+    {
+        std::lock_guard<std::mutex> lock(reinterpret_cast<DisplayComposerService*>(data)->cbMutex_);
+        remoteCb = reinterpret_cast<DisplayComposerService*>(data)->modeCb_;
+    }
     if (remoteCb == nullptr) {
         DISPLAY_LOGE("remoteCb is nullptr");
         return;
@@ -810,6 +822,7 @@ int32_t DisplayComposerService::SetDisplayModeAsync(uint32_t devId, uint32_t mod
     DISPLAY_CHK_RETURN(ret != HDF_SUCCESS && ret != HDF_ERR_NOT_SUPPORT, HDF_FAILURE,
         DISPLAY_LOGE("%{public}s fail devId:%{public}u, modeId:%{public}u", __func__, devId, modeId));
     if (ret == HDF_SUCCESS) {
+        std::lock_guard<std::mutex> lock(cbMutex_);
         modeCb_ = cb;
     }
     return ret;
@@ -835,7 +848,11 @@ void DisplayComposerService::OnSeamlessChange(uint32_t devId, void* data)
         return;
     }
 
-    sptr<ISeamlessChangeCallback> remoteCb = reinterpret_cast<DisplayComposerService*>(data)->seamlessChangeCb_;
+    sptr<ISeamlessChangeCallback> remoteCb;
+    {
+        std::lock_guard<std::mutex> lock(reinterpret_cast<DisplayComposerService*>(data)->cbMutex_);
+        remoteCb = reinterpret_cast<DisplayComposerService*>(data)->seamlessChangeCb_;
+    }
     if (remoteCb == nullptr) {
         DISPLAY_LOGE("remoteCb is nullptr");
         return;
@@ -1082,7 +1099,11 @@ void DisplayComposerService::OnRefresh(uint32_t devId, void *data)
         return;
     }
 
-    sptr<IRefreshCallback> remoteCb = reinterpret_cast<DisplayComposerService*>(data)->refreshCb_;
+    sptr<IRefreshCallback> remoteCb;
+    {
+        std::lock_guard<std::mutex> lock(reinterpret_cast<DisplayComposerService*>(data)->cbMutex_);
+        remoteCb = reinterpret_cast<DisplayComposerService*>(data)->refreshCb_;
+    }
     if (remoteCb == nullptr) {
         DISPLAY_LOGE("remoteCb is nullptr devId:%{public}u", devId);
         return;
@@ -1101,6 +1122,7 @@ int32_t DisplayComposerService::RegRefreshCallback(const sptr<IRefreshCallback>&
     DISPLAY_CHK_RETURN(ret != HDF_SUCCESS && ret != HDF_ERR_NOT_SUPPORT, HDF_FAILURE,
         DISPLAY_LOGE("%{public}s fail", __func__));
     if (ret == HDF_SUCCESS) {
+        std::lock_guard<std::mutex> lock(cbMutex_);
         refreshCb_ = cb;
     }
     return ret;
@@ -1139,7 +1161,11 @@ void DisplayComposerService::OnVBlankIdleCallback(uint32_t devId, uint64_t ns, v
         return;
     }
 
-    sptr<IVBlankIdleCallback> remoteCb = reinterpret_cast<DisplayComposerService*>(data)->VBlankIdleCb_;
+    sptr<IVBlankIdleCallback> remoteCb;
+    {
+        std::lock_guard<std::mutex> lock(reinterpret_cast<DisplayComposerService*>(data)->cbMutex_);
+        remoteCb = reinterpret_cast<DisplayComposerService*>(data)->VBlankIdleCb_;
+    }
 
     if (remoteCb == nullptr) {
         DISPLAY_LOGE("VBlankIdleCb_ is nullptr devId:%{public}u", devId);
@@ -1154,7 +1180,10 @@ int32_t DisplayComposerService::RegDisplayVBlankIdleCallback(const sptr<IVBlankI
 
     CHECK_NULLPOINTER_RETURN_VALUE(vdiAdapter_, HDF_FAILURE);
     CHECK_NULLPOINTER_RETURN_VALUE(vdiAdapter_->RegDisplayVBlankIdleCallback, HDF_ERR_NOT_SUPPORT);
-    VBlankIdleCb_ = cb;
+    {
+        std::lock_guard<std::mutex> lock(cbMutex_);
+        VBlankIdleCb_ = cb;
+    }
     int32_t ret = vdiAdapter_->RegDisplayVBlankIdleCallback(OnVBlankIdleCallback, this);
     DISPLAY_CHK_RETURN(ret != HDF_SUCCESS && ret != HDF_ERR_NOT_SUPPORT, HDF_FAILURE, DISPLAY_LOGE(" fail"));
     return ret;
@@ -1254,7 +1283,11 @@ void DisplayComposerService::OnHwcEvent(uint32_t devId, uint32_t eventId,
         return;
     }
 
-    sptr<IHwcEventCallback> remoteCb = reinterpret_cast<DisplayComposerService*>(data)->hwcEventCb_;
+    sptr<IHwcEventCallback> remoteCb;
+    {
+        std::lock_guard<std::mutex> lock(reinterpret_cast<DisplayComposerService*>(data)->cbMutex_);
+        remoteCb = reinterpret_cast<DisplayComposerService*>(data)->hwcEventCb_;
+    }
     if (remoteCb == nullptr) {
         DISPLAY_LOGE("remoteCb is nullptr");
         return;
@@ -1268,7 +1301,10 @@ int32_t DisplayComposerService::RegHwcEventCallback(const sptr<IHwcEventCallback
 
     CHECK_NULLPOINTER_RETURN_VALUE(vdiAdapter_, HDF_FAILURE);
     CHECK_NULLPOINTER_RETURN_VALUE(vdiAdapter_->RegHwcEventCallback, HDF_ERR_NOT_SUPPORT);
-    hwcEventCb_ = cb;
+    {
+        std::lock_guard<std::mutex> lock(cbMutex_);
+        hwcEventCb_ = cb;
+    }
     int32_t ret = vdiAdapter_->RegHwcEventCallback(OnHwcEvent, this);
     DISPLAY_CHK_RETURN(ret != HDF_SUCCESS && ret != HDF_ERR_NOT_SUPPORT, HDF_FAILURE, DISPLAY_LOGE(" fail"));
     return ret;

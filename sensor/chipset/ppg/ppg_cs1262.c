@@ -11,6 +11,7 @@
 #include "sensor_ppg_driver.h"
 #include "sensor_device_if.h"
 #include "osal_mem.h"
+#include "osal_mutex.h"
 #include "osal_time.h"
 
 #define HDF_LOG_TAG khdf_sensor_ppg_driver
@@ -173,7 +174,9 @@ static int32_t Writefw(Cs1262RegConfigTab *regTab)
     return ret;
 }
 
-static int32_t Cs1262SetMode(uint32_t mode)
+static struct OsalMutex g_cs1262ModeMutex;
+
+static int32_t Cs1262SetModeLocked(uint32_t mode)
 {
     int32_t ret;
     Cs1262RegConfigTab *regTab = NULL;
@@ -203,6 +206,17 @@ static int32_t Cs1262SetMode(uint32_t mode)
     HDF_LOGI("%s: set mode success", __func__);
 
     return HDF_SUCCESS;
+}
+
+static int32_t Cs1262SetMode(uint32_t mode)
+{
+    int32_t ret;
+
+    (void)OsalMutexLock(&g_cs1262ModeMutex);
+    ret = Cs1262SetModeLocked(mode);
+    (void)OsalMutexUnlock(&g_cs1262ModeMutex);
+
+    return ret;
 }
 
 static int32_t Cs1262ReadData(uint8_t *outBuf, uint16_t outBufMaxLen, uint16_t *outLen)
@@ -369,6 +383,11 @@ static int32_t Cs1262InitDriver(struct HdfDeviceObject *device)
         return HDF_FAILURE;
     }
 
+    if (OsalMutexInit(&g_cs1262ModeMutex) != HDF_SUCCESS) {
+        HDF_LOGE("%s: init mode mutex failed!", __func__);
+        return HDF_FAILURE;
+    }
+
     ret = Cs1262InitSpi(&drvData->ppgCfg->sensorCfg.busCfg);
     if (ret != HDF_SUCCESS) {
         HDF_LOGE("%s: cs1262 init spi!", __func__);
@@ -416,6 +435,7 @@ static void Cs1262ReleaseDriver(struct HdfDeviceObject *device)
     CHECK_NULL_PTR_RETURN(drvData->ppgCfg);
 
     Cs1262ReleaseSpi(&drvData->ppgCfg->sensorCfg.busCfg);
+    (void)OsalMutexDestroy(&g_cs1262ModeMutex);
     (void)memset_s(drvData, sizeof(struct Cs1262DrvData), 0, sizeof(struct Cs1262DrvData));
     OsalMemFree(drvData);
 }

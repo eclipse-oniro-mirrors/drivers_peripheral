@@ -51,6 +51,7 @@ struct Drv2605lDriverData {
     struct HdfDeviceObject *device;
     const struct DeviceResourceNode *root;
     struct VibratorCfgData *drv2605lCfgData;
+    struct OsalMutex i2cMutex;
 };
 
 #endif /* DRV2605L_DRIVER_H */

@@ -292,6 +292,7 @@ int32_t PowerInterfaceImpl::UnRegisterPowerCallbackExt(const sptr<V1_3::IPowerHd
 void PowerInterfaceImpl::PowerDeathRecipientExt::OnRemoteDied(const wptr<IRemoteObject>& object)
 {
     HDF_LOGI("PowerDeathRecipientExt OnRemoteDied");
+    Power::PowerXCollie powerXcollie("Power_OnRemoteDied");
     powerInterfaceImpl_->UnRegisterPowerCallbackExt(g_callbackExt);
     RunningLockImpl::Clean();
 }
@@ -503,6 +504,7 @@ int32_t PowerInterfaceImpl::RemovePowerDeathRecipient(
 void PowerInterfaceImpl::PowerDeathRecipient::OnRemoteDied(const wptr<IRemoteObject> &object)
 {
     HDF_LOGI("PowerDeathRecipient OnRemoteDied");
+    Power::PowerXCollie powerXcollie("Power_OnRemoteDied");
     powerInterfaceImpl_->UnRegister();
     RunningLockImpl::Clean();
 }
@@ -595,7 +597,7 @@ int32_t PowerInterfaceImpl::HoldRunningLockExt(const RunningLockInfo &info,
     uint64_t lockid, const std::string &bundleName)
 {
     // Background runningLock active
-    HDF_LOGI("BL active,T=%{public}d", info.type);
+    HDF_LOGD("BL active,T=%{public}d", info.type);
     Power::PowerXCollie powerXcollie("Power_HoldRunningLockExt");
     return RunningLockImpl::HoldLock(info, lockid, bundleName);
 }
@@ -604,7 +606,7 @@ int32_t PowerInterfaceImpl::UnholdRunningLockExt(const RunningLockInfo &info,
     uint64_t lockid, const std::string &bundleName)
 {
     // Background runningLock inactive
-    HDF_LOGI("BL inactive,T=%{public}d", info.type);
+    HDF_LOGD("BL inactive,T=%{public}d", info.type);
     Power::PowerXCollie powerXcollie("Power_UnholdRunningLockExt");
     return RunningLockImpl::UnholdLock(info, lockid, bundleName);
 }

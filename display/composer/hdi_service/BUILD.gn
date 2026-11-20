@@ -54,7 +54,6 @@ ohos_shared_library("libdisplay_composer_service_1.6") {
     "drivers_interface_display:libdisplay_composer_stub_1.3",
     "drivers_interface_display:libdisplay_composer_stub_1.5",
     "drivers_interface_display:libdisplay_composer_stub_1.6",
-    "drivers_interface_display:libdisplay_composer_proxy_1.6",
     "drivers_interface_display:libhdifd_parcelable",
     "graphic_surface:buffer_handle",
     "hdf_core:libhdf_ipc_adapter",
