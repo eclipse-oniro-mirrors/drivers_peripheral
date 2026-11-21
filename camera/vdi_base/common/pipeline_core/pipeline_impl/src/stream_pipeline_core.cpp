@@ -104,7 +104,6 @@ RetCode StreamPipelineCore::SetCallback(const MetaDataCb cb)
 
 RetCode StreamPipelineCore::Stop(const std::vector<int>& streamIds)
 {
-    std::lock_guard<std::recursive_mutex> l(mutex_);
     RetCode re = RC_OK;
     for (const auto& it : streamIds) {
         CAMERA_LOGV("stop stream %{public}d begin", it);
