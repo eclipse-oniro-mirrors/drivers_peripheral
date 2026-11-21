@@ -82,6 +82,8 @@ public:
     WifiError SetProjectionScreenParam(const std::string& ifaceName, const ProjectionScreenCmdParam& param);
     WifiError SendP2pCmdToDriver(const std::string& ifaceName, const std::string &interfaceName, int32_t cmdId,
         const std::vector<int8_t> &paramBuf, std::vector<int8_t> &result);
+    WifiError SendExtCmdToDriver(const std::string& ifaceName, int32_t cmdId, const std::vector<int8_t>& paramBuf,
+        std::vector<int8_t>& result);
 
 private:
     WifiError RetrieveIfaceHandles();

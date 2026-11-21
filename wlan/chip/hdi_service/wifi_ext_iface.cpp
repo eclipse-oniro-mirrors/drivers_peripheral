@@ -161,7 +161,12 @@ int32_t WifiExtIface::SetIfaceState(bool state)
 int32_t WifiExtIface::SendCmdToDriver(const std::string& ifName, int32_t cmdId,
     const std::vector<int8_t>& paramBuf, std::vector<int8_t>& result)
 {
-    WifiError status = vendorHal_.lock()->SendCmdToDriver(ifName, cmdId, paramBuf, result);
+    auto vendorHalLock = vendorHal_.lock();
+    if (vendorHalLock == nullptr) {
+        HDF_LOGE("vendorHal_ is null, cannot send command to driver. Line: %{public}d", __LINE__);
+        return HDF_FAILURE;
+    }
+    WifiError status = vendorHalLock->SendExtCmdToDriver(ifName, cmdId, paramBuf, result);
     if (status == HAL_SUCCESS) {
         return HDF_SUCCESS;
     }

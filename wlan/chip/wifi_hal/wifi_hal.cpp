@@ -89,6 +89,8 @@ static WifiError SendCmdToDriver(const char *ifaceName, int32_t commandId,
     const std::vector<int8_t>& paramData, std::vector<int8_t>& result);
 static WifiError SendP2pCmdToDriver(wifiInterfaceHandle handle, const char *interfaceName, int32_t commandId,
     const std::vector<int8_t> &paramData, std::vector<int8_t> &result);
+static WifiError SendExtCmdToDriver(wifiInterfaceHandle handle, const char* ifaceName, int32_t commandId,
+    const std::vector<int8_t>& paramData, std::vector<int8_t>& result);
 
 typedef enum WifiAttr {
     HAL_INVALID                    = 0,
@@ -170,6 +172,7 @@ WifiError InitWifiVendorHalFuncTable(WifiHalFn *fn)
     fn->isSupportCoex = IsSupportCoex;
     fn->sendCmdToDriver = SendCmdToDriver;
     fn->sendP2pCmdToDriver = SendP2pCmdToDriver;
+    fn->sendExtCmdToDriver = SendExtCmdToDriver;
     return HAL_SUCCESS;
 }
 
@@ -1633,6 +1636,12 @@ static WifiError SendCmdToDriver(const char *ifaceName, int32_t commandId,
 
 static WifiError SendP2pCmdToDriver(wifiInterfaceHandle handle, const char *interfaceName, int32_t commandId,
     const std::vector<int8_t> &paramData, std::vector<int8_t> &result)
+{
+    return HAL_UNKNOWN;
+}
+
+static WifiError SendExtCmdToDriver(wifiInterfaceHandle handle, const char* ifName, int32_t commandId,
+    const std::vector<int8_t>& paramData, std::vector<int8_t>& result)
 {
     return HAL_UNKNOWN;
 }

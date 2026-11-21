@@ -77,6 +77,7 @@ bool InitHalFuncTableWithStubs(WifiHalFn* halFn)
     PopulateStubFor(&halFn->registerActionFrameReceiver);
     PopulateStubFor(&halFn->getCoexictenceChannelList);
     PopulateStubFor(&halFn->sendP2pCmdToDriver);
+    PopulateStubFor(&halFn->sendExtCmdToDriver);
     return true;
 }
     

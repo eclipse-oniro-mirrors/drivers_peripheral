@@ -213,6 +213,33 @@ HWTEST_F(WifiChipTest, CreateExtServiceWdlenhanceTest, TestSize.Level1)
 }
 
 /**
+ * @tc.name: CreateExtServiceChbaTest
+ * @tc.desc: CreateExtService maps chba0 to HAL_TYPE_CHBA
+ * @tc.type: FUNC
+ * @tc.require:
+ */
+HWTEST_F(WifiChipTest, CreateExtServiceChbaTest, TestSize.Level1)
+{
+    HDF_LOGI("CreateExtServiceChbaTest started");
+    WifiHalFn fn;
+    InitWifiHalFuncTable(&fn);
+    fn.vendorHalCreateIface = RecordCreateIface;
+    auto vendorHal = std::make_shared<WifiVendorHal>(ifaceTool, fn, true);
+    sptr<WifiChip> chip = new (std::nothrow) WifiChip(0, true, vendorHal,
+        std::make_shared<IfaceUtil>(ifaceTool), HandlerMock);
+    ASSERT_NE(chip, nullptr);
+
+    sptr<IChipIface> chbaIface = nullptr;
+    ASSERT_EQ(chip->CreateExtService(CHBA_NAME, chbaIface), HDF_SUCCESS);
+    ASSERT_NE(chbaIface, nullptr);
+    EXPECT_EQ(g_lastCreatedIfaceType, HalIfaceType::HAL_TYPE_CHBA);
+
+    sptr<IChipIface> fetched = nullptr;
+    EXPECT_EQ(chip->GetExtService(CHBA_NAME, fetched), HDF_SUCCESS);
+    EXPECT_NE(fetched, nullptr);
+}
+
+/**
  * @tc.name: ExtIfaceNameAndCallbackForwardingTest
  * @tc.desc: WifiExtIface GetIfaceName returns wdlenhance0 and forwards register/unregister
  *           callbacks into the vendor HAL fn table with the right ifname

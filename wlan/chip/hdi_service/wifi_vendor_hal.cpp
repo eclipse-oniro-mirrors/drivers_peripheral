@@ -449,6 +449,12 @@ WifiError WifiVendorHal::SendP2pCmdToDriver(const std::string &ifaceName, const 
     return globalFuncTable_.sendP2pCmdToDriver(GetIfaceHandle(ifaceName), interfaceName.c_str(), cmdId, paramBuf,
         result);
 }
+
+WifiError WifiVendorHal::SendExtCmdToDriver(const std::string& ifaceName, int32_t cmdId,
+    const std::vector<int8_t>& paramBuf, std::vector<int8_t>& result)
+{
+    return globalFuncTable_.sendExtCmdToDriver(GetIfaceHandle(ifaceName), ifaceName.c_str(), cmdId, paramBuf, result);
+}
 } // namespace v2_0
 } // namespace Chip
 } // namespace Wlan
