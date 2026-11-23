@@ -90,7 +90,7 @@ int BluetoothAddress::ParseAddressFromString(const std::string &string) const
     return bytesIndex;
 }
 
-bool BluetoothAddress::GetConstantAddress(char *address, int len)
+bool BluetoothAddress::GetConstantAddress(unsigned int macType, char *address, int len)
 {
     if (address == nullptr || len < ADDRESS_STR_LEN + 1) {
         HDF_LOGE("GetConstantAddress buf error");
@@ -111,24 +111,20 @@ bool BluetoothAddress::GetConstantAddress(char *address, int len)
         return false;
     }
 
-    int ret = getMac(MAC_TYPE_BLUETOOTH, address, len);
-    HDF_LOGI("GetConstantAddress ret: %{public}d", ret);
+    int ret = getMac(macType, address, len);
+    HDF_LOGI("GetConstantAddress macType: %{public}u, ret: %{public}d", macType, ret);
     dlclose(libMac);
     return (ret == 0);
 }
 
-bool BluetoothAddress::GetSecondaryBtAddress(uint8_t *bdaddr)
+std::shared_ptr<BluetoothAddress> BluetoothAddress::GetSecondaryBtAddressFromFile()
 {
     const uint8_t invalidBdaddr[ADDRESS_SIZE] = {0};
-    if (bdaddr == nullptr) {
-        HDF_LOGE("bdaddr is nullptr");
-        return false;
-    }
 
     int addrFd = open(BT_DEVICE_SECONDARY_ADDRESS_PATH, O_RDONLY);
     if (addrFd < 0) {
         HDF_LOGI("no preset secondary bdaddr file %{public}s.", BT_DEVICE_SECONDARY_ADDRESS_PATH);
-        return false;
+        return nullptr;
     }
 
     char addressStr[ADDRESS_STR_LEN + 1] = {0};
@@ -137,22 +133,51 @@ bool BluetoothAddress::GetSecondaryBtAddress(uint8_t *bdaddr)
     addressStr[ADDRESS_STR_LEN] = '\0';
     if (!readSucc || !CheckAddress(addressStr, ADDRESS_STR_LEN + 1)) {
         HDF_LOGE("read %{public}s failed", BT_DEVICE_SECONDARY_ADDRESS_PATH);
-        return false;
+        return nullptr;
     }
 
     auto ptr = std::make_shared<BluetoothAddress>();
     if (ptr->ParseAddressFromString(addressStr) != ADDRESS_SIZE ||
         memcmp(ptr->address_.data(), invalidBdaddr, ADDRESS_SIZE) == 0) {
         HDF_LOGE("Got Invalid bdaddr from %{public}s", BT_DEVICE_SECONDARY_ADDRESS_PATH);
-        return false;
+        return nullptr;
     }
 
-    for (int i = 0; i < ADDRESS_SIZE; i++) {
-        bdaddr[i] = ptr->address_[i];
-    }
     HDF_LOGI("Got secondary bt address from %{public}s: %{public}s", BT_DEVICE_SECONDARY_ADDRESS_PATH,
         GetEncryptAddr(std::string(addressStr)).c_str());
-    return true;
+    return ptr;
+}
+
+std::shared_ptr<BluetoothAddress> BluetoothAddress::GetSecondaryBtAddress()
+{
+    std::shared_ptr<BluetoothAddress> ptr = GetSecondaryBtAddressFromFile();
+    if (ptr == nullptr) {
+        HDF_LOGI("no valid secondary bt address from file, try nv");
+        ptr = LoadSecondaryBtAddressFromNV();
+    }
+    return ptr;
+}
+
+std::shared_ptr<BluetoothAddress> BluetoothAddress::LoadSecondaryBtAddressFromNV()
+{
+    char addressStr[ADDRESS_STR_LEN + 1] = {0};
+    if (!GetConstantAddress(macTypeBluetoothSecond, addressStr, ADDRESS_STR_LEN + 1)) {
+        HDF_LOGI("no second bt mac in nv, skip");
+        return nullptr;
+    }
+    auto ptr = ParseAddressToPtr(addressStr, ADDRESS_STR_LEN + 1);
+
+    int newFd = open(BT_DEVICE_SECONDARY_ADDRESS_PATH, O_RDWR | O_CREAT, 00600);
+    if (newFd < 0) {
+        HDF_LOGE("open %{public}s failed", BT_DEVICE_SECONDARY_ADDRESS_PATH);
+        return ptr;
+    }
+    if (write(newFd, addressStr, ADDRESS_STR_LEN) < 0) {
+        HDF_LOGE("write %{public}s failed", BT_DEVICE_SECONDARY_ADDRESS_PATH);
+    }
+    close(newFd);
+    HDF_LOGI("loaded secondary bt address from nv: %{public}s", GetEncryptAddr(std::string(addressStr)).c_str());
+    return ptr;
 }
 
 bool BluetoothAddress::CheckAddress(char *address, int len)
@@ -274,7 +299,7 @@ std::shared_ptr<BluetoothAddress> BluetoothAddress::GenerateDeviceAddressFile(co
     const int bufsize = 256;
     char buf[bufsize] = {0};
     char addressStr[ADDRESS_STR_LEN + 1] = {"00:11:22:33:44:55"};
-    bool readNVSucc = GetConstantAddress(addressStr, ADDRESS_STR_LEN + 1);
+    bool readNVSucc = GetConstantAddress(macTypeBluetooth, addressStr, ADDRESS_STR_LEN + 1);
     int newFd = open(path.c_str(), O_RDWR | O_CREAT, 00600);
     HDF_LOGI("GetDeviceAddress open newFd %{public}d.", newFd);
     if (newFd < 0) {

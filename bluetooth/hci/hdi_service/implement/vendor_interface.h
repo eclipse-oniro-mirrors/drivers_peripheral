@@ -56,11 +56,14 @@ private:
     static void OnFreeCallback(void* buf);
     static size_t OnCmdXmitCallback(uint16_t opcode, void* buf);
 
+    void SetBtSecondaryMac(const HC_BT_HDR *btHdr);
     void OnEventReceived(const std::vector<uint8_t> &data);
     bool WatchHciChannel(const ReceiveCallback &receiveCallback);
+    void LoadBtAddresses(std::vector<uint8_t> &address);
     void WatcherTimeout();
 
 private:
+    static constexpr size_t secondaryBdaSize = 6;
     InitializeCompleteCallback initializeCompleteCallback_;
     ReceiveDataCallback eventDataCallback_;
     void* vendorHandle_ = nullptr;
@@ -74,6 +77,8 @@ private:
     bool wakeupLock_ = false;
     bool activity_ = false;
     std::mutex initAndCleanupProcessMutex_;
+    bool hasSecondaryBda_ = false;
+    uint8_t secondaryBda_[secondaryBdaSize] = {0};
 
     DISALLOW_COPY_AND_MOVE(VendorInterface);
 };
