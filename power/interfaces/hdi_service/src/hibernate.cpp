@@ -222,7 +222,7 @@ int32_t Hibernate::GetResumeInfo(std::string &resumeInfo)
 int32_t Hibernate::InitSwap()
 {
     HDF_LOGI("Hibernate InitSwap begin.");
-    std::lock_guard<std::mutex> lock(initMutex_);
+    std::lock_guard<std::mutex> lock(swapMutex_);
     if (swapFileReady_) {
         if (!supportSpaceOpt_) {
             HDF_LOGI("InitSwap, swap file is ready, do nothing.");
@@ -415,6 +415,25 @@ int32_t Hibernate::RemoveSwapFile()
     return HDF_SUCCESS;
 }
 
+void Hibernate::AsyncRemoveSwapFile()
+{
+    std::thread([this] {
+        std::lock_guard<std::mutex> lock(swapMutex_);
+        if (swapFileReady_) {
+            HDF_LOGI("async remove skipped: swap file already rebuilt by next InitSwap.");
+            return;
+        }
+        if (remove(SWAP_FILE_PATH.c_str()) != 0) {
+            HDF_LOGE("async remove swap file failed, errno=%{public}d", errno);
+            swapFileReady_ = true;
+        } else {
+            Hibernate::staticSwapFileSize = 0;
+            HDF_LOGI("async remove swap file success.");
+        }
+    }).detach();
+    HDF_LOGI("remove swap file async scheduled.");
+}
+
 int32_t Hibernate::EnableSwap()
 {
     HDF_LOGI("swapon begin.");
@@ -546,8 +565,9 @@ int32_t Hibernate::DoHibernate()
         HDF_LOGE("swap off failed, errno=%{public}d", errno);
     }
 
-    if (supportSpaceOpt_ && RemoveSwapFile() != HDF_SUCCESS) {
-        HDF_LOGE("remove swap file failed");
+    if (supportSpaceOpt_) {
+        swapFileReady_ = false;
+        AsyncRemoveSwapFile();
     }
     return ret;
 }

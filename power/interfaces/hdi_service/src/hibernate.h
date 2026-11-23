@@ -50,6 +50,7 @@ private:
     int32_t CheckSwapFileSize(bool &isRightSize);
     int32_t CreateSwapFile();
     int32_t RemoveSwapFile();
+    void AsyncRemoveSwapFile();
     int32_t EnableSwap();
     int32_t GetResumeOffset(uint64_t &resumeOffset);
     int32_t GetResumeInfo(std::string &resumeInfo);
@@ -62,7 +63,7 @@ private:
     int32_t CheckDiskSpace();
 
     std::atomic_bool swapFileReady_ {false};
-    std::mutex initMutex_;
+    std::mutex swapMutex_;
     static unsigned long long staticSwapFileSize;
     bool supportSpaceOpt_ {true};
 };
