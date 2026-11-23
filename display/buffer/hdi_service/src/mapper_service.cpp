@@ -32,8 +32,8 @@ namespace OHOS {
 namespace HDI {
 namespace Display {
 namespace Buffer {
-namespace V1_0 {
-extern "C" Buffer::V1_2::IMapper* MapperImplGetInstance(void)
+namespace V1_3 {
+extern "C" Buffer::V1_3::IMapper* MapperImplGetInstance(void)
 {
     return new (std::nothrow) MapperService();
 }
@@ -265,7 +265,7 @@ int32_t MapperService::ReAllocMem(const AllocInfo& info,
     });
     return HDF_SUCCESS;
 }
-} // namespace V1_2
+} // namespace V1_3
 } // namespace Buffer
 } // namespace Display
 } // namespace HDI
