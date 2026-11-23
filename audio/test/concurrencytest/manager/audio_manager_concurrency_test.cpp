@@ -29,10 +29,11 @@
 using namespace std;
 using namespace testing::ext;
 
-#define AUDIO_ADAPTER_NUM_MAX   5
-#define AUDIO_THREAD_NUM        4
-#define AUDIO_LOAD_REPEAT_TIMES 8
-#define AUDIO_INVALID_NAME      "invalid_adapter_name_ext_test"
+#define AUDIO_ADAPTER_NUM_MAX    5
+#define AUDIO_THREAD_NUM         4
+#define AUDIO_LOAD_REPEAT_TIMES  8
+#define AUDIO_QUERY_REPEAT_TIMES 8
+#define AUDIO_INVALID_NAME       "invalid_adapter_name_ext_test"
 
 namespace {
 static void ReleaseAdapterDescs(struct AudioAdapterDescriptor **descs, uint32_t descsLen)
@@ -114,6 +115,42 @@ static void LoadAdapterOnceWorker(struct IAudioManager *manager, struct AudioAda
     }
     loadCnt++;
     manager->UnloadAdapter(manager, descs[0].adapterName);
+}
+
+static void GetAllAdaptersRepeatWorker(struct IAudioManager *manager, std::atomic<int32_t> &successCnt)
+{
+    for (uint32_t j = 0; j < AUDIO_QUERY_REPEAT_TIMES; j++) {
+        uint32_t size = AUDIO_ADAPTER_NUM_MAX;
+        struct AudioAdapterDescriptor *descs = (struct AudioAdapterDescriptor *)OsalMemCalloc(
+            sizeof(struct AudioAdapterDescriptor) * (AUDIO_ADAPTER_NUM_MAX));
+        if (descs == nullptr) {
+            continue;
+        }
+        if (manager->GetAllAdapters(manager, descs, &size) == HDF_SUCCESS) {
+            successCnt++;
+        }
+        ReleaseAdapterDescs(&descs, AUDIO_ADAPTER_NUM_MAX);
+    }
+}
+
+static void LoadAdapterDiffDescRepeatWorker(struct IAudioManager *manager,
+    struct AudioAdapterDescriptor *descs, uint32_t adapterNum, uint32_t threadIdx,
+    std::atomic<int32_t> &loadCnt, std::atomic<int32_t> &unloadCnt)
+{
+    if (adapterNum == 0) {
+        return;
+    }
+    struct AudioAdapterDescriptor *desc = &descs[threadIdx % adapterNum];
+    for (uint32_t j = 0; j < AUDIO_LOAD_REPEAT_TIMES; j++) {
+        struct IAudioAdapter *adapter = nullptr;
+        if (manager->LoadAdapter(manager, desc, &adapter) != HDF_SUCCESS) {
+            continue;
+        }
+        loadCnt++;
+        if (manager->UnloadAdapter(manager, desc->adapterName) == HDF_SUCCESS) {
+            unloadCnt++;
+        }
+    }
 }
 
 class HdfAudioConcManagerTest : public testing::Test {
@@ -333,6 +370,88 @@ HWTEST_F(HdfAudioConcManagerTest, HdfAudioManagerConcUnloadInvalidAdapterMutiThr
     EXPECT_EQ(HDF_SUCCESS, manager->GetAllAdapters(manager, descs, &size));
     ReleaseAdapterDescs(&descs, AUDIO_ADAPTER_NUM_MAX);
     IAudioManagerRelease(manager, false);
+}
+
+HWTEST_F(HdfAudioConcManagerTest, HdfAudioManagerConcGetAllAdaptersRepeatMutiThread001, TestSize.Level1)
+{
+    struct IAudioManager *manager = IAudioManagerGet(false);
+    ASSERT_NE(manager, nullptr);
+
+    std::atomic<int32_t> successCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&successCnt, manager]() {
+            GetAllAdaptersRepeatWorker(manager, successCnt);
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    IAudioManagerRelease(manager, false);
+
+    EXPECT_EQ(AUDIO_THREAD_NUM * AUDIO_QUERY_REPEAT_TIMES, successCnt.load());
+}
+
+HWTEST_F(HdfAudioConcManagerTest, HdfAudioManagerConcUnloadLoadedAdapterMutiThread001, TestSize.Level1)
+{
+    struct IAudioManager *manager = nullptr;
+    struct AudioAdapterDescriptor *descs = nullptr;
+    uint32_t adapterNum = 0;
+    ASSERT_EQ(HDF_SUCCESS, PrepareAdapterManager(&manager, &descs, &adapterNum));
+
+    struct IAudioAdapter *adapter = nullptr;
+    ASSERT_EQ(HDF_SUCCESS, manager->LoadAdapter(manager, &descs[0], &adapter));
+    ASSERT_NE(adapter, nullptr);
+
+    std::atomic<int32_t> unloadCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&unloadCnt, manager, descs]() {
+            if (manager->UnloadAdapter(manager, descs[0].adapterName) == HDF_SUCCESS) {
+                unloadCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    // only one thread can win the race to unload the loaded adapter
+    EXPECT_EQ(1, unloadCnt.load());
+
+    // the manager service must still work after the concurrent unload
+    adapter = nullptr;
+    EXPECT_EQ(HDF_SUCCESS, manager->LoadAdapter(manager, &descs[0], &adapter));
+    EXPECT_EQ(HDF_SUCCESS, manager->UnloadAdapter(manager, descs[0].adapterName));
+
+    ReleaseAdapterDescs(&descs, AUDIO_ADAPTER_NUM_MAX);
+    IAudioManagerRelease(manager, false);
+}
+
+HWTEST_F(HdfAudioConcManagerTest, HdfAudioManagerConcLoadAdapterDiffDescRepeatMutiThread001, TestSize.Level1)
+{
+    struct IAudioManager *manager = nullptr;
+    struct AudioAdapterDescriptor *descs = nullptr;
+    uint32_t adapterNum = 0;
+    ASSERT_EQ(HDF_SUCCESS, PrepareAdapterManager(&manager, &descs, &adapterNum));
+    ASSERT_NE(adapterNum, 0);
+
+    std::atomic<int32_t> loadCnt(0);
+    std::atomic<int32_t> unloadCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([i, adapterNum, &loadCnt, &unloadCnt, manager, descs]() {
+            LoadAdapterDiffDescRepeatWorker(manager, descs, adapterNum, i, loadCnt, unloadCnt);
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+
+    ReleaseAdapterDescs(&descs, AUDIO_ADAPTER_NUM_MAX);
+    IAudioManagerRelease(manager, false);
+
+    EXPECT_EQ(AUDIO_THREAD_NUM * AUDIO_LOAD_REPEAT_TIMES, loadCnt.load());
+    EXPECT_EQ(AUDIO_THREAD_NUM * AUDIO_LOAD_REPEAT_TIMES, unloadCnt.load());
 }
 
 } // namespace

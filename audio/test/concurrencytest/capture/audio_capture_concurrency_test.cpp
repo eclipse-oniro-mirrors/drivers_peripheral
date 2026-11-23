@@ -38,6 +38,7 @@ using namespace testing::ext;
 #define AUDIO_ADAPTER_NUM_MAX           5
 #define AUDIO_THREAD_NUM                4
 #define AUDIO_HALF_OF_MAX_VOLUME        0.5f
+#define AUDIO_CAPTURE_REPEAT_TIMES      4
 
 namespace {
 
@@ -148,6 +149,19 @@ int32_t HdfAudioConcCaptureTest::CreateCaptureHelper(struct IAudioCapture **capt
         *frameByteLen = attrs.period * attrs.frameSize;
     }
     return HDF_SUCCESS;
+}
+
+static void CaptureFrameRepeatWorker(struct IAudioCapture *capture, uint32_t frameByteLen,
+    std::atomic<int32_t> &readCnt)
+{
+    std::vector<int8_t> frame(frameByteLen, 0);
+    for (uint32_t j = 0; j < AUDIO_CAPTURE_REPEAT_TIMES; j++) {
+        uint32_t frameLen = frameByteLen;
+        uint64_t replyBytes = 0;
+        if (capture->CaptureFrame(capture, frame.data(), &frameLen, &replyBytes) == HDF_SUCCESS) {
+            readCnt++;
+        }
+    }
 }
 
 void HdfAudioConcCaptureTest::SetUp()
@@ -405,6 +419,264 @@ HWTEST_F(HdfAudioConcCaptureTest, HdfAudioCaptureConcGetCapturePositionMutiThrea
 
     EXPECT_GE(positionCnt.load(), 1);
 
+    adapter_->DestroyCapture(adapter_, captureId);
+}
+
+HWTEST_F(HdfAudioConcCaptureTest, HdfAudioCaptureConcGetVersionMutiThread001, TestSize.Level1)
+{
+    struct IAudioCapture *capture = nullptr;
+    uint32_t captureId = 0;
+    uint32_t frameByteLen = 0;
+    ASSERT_EQ(HDF_SUCCESS, CreateCaptureHelper(&capture, &captureId, &frameByteLen));
+    ASSERT_NE(capture, nullptr);
+
+    std::atomic<int32_t> successCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&successCnt, capture]() {
+            uint32_t majorVer = 0;
+            uint32_t minorVer = 0;
+            if (capture->GetVersion(capture, &majorVer, &minorVer) == HDF_SUCCESS) {
+                successCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    EXPECT_EQ(AUDIO_THREAD_NUM, successCnt.load());
+
+    adapter_->DestroyCapture(adapter_, captureId);
+}
+
+HWTEST_F(HdfAudioConcCaptureTest, HdfAudioCaptureConcGetCurrentChannelIdMutiThread001, TestSize.Level1)
+{
+    struct IAudioCapture *capture = nullptr;
+    uint32_t captureId = 0;
+    uint32_t frameByteLen = 0;
+    ASSERT_EQ(HDF_SUCCESS, CreateCaptureHelper(&capture, &captureId, &frameByteLen));
+    ASSERT_NE(capture, nullptr);
+
+    std::atomic<int32_t> successCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&successCnt, capture]() {
+            uint32_t channelId = 0;
+            if (capture->GetCurrentChannelId(capture, &channelId) == HDF_SUCCESS) {
+                successCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    EXPECT_EQ(AUDIO_THREAD_NUM, successCnt.load());
+
+    adapter_->DestroyCapture(adapter_, captureId);
+}
+
+HWTEST_F(HdfAudioConcCaptureTest, HdfAudioCaptureConcIsSupportsPauseAndResumeMutiThread001, TestSize.Level1)
+{
+    struct IAudioCapture *capture = nullptr;
+    uint32_t captureId = 0;
+    uint32_t frameByteLen = 0;
+    ASSERT_EQ(HDF_SUCCESS, CreateCaptureHelper(&capture, &captureId, &frameByteLen));
+    ASSERT_NE(capture, nullptr);
+
+    std::atomic<int32_t> successCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&successCnt, capture]() {
+            bool supportPause = false;
+            bool supportResume = false;
+            if (capture->IsSupportsPauseAndResume(capture, &supportPause, &supportResume) == HDF_SUCCESS) {
+                successCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    EXPECT_EQ(AUDIO_THREAD_NUM, successCnt.load());
+
+    adapter_->DestroyCapture(adapter_, captureId);
+}
+
+HWTEST_F(HdfAudioConcCaptureTest, HdfAudioCaptureConcGetMuteSetMuteMutiThread001, TestSize.Level1)
+{
+    struct IAudioCapture *capture = nullptr;
+    uint32_t captureId = 0;
+    uint32_t frameByteLen = 0;
+    ASSERT_EQ(HDF_SUCCESS, CreateCaptureHelper(&capture, &captureId, &frameByteLen));
+    ASSERT_NE(capture, nullptr);
+
+    bool originalMute = false;
+    (void)capture->GetMute(capture, &originalMute);
+
+    std::atomic<int32_t> getCnt(0);
+    std::atomic<int32_t> setCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&getCnt, &setCnt, capture]() {
+            bool mute = false;
+            if (capture->GetMute(capture, &mute) == HDF_SUCCESS) {
+                getCnt++;
+            }
+            if (capture->SetMute(capture, false) == HDF_SUCCESS) {
+                setCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    // restore the original mute state
+    (void)capture->SetMute(capture, originalMute);
+
+    EXPECT_EQ(AUDIO_THREAD_NUM, getCnt.load());
+    EXPECT_GE(setCnt.load(), 1);
+
+    adapter_->DestroyCapture(adapter_, captureId);
+}
+
+HWTEST_F(HdfAudioConcCaptureTest, HdfAudioCaptureConcSetSampleAttributesMutiThread001, TestSize.Level1)
+{
+    struct IAudioCapture *capture = nullptr;
+    uint32_t captureId = 0;
+    uint32_t frameByteLen = 0;
+    ASSERT_EQ(HDF_SUCCESS, CreateCaptureHelper(&capture, &captureId, &frameByteLen));
+    ASSERT_NE(capture, nullptr);
+
+    struct AudioSampleAttributes attrs = {};
+    InitAttrs(attrs);
+    attrs.silenceThreshold = 0;
+    attrs.streamId = 0;
+
+    std::atomic<int32_t> setCnt(0);
+    std::atomic<int32_t> getCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([attrs, &setCnt, &getCnt, capture]() {
+            if (capture->SetSampleAttributes(capture, &attrs) == HDF_SUCCESS) {
+                setCnt++;
+            }
+            struct AudioSampleAttributes getAttrs = {};
+            if (capture->GetSampleAttributes(capture, &getAttrs) == HDF_SUCCESS) {
+                getCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_EQ(AUDIO_THREAD_NUM, getCnt.load());
+    EXPECT_GE(setCnt.load(), 1);
+
+    adapter_->DestroyCapture(adapter_, captureId);
+}
+
+HWTEST_F(HdfAudioConcCaptureTest, HdfAudioCaptureConcGetGainMutiThread001, TestSize.Level1)
+{
+    struct IAudioCapture *capture = nullptr;
+    uint32_t captureId = 0;
+    uint32_t frameByteLen = 0;
+    ASSERT_EQ(HDF_SUCCESS, CreateCaptureHelper(&capture, &captureId, &frameByteLen));
+    ASSERT_NE(capture, nullptr);
+
+    std::atomic<int32_t> gainCnt(0);
+    std::atomic<int32_t> thresholdCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&gainCnt, &thresholdCnt, capture]() {
+            float gain = 0.0;
+            if (capture->GetGain(capture, &gain) == HDF_SUCCESS) {
+                gainCnt++;
+            }
+            float minGain = 0.0;
+            float maxGain = 0.0;
+            if (capture->GetGainThreshold(capture, &minGain, &maxGain) == HDF_SUCCESS) {
+                thresholdCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    // gain support depends on the HAL implementation
+    EXPECT_GE(gainCnt.load(), 1);
+    EXPECT_GE(thresholdCnt.load(), 1);
+
+    adapter_->DestroyCapture(adapter_, captureId);
+}
+
+HWTEST_F(HdfAudioConcCaptureTest, HdfAudioCaptureConcCaptureFrameRepeatMutiThread001, TestSize.Level1)
+{
+    struct IAudioCapture *capture = nullptr;
+    uint32_t captureId = 0;
+    uint32_t frameByteLen = 0;
+    ASSERT_EQ(HDF_SUCCESS, CreateCaptureHelper(&capture, &captureId, &frameByteLen));
+    ASSERT_NE(capture, nullptr);
+    ASSERT_GT(frameByteLen, 0);
+
+    ASSERT_EQ(HDF_SUCCESS, capture->Start(capture));
+    std::atomic<int32_t> readCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&readCnt, capture, frameByteLen]() {
+            CaptureFrameRepeatWorker(capture, frameByteLen, readCnt);
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    capture->Stop(capture);
+
+    EXPECT_GE(readCnt.load(), 1);
+
+    adapter_->DestroyCapture(adapter_, captureId);
+}
+
+HWTEST_F(HdfAudioConcCaptureTest, HdfAudioCaptureConcPauseResumeMutiThread001, TestSize.Level1)
+{
+    struct IAudioCapture *capture = nullptr;
+    uint32_t captureId = 0;
+    uint32_t frameByteLen = 0;
+    ASSERT_EQ(HDF_SUCCESS, CreateCaptureHelper(&capture, &captureId, &frameByteLen));
+    ASSERT_NE(capture, nullptr);
+
+    ASSERT_EQ(HDF_SUCCESS, capture->Start(capture));
+    std::atomic<int32_t> pauseCnt(0);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&pauseCnt, capture]() {
+            if (capture->Pause(capture) == HDF_SUCCESS) {
+                pauseCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    // only one thread can win the race to pause the started capture
+    EXPECT_EQ(1, pauseCnt.load());
+
+    std::atomic<int32_t> resumeCnt(0);
+    threads.clear();
+    for (uint32_t i = 0; i < AUDIO_THREAD_NUM; i++) {
+        threads.push_back(std::thread([&resumeCnt, capture]() {
+            if (capture->Resume(capture) == HDF_SUCCESS) {
+                resumeCnt++;
+            }
+        }));
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    // only one thread can win the race to resume the paused capture
+    EXPECT_EQ(1, resumeCnt.load());
+
+    capture->Stop(capture);
     adapter_->DestroyCapture(adapter_, captureId);
 }
 
