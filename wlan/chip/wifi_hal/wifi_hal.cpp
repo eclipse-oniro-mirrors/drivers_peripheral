@@ -1640,7 +1640,7 @@ static WifiError SendP2pCmdToDriver(wifiInterfaceHandle handle, const char *inte
     return HAL_UNKNOWN;
 }
 
-static WifiError SendExtCmdToDriver(wifiInterfaceHandle handle, const char* ifName, int32_t commandId,
+static WifiError SendExtCmdToDriver(wifiInterfaceHandle handle, const char* ifaceName, int32_t commandId,
     const std::vector<int8_t>& paramData, std::vector<int8_t>& result)
 {
     return HAL_UNKNOWN;

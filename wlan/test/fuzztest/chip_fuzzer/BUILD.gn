@@ -27,6 +27,7 @@ ohos_fuzztest("ChipFuzzTest") {
 
   defines = [
     "P2P_NAME=\"$drivers_peripheral_wlan_p2p_name\"",
+    "CHBA_NAME=\"$drivers_peripheral_wlan_chba_name\"",
     "HAL_SO_NAME=\"$drivers_peripheral_wlan_feature_vendor\"",
   ]
 
