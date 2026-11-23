@@ -196,6 +196,7 @@ private:
     static int32_t UsbMtpPortSubmitAsyncTxReq(struct UsbMtpPort *mtpPort, struct UsbFnRequest *req);
     static int32_t UsbMtpPortStartTxAsync(struct UsbMtpPort *mtpPort, bool callByComplete);
     static int32_t UsbMtpPortProcessAsyncRxDone(struct UsbMtpPort *mtpPort);
+    static int32_t UsbMtpPortAbortRx(struct UsbMtpPort *mtpPort);
     static int32_t UsbMtpPortRxPush(struct UsbMtpPort *mtpPort, struct UsbFnRequest *req);
     static int32_t UsbMtpPortStartSubmitRxReq(struct UsbMtpPort *mtpPort, bool needZLP);
     static int32_t UsbMtpPortStartRxAsync(struct UsbMtpPort *mtpPort);
@@ -250,7 +251,7 @@ private:
     uint32_t BufCopyFromVector(
         void *buf, uint32_t bufSize, const std::vector<uint8_t> &vectorData, uint32_t vectorOffset);
     void UsbMtpSendFileParamSet(const UsbFnMtpFileSlice &mfs);
-    static void WaitRequestCancel();
+    static void WaitRequestCancel(int32_t maxWaitReadyTime);
     static struct UsbMtpDevice *mtpDev_;
     static struct UsbMtpPort *mtpPort_;
     static std::mutex startMutex_;
