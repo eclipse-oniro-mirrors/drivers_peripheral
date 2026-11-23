@@ -2602,6 +2602,10 @@ void LibusbAdapter::ClearAsyncTranfer(LibusbAsyncWrapper *asyncWrapper)
 
 int32_t LibusbAdapter::ReadAshmem(const sptr<Ashmem> &ashmem, int32_t length, uint8_t *buffer)
 {
+    if (ashmem == nullptr) {
+        HDF_LOGE("%{public}s: ashmem is nullptr", __func__);
+        return HDF_FAILURE;
+    }
     if (!ashmem->MapReadAndWriteAshmem()) {
         HDF_LOGE("%{public}s: map read and write ashmem failed", __func__);
         return HDF_FAILURE;
@@ -2623,6 +2627,10 @@ int32_t LibusbAdapter::ReadAshmem(const sptr<Ashmem> &ashmem, int32_t length, ui
 
 int32_t LibusbAdapter::WriteAshmem(const sptr<Ashmem> &ashmem, int32_t length, uint8_t *buffer)
 {
+    if (ashmem == nullptr) {
+        HDF_LOGE("%{public}s: ashmem is nullptr", __func__);
+        return HDF_FAILURE;
+    }
     if (!ashmem->MapReadAndWriteAshmem()) {
         HDF_LOGE("%{public}s: map read and write ashmem failed", __func__);
         return HDF_FAILURE;
