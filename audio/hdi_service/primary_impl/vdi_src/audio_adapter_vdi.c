@@ -164,7 +164,9 @@ static int32_t CreateRenderPre(struct IAudioAdapterVdi *vdiAdapter,
     int32_t id = SetTimer("Hdi:CreateRender");
     pthread_rwlock_wrlock(GetRenderLock(AUDIO_VDI_STREAM_NUM_MAX));
     struct timeval startTime = AudioDfxSysEventGetTimeStamp();
+    HdfAudioStartTrace("Hdi:Audio:CreateRender", 0);
     int32_t ret = vdiAdapter->CreateRender(vdiAdapter, &vdiDesc, &vdiAttrs, vdiRender);
+    HdfAudioFinishTrace();
     AudioDfxSysEventError("CreateRender", startTime, TIME_THRESHOLD, ret);
     pthread_rwlock_unlock(GetRenderLock(AUDIO_VDI_STREAM_NUM_MAX));
     CancelTimer(id);
@@ -346,7 +348,9 @@ static int32_t CreateCapturePre(struct IAudioAdapterVdi *vdiAdapter, struct IAud
     int32_t id = SetTimer("Hdi:CreateCapture");
     pthread_rwlock_wrlock(GetCaptureLock(AUDIO_VDI_STREAM_NUM_MAX));
     struct timeval startTime = AudioDfxSysEventGetTimeStamp();
+    HdfAudioStartTrace("Hdi:Audio:CreateCapture", 0);
     int32_t ret = vdiAdapter->CreateCapture(vdiAdapter, &vdiDesc, &vdiAttrs, &vdiCapture);
+    HdfAudioFinishTrace();
     AudioDfxSysEventError("CreateCapture", startTime, TIME_THRESHOLD, ret);
     pthread_rwlock_unlock(GetCaptureLock(AUDIO_VDI_STREAM_NUM_MAX));
     CancelTimer(id);
