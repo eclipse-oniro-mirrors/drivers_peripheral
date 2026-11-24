@@ -32,17 +32,19 @@ public:
     ~BluetoothAddress() = default;
     static std::shared_ptr<BluetoothAddress> GetDeviceAddress(const std::string &path = BT_DEVICE_ADDRESS_PATH);
     static std::shared_ptr<BluetoothAddress> GenerateDeviceAddress(const std::string &prefix = "");
-    static bool GetSecondaryBtAddress(uint8_t *bdaddr);
+    static std::shared_ptr<BluetoothAddress> GetSecondaryBtAddress();
     void ReadAddress(std::vector<uint8_t> &address) const;
     void ReadAddress(std::string &address) const;
 
 private:
     static void ParseAddressToString(std::vector<uint8_t> &address, std::string &outString);
     int ParseAddressFromString(const std::string &string) const;
-    static bool GetConstantAddress(char *address, int len);
+    static bool GetConstantAddress(unsigned int macType, char *address, int len);
     static bool CheckAddress(char *address, int len);
     static std::shared_ptr<BluetoothAddress> GenerateDeviceAddressFile(
         const std::string &path = BT_DEVICE_ADDRESS_PATH);
+    static std::shared_ptr<BluetoothAddress> LoadSecondaryBtAddressFromNV();
+    static std::shared_ptr<BluetoothAddress> GetSecondaryBtAddressFromFile();
     static std::shared_ptr<BluetoothAddress> ParseAddressToPtr(char *address, int len);
 #ifdef BT_MAC_UPDATE
     static bool NeedReloadAddress();
@@ -52,7 +54,8 @@ private:
     std::vector<uint8_t> address_;
     static constexpr const char *BT_MAC_LIB = "libnb_mac.z.so";
     static constexpr const char *GET_BT_MAC_SYMBOL_NAME = "GetConstantMac";
-    static constexpr unsigned int MAC_TYPE_BLUETOOTH = 1;
+    static constexpr unsigned int macTypeBluetooth = 1;
+    static constexpr unsigned int macTypeBluetoothSecond = 2; // secondary bt address
 };
 }  // namespace Hci
 }  // namespace Bluetooth
