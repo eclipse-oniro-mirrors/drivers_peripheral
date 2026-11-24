@@ -115,7 +115,7 @@ ohos_shared_library("liballocator_service_1.4") {
   branch_protector_ret = "pac_ret"
 }
 
-ohos_shared_library("liballocator_driver_1.3") {
+ohos_shared_library("liballocator_driver_1.0") {
   branch_protector_ret = "pac_ret"
   sources = [ "src/allocator_driver.cpp" ]
 
