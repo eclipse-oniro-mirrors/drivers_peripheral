@@ -51,7 +51,7 @@ constexpr char DSL_KEXT_SIGNING_STATE[] = "security.dsl.kext_signing.state";
 constexpr char DSL_KEXT_SIGNING_DENIED[] = "0";
 constexpr const char *SANDBOX_ROOT = "/data/service/el1/public/pcie_driver";
 
-bool GetDriverFileName(const std::string &driverPath, std::string &fileName, int &resolveErrorCode)
+bool GetDriverFileName(const std::string &driverPath, std::string &fileName, int32_t &resolveErrorCode)
 {
     std::string sandbox(SANDBOX_ROOT);
     sandbox += '/';
@@ -72,8 +72,8 @@ bool GetDriverFileName(const std::string &driverPath, std::string &fileName, int
     return true;
 }
 
-int32_t ResolveDriverPath(const std::string &driverPath, std::string &resolvedDriverPath, int &driverFd,
-    struct stat &validatedFileStatus, int &resolveErrorCode)
+int32_t ResolveDriverPath(const std::string &driverPath, std::string &resolvedDriverPath, int32_t &driverFd,
+    struct stat &validatedFileStatus, int32_t &resolveErrorCode)
 {
     driverFd = -1;
     resolveErrorCode = 0;
@@ -82,17 +82,17 @@ int32_t ResolveDriverPath(const std::string &driverPath, std::string &resolvedDr
         return HDF_ERR_INVALID_PARAM;
     }
 
-    int rootFd = open(SANDBOX_ROOT, O_RDONLY | O_CLOEXEC | O_DIRECTORY | O_NOFOLLOW);
+    int32_t rootFd = open(SANDBOX_ROOT, O_RDONLY | O_CLOEXEC | O_DIRECTORY | O_NOFOLLOW);
     if (rootFd < 0) {
-        int savedErrno = errno;
+        int32_t savedErrno = errno;
         HDF_LOGE(
             "ResolveDriverPath: open sandbox failed errno=%{public}d(%{public}s)", savedErrno, strerror(savedErrno));
         resolveErrorCode = savedErrno;
         return HDF_FAILURE;
     }
 
-    int openedDriverFd = openat(rootFd, fileName.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
-    int openErrno = errno;
+    int32_t openedDriverFd = openat(rootFd, fileName.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
+    int32_t openErrno = errno;
     close(rootFd);
     if (openedDriverFd < 0) {
         HDF_LOGE("ResolveDriverPath: open failed errno=%{public}d(%{public}s)",
@@ -102,9 +102,9 @@ int32_t ResolveDriverPath(const std::string &driverPath, std::string &resolvedDr
         return HDF_FAILURE;
     }
 
-    int statRet = fstat(openedDriverFd, &validatedFileStatus);
+    int32_t statRet = fstat(openedDriverFd, &validatedFileStatus);
     if (statRet != 0 || !S_ISREG(validatedFileStatus.st_mode)) {
-        int savedErrno = statRet != 0 ? errno : EINVAL;
+        int32_t savedErrno = statRet != 0 ? errno : EINVAL;
         HDF_LOGE("ResolveDriverPath: invalid file errno=%{public}d(%{public}s)",
             savedErrno, strerror(savedErrno));
         close(openedDriverFd);
@@ -118,20 +118,20 @@ int32_t ResolveDriverPath(const std::string &driverPath, std::string &resolvedDr
     return HDF_SUCCESS;
 }
 
-int FinitModule(int driverFd, const std::string &options)
+int32_t FinitModule(int32_t driverFd, const std::string &options)
 {
-    int finitModuleResult = -1;
+    int32_t finitModuleResult = -1;
     errno = ENOSYS;
 #ifdef SYS_finit_module
-    finitModuleResult = static_cast<int>(syscall(SYS_finit_module, driverFd, options.c_str(), 0));
+    finitModuleResult = static_cast<int32_t>(syscall(SYS_finit_module, driverFd, options.c_str(), 0));
 #endif
     return finitModuleResult;
 }
 
-PcieDriverLoadStatus MapKernelErrnoToLoadStatus(int errorCode)
+PcieDriverLoadStatus MapKernelErrnoToLoadStatus(int32_t errorCode)
 {
     static constexpr struct {
-        int errorCode;
+        int32_t errorCode;
         PcieDriverLoadStatus status;
     } mappings[] = {
         {EBUSY, PcieDriverLoadStatus::LOAD_RESOURCE_BUSY},
@@ -177,7 +177,7 @@ PcieDriverLoadStatus MapKernelErrnoToLoadStatus(int errorCode)
     return PcieDriverLoadStatus::LOAD_UNKNOWN;
 }
 
-void SetFinitModuleResult(PcieDriverLoadResult &loadResult, int finitModuleResult, int savedErrno)
+void SetFinitModuleResult(PcieDriverLoadResult &loadResult, int32_t finitModuleResult, int32_t savedErrno)
 {
     if (finitModuleResult == 0) {
         loadResult.statusCode = static_cast<int32_t>(PcieDriverLoadStatus::LOADED);
@@ -269,7 +269,7 @@ PcieDriverLoadResult PcieDriverHostService::LoadDriverModule(const PcieDriverLoa
     loadResult.driverIdentity = loadRequest.driverIdentity;
 
     char dslState[PARAM_VALUE_LEN_MAX] = {};
-    int dslStateLength = GetParameter(DSL_KEXT_SIGNING_STATE, DSL_KEXT_SIGNING_DENIED, dslState, sizeof(dslState));
+    int32_t dslStateLength = GetParameter(DSL_KEXT_SIGNING_STATE, DSL_KEXT_SIGNING_DENIED, dslState, sizeof(dslState));
     if (dslStateLength != DSL_KEXT_SIGNING_STATE_LENGTH || dslState[0] != DSL_KEXT_SIGNING_ALLOWED) {
         HDF_LOGE("PcieDriverHost: DSL denies module loading, module=%{public}s",
             loadRequest.driverIdentity.moduleName.c_str());
@@ -280,8 +280,8 @@ PcieDriverLoadResult PcieDriverHostService::LoadDriverModule(const PcieDriverLoa
 
     std::string resolvedDriverPath;
     struct stat validatedFileStatus = {};
-    int driverFd = -1;
-    int resolveErrorCode = 0;
+    int32_t driverFd = -1;
+    int32_t resolveErrorCode = 0;
     // Tests can replace file resolution and module loading; production validates files and calls finit_module.
     int32_t resolveStatus = injectedDependencies_.resolveDriverPath(
         loadRequest.driverIdentity.driverPath, resolvedDriverPath, driverFd, validatedFileStatus, resolveErrorCode);
@@ -302,8 +302,8 @@ PcieDriverLoadResult PcieDriverHostService::LoadDriverModule(const PcieDriverLoa
     loadResult.driverIdentity.driverPath = resolvedDriverPath;
 
     //  Tests use the injected callback; production calls FinitModule to insert the module into the kernel.
-    int finitModuleResult = injectedDependencies_.finitModule(driverFd, loadRequest.options);
-    int savedErrno = errno; /* save before close() may overwrite it */
+    int32_t finitModuleResult = injectedDependencies_.finitModule(driverFd, loadRequest.options);
+    int32_t savedErrno = errno; /* save before close() may overwrite it */
     HDF_LOGI("PCIE_LOAD_TRACE HOST_FINIT_RESULT module=%{public}s result=%{public}d errno=%{public}d",
         loadRequest.driverIdentity.moduleName.c_str(), finitModuleResult, savedErrno);
     close(driverFd);
