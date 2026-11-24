@@ -38,6 +38,7 @@ public:
     virtual RetCode Stop(const int32_t streamId);
     virtual RetCode Destroy(const int32_t streamId);
     virtual std::shared_ptr<INode> GetNode(const int32_t streamId, const std::string name);
+    virtual std::vector<std::shared_ptr<INode>> GetNodes(const int32_t streamId);
 protected:
     void GenerateNodeSeq(std::vector<std::shared_ptr<INode>>& nodeVec,
                 const std::shared_ptr<INode>& node);

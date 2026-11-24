@@ -104,11 +104,22 @@ RetCode StreamPipelineCore::SetCallback(const MetaDataCb cb)
 
 RetCode StreamPipelineCore::Stop(const std::vector<int>& streamIds)
 {
+    std::vector<std::vector<std::shared_ptr<INode>>> nodesList;
+    {
+        std::lock_guard<std::recursive_mutex> l(mutex_);
+        for (const auto& it : streamIds) {
+            nodesList.push_back(dispatcher_->GetNodes(it));
+        }
+    }
     RetCode re = RC_OK;
-    for (const auto& it : streamIds) {
-        CAMERA_LOGV("stop stream %{public}d begin", it);
-        re = dispatcher_->Stop(it) | re;
-        CAMERA_LOGV("stop stream %{public}d end", it);
+    for (size_t i = 0; i < streamIds.size(); i++) {
+        CAMERA_LOGV("stop node %{public}d begin", streamIds[i]);
+        for (auto node = nodesList[i].rbegin(); node != nodesList[i].rend(); node++) {
+            CAMERA_LOGV("stop node %{public}s begin", (*node)->GetName().c_str());
+            re = (*node)->Stop(streamIds[i]) | re;
+            CAMERA_LOGV("stop node %{public}s end", (*node)->GetName().c_str());
+        }
+        CAMERA_LOGV("stop node %{public}d end", streamIds[i]);
     }
     return re;
 }
