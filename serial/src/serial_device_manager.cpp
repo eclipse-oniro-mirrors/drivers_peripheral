@@ -235,7 +235,7 @@ void SerialDeviceManager::AddNormalSerialDevice(std::vector<SerialDeviceInfo>& d
 
 bool SerialDeviceManager::IsPcieSerialName(const std::string& name)
 {
-    // ttyS* is linux standard serial port - auto-detected as PCIE serial
+    // ttyS* is Linux standard serial port — auto-detected as PCIE serial
     if (name.find("ttyS") == 0) {
         return true;
     }
@@ -312,7 +312,7 @@ void SerialDeviceManager::AddPcieSerialDevice(std::vector<SerialDeviceInfo>& dev
         if (s.size() > 2 && (s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))) {
             s = s.substr(2);
         }
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {return std::tolower(c);});
+        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
     };
     stripHexPrefix(vendorIdStr);
     stripHexPrefix(productIdStr);
