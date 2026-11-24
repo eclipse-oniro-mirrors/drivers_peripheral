@@ -1324,10 +1324,28 @@ void UsbFnCfgMgrUnRegisterAllProp(void)
     DListHeadInit(&g_cfgEntry);
 }
 
-int32_t UsbFnCfgMgrGetProp(const struct UsbFnInterface *intf, const char *name, char *value)
+static int32_t CopyPropValue(char *value, uint32_t valueLen, const char *src)
 {
-    if (intf == NULL || name == NULL) {
+    if (value == NULL || src == NULL) {
+        return HDF_ERR_INVALID_PARAM;
+    }
+    size_t srcLen = strlen(src);
+    if (srcLen + 1 > valueLen) {
+        HDF_LOGE("%{public}s: value buffer too small, need %{public}u, got %{public}u",
+            __func__, (uint32_t)(srcLen + 1), valueLen);
+        return HDF_ERR_INVALID_PARAM;
+    }
+    if (memcpy_s(value, valueLen, src, srcLen + 1) != EOK) {
+        HDF_LOGE("%{public}s: memcpy_s failed", __func__);
         return HDF_FAILURE;
+    }
+    return HDF_SUCCESS;
+}
+
+int32_t UsbFnCfgMgrGetProp(const struct UsbFnInterface *intf, const char *name, char *value, uint32_t valueLen)
+{
+    if (intf == NULL || name == NULL || value == NULL || valueLen == 0) {
+        return HDF_ERR_INVALID_PARAM;
     }
     if (g_cfgEntry.next == 0) {
         DListHeadInit(&g_cfgEntry);
@@ -1339,20 +1357,13 @@ int32_t UsbFnCfgMgrGetProp(const struct UsbFnInterface *intf, const char *name, 
             if (snprintf_s(tmp, MAX_LEN, MAX_LEN - 1, "%x", val) < 0) {
                 return HDF_FAILURE;
             }
-            if (memcpy_s(value, strlen(tmp), tmp, strlen(tmp)) != 0) {
-                return HDF_FAILURE;
-            }
-            return HDF_SUCCESS;
+            return CopyPropValue(value, valueLen, tmp);
         } else {
             const char *propValue = UsbFnCfgFindPropFromHcs(intf, name);
             if (propValue == NULL) {
                 return HDF_FAILURE;
             }
-            if (memcpy_s(value, strlen(propValue), propValue, strlen(propValue)) != EOK) {
-                HDF_LOGE("%{public}s: memcpy_s failed", __func__);
-                return HDF_FAILURE;
-            }
-            return HDF_SUCCESS;
+            return CopyPropValue(value, valueLen, propValue);
         }
     }
 
@@ -1360,8 +1371,9 @@ int32_t UsbFnCfgMgrGetProp(const struct UsbFnInterface *intf, const char *name, 
     if (fnCfgPropMgr == NULL) {
         return HDF_FAILURE;
     }
-    if (memcpy_s(value, strlen(fnCfgPropMgr->value), fnCfgPropMgr->value, strlen(fnCfgPropMgr->value)) != EOK) {
-        return HDF_FAILURE;
+    int32_t ret = CopyPropValue(value, valueLen, fnCfgPropMgr->value);
+    if (ret != HDF_SUCCESS) {
+        return ret;
     }
     if (fnCfgPropMgr->getPropCallback) {
         fnCfgPropMgr->getPropCallback(intf, name, fnCfgPropMgr->value);
