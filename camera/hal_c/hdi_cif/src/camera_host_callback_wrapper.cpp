@@ -14,27 +14,49 @@
  */
 
 #include "camera_host_callback_wrapper.h"
+#include <mutex>
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 static OHOS::sptr<OHOS::Camera::ICameraHostCallback> g_callback;
+static std::mutex g_callbackMutex;
+
 void BindCameraHostCallback(const OHOS::sptr<OHOS::Camera::ICameraHostCallback>& callback)
 {
+    std::lock_guard<std::mutex> l(g_callbackMutex);
     g_callback = callback;
 }
 
 void HostCBOnCameraStatus(char* cameraId, int cameraStatus)
 {
+    OHOS::sptr<OHOS::Camera::ICameraHostCallback> callback;
+    {
+        std::lock_guard<std::mutex> l(g_callbackMutex);
+        callback = g_callback;
+    }
+    if (callback == nullptr) {
+        return;
+    }
+
     std::string id(cameraId);
-    g_callback->OnCameraStatus(id, static_cast<OHOS::Camera::CameraStatus>(cameraStatus));
+    callback->OnCameraStatus(id, static_cast<OHOS::Camera::CameraStatus>(cameraStatus));
     return;
 }
 
 void HostCBOnFlashlightStatus(char* cameraId, int flashlightStatus)
 {
+    OHOS::sptr<OHOS::Camera::ICameraHostCallback> callback;
+    {
+        std::lock_guard<std::mutex> l(g_callbackMutex);
+        callback = g_callback;
+    }
+    if (callback == nullptr) {
+        return;
+    }
+
     std::string id(cameraId);
-    g_callback->OnFlashlightStatus(id, static_cast<OHOS::Camera::FlashlightStatus>(flashlightStatus));
+    callback->OnFlashlightStatus(id, static_cast<OHOS::Camera::FlashlightStatus>(flashlightStatus));
 }
 
 #ifdef __cplusplus

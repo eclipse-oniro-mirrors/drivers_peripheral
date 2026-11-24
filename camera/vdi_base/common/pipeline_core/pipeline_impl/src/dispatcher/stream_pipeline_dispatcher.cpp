@@ -229,6 +229,15 @@ RetCode StreamPipelineDispatcher::Destroy(const int32_t streamId)
     return RC_OK;
 }
 
+std::vector<std::shared_ptr<INode>> StreamPipelineDispatcher::GetNodes(const int32_t streamId)
+{
+    auto it = seqNode_.find(streamId);
+    if (it == seqNode_.end()) {
+        return{};
+    }
+    return it->second;
+}
+
 std::shared_ptr<INode> StreamPipelineDispatcher::GetNode(const int32_t streamId, const std::string name)
 {
     if (seqNode_.count(streamId) == 0) {
