@@ -425,10 +425,15 @@ bool SensorClientsManager::IsNeedCloseSensor(SensorHandle sensorHandle, int serv
         HDF_LOGD("%{public}s: disabled sensorHandle %{public}s", __func__, SENSOR_HANDLE_TO_C_STR(sensorHandle));
         return true;
     }
+    std::string sids;
     for (auto sid : sensorUsed_[sensorHandle]) {
-        HDF_LOGD("%{public}s: sensorHandle %{public}s also is enable by service %{public}d", __func__,
-                 SENSOR_HANDLE_TO_C_STR(sensorHandle), sid);
+        if (!sids.empty()) {
+            sids += ",";
+        }
+        sids += std::to_string(sid);
     }
+    HDF_LOGI("%{public}s:%{public}s %{public}s", __func__,
+             SENSOR_HANDLE_TO_C_STR(sensorHandle), sids.c_str());
     return false;
 }
 
