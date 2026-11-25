@@ -22,7 +22,6 @@ if (drivers_peripheral_audio_feature_hdf_proxy_stub == true) {
     include_dirs = [
       "$hdf_audio_path/interfaces/include",
       "$hdf_hal_path/hdi_passthrough/include",
-      "include",
     ]
 
     sources = [
@@ -30,9 +29,6 @@ if (drivers_peripheral_audio_feature_hdf_proxy_stub == true) {
       "$hdf_hal_path/hdi_passthrough/src/audio_common.c",
       "src/hdf_audio_events.c",
       "src/hdf_audio_server_capture.c",
-      "src/hdf_audio_server_common.c",
-      "src/hdf_audio_server_manager.c",
-      "src/hdf_audio_server_render.c",
       "src/hdf_audio_usb_server.c",
     ]
 
@@ -70,18 +66,13 @@ if (drivers_peripheral_audio_feature_hdf_proxy_stub == true) {
     include_dirs = [
       "$hdf_audio_path/interfaces/include",
       "$hdf_hal_path/hdi_passthrough/include",
-      "include",
     ]
 
     sources = [
       "$hdf_hal_path/hdi_passthrough/src/audio_adapter_info_common.c",
       "$hdf_hal_path/hdi_passthrough/src/audio_common.c",
       "src/hdf_audio_a2dp_server.c",
-      "src/hdf_audio_events.c",
       "src/hdf_audio_server_capture.c",
-      "src/hdf_audio_server_common.c",
-      "src/hdf_audio_server_manager.c",
-      "src/hdf_audio_server_render.c",
     ]
 
     if (!use_clang_coverage) {
