@@ -127,6 +127,10 @@ struct LayerManager {
 
 static struct LayerManager g_layerManager;
 
+/* Serializes the lFuncs DCL, the PTHREAD_PROCESS_SHARED manager mutex init and
+ * the holder-count RMW shared by LayerInitialize/Uninitialize/LockLayerMgr. */
+static pthread_mutex_t g_layerInitMutex = PTHREAD_MUTEX_INITIALIZER;
+
 static void GetLayerMgr(void)
 {
     g_layerManager.count++;
@@ -140,12 +144,23 @@ static int32_t PutLayerMgr(void)
 
 static void LockLayerMgr(void)
 {
+    /* Layer ops must register as manager holders (under g_layerInitMutex) so that
+     * LayerUninitialize's destroy-on-zero cannot free resources while an op is
+     * still running or about to acquire g_layerManager.mutex. */
+    pthread_mutex_lock(&g_layerInitMutex);
+    g_layerManager.count++;
+    pthread_mutex_unlock(&g_layerInitMutex);
     pthread_mutex_lock(&g_layerManager.mutex);
 }
 
 static void UnlockLayerMgr(void)
 {
+    /* Unlock the manager mutex BEFORE decrementing the holder count: the RMW on
+     * count must happen under g_layerInitMutex without nesting the two mutexes. */
     pthread_mutex_unlock(&g_layerManager.mutex);
+    pthread_mutex_lock(&g_layerInitMutex);
+    g_layerManager.count--;
+    pthread_mutex_unlock(&g_layerInitMutex);
 }
 
 static int32_t DispCmdSend(const uint32_t cmd, struct HdfSBuf *reqData, struct HdfSBuf *respData)
@@ -425,10 +440,6 @@ static int32_t GetLayerBuffer(uint32_t devId, uint32_t layerId, LayerBuffer *buf
     return DISPLAY_SUCCESS;
 }
 
-// Fix FCT bug10/bug11: serialize the lFuncs DCL, the PTHREAD_PROCESS_SHARED
-// manager mutex init and the count RMW shared by LayerInitialize/Uninitialize.
-static pthread_mutex_t g_layerInitMutex = PTHREAD_MUTEX_INITIALIZER;
-
 int32_t LayerInitialize(LayerFuncs **funcs)
 {
     static LayerFuncs *lFuncs = NULL;
@@ -473,8 +484,9 @@ int32_t LayerUninitialize(LayerFuncs *funcs)
     // destroy-on-zero with Initialize and with lock holders.
     pthread_mutex_lock(&g_layerInitMutex);
     if (PutLayerMgr() == 0) {
-        pthread_mutexattr_destroy(&g_layerManager.mutexattr);
-        pthread_mutex_destroy(&g_layerManager.mutex);
+        /* Do NOT destroy g_layerManager.mutex here: it is PROCESS_SHARED and
+         * must stay alive for the whole process lifetime; destroying it while a
+         * late layer op may still lock it is undefined. Only release the funcs. */
         OsalMemFree(funcs);
     }
     pthread_mutex_unlock(&g_layerInitMutex);

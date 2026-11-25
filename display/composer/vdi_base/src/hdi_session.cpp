@@ -16,6 +16,7 @@
 #include <hdi_session.h>
 #include <cerrno>
 #include <mutex>
+#include <utility>
 #include "display_log.h"
 #include "v1_0/display_composer_type.h"
 #include "hdf_trace.h"
@@ -70,7 +71,10 @@ void HdiSession::HandleHotplug(bool plugIn)
 int32_t HdiSession::RegHotPlugCallback(HotPlugCallback callback, void *data)
 {
     DISPLAY_CHK_RETURN((callback == nullptr), DISPLAY_NULL_PTR, DISPLAY_LOGE("the callback is nullptr"));
-    mHotPlugCallBacks.emplace(callback, data);
+    {
+        std::lock_guard<std::mutex> lock(mHotPlugCbMutex);
+        mHotPlugCallBacks.emplace(callback, data);
+    }
     for (auto displayMap : mHdiDisplays) {
         auto display = displayMap.second;
         if (display->IsConnected()) {
@@ -83,7 +87,18 @@ int32_t HdiSession::RegHotPlugCallback(HotPlugCallback callback, void *data)
 void HdiSession::DoHotPlugCallback(uint32_t devId, bool connect)
 {
     DISPLAY_LOGD();
-    for (const auto &callback : mHotPlugCallBacks) {
+    /* Snapshot the callback map under the lock, then invoke the callbacks with
+     * the lock released: this both prevents iterator invalidation by a concurrent
+     * emplace (rehash) and avoids self-deadlock if a callback re-registers. */
+    std::vector<std::pair<HotPlugCallback, void *>> callbacks;
+    {
+        std::lock_guard<std::mutex> lock(mHotPlugCbMutex);
+        callbacks.reserve(mHotPlugCallBacks.size());
+        for (const auto &callback : mHotPlugCallBacks) {
+            callbacks.emplace_back(callback.first, callback.second);
+        }
+    }
+    for (const auto &callback : callbacks) {
         callback.first(devId, connect, callback.second);
     }
 }

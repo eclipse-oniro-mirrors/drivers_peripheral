@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
+#include <mutex>
 #include "display_device.h"
 #include "hdi_device_interface.h"
 #include "hdi_display.h"
@@ -64,6 +65,9 @@ private:
     std::unordered_map<uint32_t, std::shared_ptr<HdiDisplay>> mHdiDisplays;
     std::vector<std::shared_ptr<HdiDeviceInterface>> mHdiDevices;
     std::unordered_map<HotPlugCallback, void *> mHotPlugCallBacks;
+    /* Protects mHotPlugCallBacks against concurrent register (write) and
+     * dispatch (read/iterate) from different threads. */
+    std::mutex mHotPlugCbMutex;
 };
 } // namespace OHOS
 } // namespace HDI

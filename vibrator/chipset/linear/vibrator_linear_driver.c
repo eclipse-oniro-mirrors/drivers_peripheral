@@ -20,6 +20,12 @@
 #define HDF_LOG_TAG    khdf_vibrator_driver
 
 struct VibratorLinearDriverData *g_linearVibratorData = NULL;
+
+/* Guards g_linearVibratorData against ReleaseLinearVibratorDriver's
+ * "NULL-out + free": ops callbacks read the pointer and use drvData under this
+ * mutex, so they cannot dereference a freed object. */
+static struct OsalMutex g_linearVibratorRegMutex;
+
 static struct VibratorLinearDriverData *GetLinearVibratorData(void)
 {
     return g_linearVibratorData;
@@ -28,11 +34,20 @@ static struct VibratorLinearDriverData *GetLinearVibratorData(void)
 static int32_t StartLinearVibrator(void)
 {
     int32_t ret;
+    (void)OsalMutexLock(&g_linearVibratorRegMutex);
     struct VibratorLinearDriverData *drvData = GetLinearVibratorData();
-    CHECK_VIBRATOR_NULL_PTR_RETURN_VALUE(drvData, HDF_FAILURE);
+    if (drvData == NULL) {
+        (void)OsalMutexUnlock(&g_linearVibratorRegMutex);
+        return HDF_FAILURE;
+    }
+    if (drvData->linearCfgData == NULL) {
+        (void)OsalMutexUnlock(&g_linearVibratorRegMutex);
+        return HDF_FAILURE;
+    }
 
     if (drvData->linearCfgData->vibratorBus.busType != VIBRATOR_BUS_GPIO) {
         HDF_LOGE("%s: vibrator bus type not gpio", __func__);
+        (void)OsalMutexUnlock(&g_linearVibratorRegMutex);
         return HDF_FAILURE;
     }
 
@@ -40,8 +55,10 @@ static int32_t StartLinearVibrator(void)
     if (ret != HDF_SUCCESS) {
         HDF_LOGE("%s: pull gpio%d to %d level failed", __func__,
             drvData->linearCfgData->vibratorBus.GpioNum, GPIO_VAL_HIGH);
+        (void)OsalMutexUnlock(&g_linearVibratorRegMutex);
         return ret;
     }
+    (void)OsalMutexUnlock(&g_linearVibratorRegMutex);
     return HDF_SUCCESS;
 }
 
@@ -55,11 +72,20 @@ static int32_t StartEffectLinearVibrator(uint32_t effectType)
 static int32_t StopLinearVibrator(void)
 {
     int32_t ret;
+    (void)OsalMutexLock(&g_linearVibratorRegMutex);
     struct VibratorLinearDriverData *drvData = GetLinearVibratorData();
-    CHECK_VIBRATOR_NULL_PTR_RETURN_VALUE(drvData, HDF_FAILURE);
+    if (drvData == NULL) {
+        (void)OsalMutexUnlock(&g_linearVibratorRegMutex);
+        return HDF_FAILURE;
+    }
+    if (drvData->linearCfgData == NULL) {
+        (void)OsalMutexUnlock(&g_linearVibratorRegMutex);
+        return HDF_FAILURE;
+    }
 
     if (drvData->linearCfgData->vibratorBus.busType != VIBRATOR_BUS_GPIO) {
         HDF_LOGE("%s: vibrator bus type not gpio", __func__);
+        (void)OsalMutexUnlock(&g_linearVibratorRegMutex);
         return HDF_FAILURE;
     }
 
@@ -67,8 +93,10 @@ static int32_t StopLinearVibrator(void)
     if (ret != HDF_SUCCESS) {
         HDF_LOGE("%s: pull gpio%d to %d level failed", __func__,
             drvData->linearCfgData->vibratorBus.GpioNum, GPIO_VAL_LOW);
+        (void)OsalMutexUnlock(&g_linearVibratorRegMutex);
         return ret;
     }
+    (void)OsalMutexUnlock(&g_linearVibratorRegMutex);
     return HDF_SUCCESS;
 }
 
@@ -95,6 +123,7 @@ static int32_t BindLinearVibratorDriver(struct HdfDeviceObject *device)
     drvData->ioService.Dispatch = DispatchLinearVibrator;
     drvData->device = device;
     device->service = &drvData->ioService;
+    (void)OsalMutexInit(&g_linearVibratorRegMutex);
     g_linearVibratorData = drvData;
 
     return HDF_SUCCESS;
@@ -155,9 +184,14 @@ static void ReleaseLinearVibratorDriver(struct HdfDeviceObject *device)
     }
 
     device->service = NULL;
+    /* Hold the reg mutex across NULL-out and the frees: in-flight ops callbacks
+     * (Start/Stop) read and use drvData under the same mutex, so they must
+     * finish before we free anything. */
+    (void)OsalMutexLock(&g_linearVibratorRegMutex);
     g_linearVibratorData = NULL;
     OsalMemFree(drvData->linearCfgData);
     OsalMemFree(drvData);
+    (void)OsalMutexUnlock(&g_linearVibratorRegMutex);
 }
 
 struct HdfDriverEntry g_linearVibratorDriverEntry = {
