@@ -27,13 +27,20 @@ RetCode SensorManager::CreateController(ControllerId controllerId, std::string h
 {
     RetCode rc = RC_OK;
     if (controllerId == DM_C_SENSOR) {
-        if (!CheckCameraIdList(hardwareName)) {
-            std::shared_ptr<SensorController> sensor = std::make_shared<SensorController>(hardwareName);
-            if (sensor == nullptr) {
-                return RC_ERROR;
+        {
+            std::lock_guard<std::mutex> l(sensorMtx_);
+            if (CheckCameraIdList(hardwareName)) {
+                return RC_OK;
             }
-            rc = sensor->Init();
-            if (rc == RC_OK) {
+        }
+        std::shared_ptr<SensorController> sensor = std::make_shared<SensorController>(hardwareName);
+        if (sensor == nullptr) {
+            return RC_ERROR;
+        }
+        rc = sensor->Init();
+        if (rc == RC_OK) {
+            std::lock_guard<std::mutex> l(sensorMtx_);
+            if (!CheckCameraIdList(hardwareName)) {
                 sensorList_.push_back(sensor);
             }
         }
@@ -44,6 +51,7 @@ RetCode SensorManager::CreateController(ControllerId controllerId, std::string h
 std::shared_ptr<IController> SensorManager::GetController(ControllerId controllerId, std::string hardwareName)
 {
     (void)controllerId;
+    std::lock_guard<std::mutex> l(sensorMtx_);
     if (sensorList_.size() == 0) {
         return nullptr;
     }
@@ -57,70 +65,123 @@ std::shared_ptr<IController> SensorManager::GetController(ControllerId controlle
 
 void SensorManager::Configure(std::shared_ptr<CameraMetadata> meta)
 {
-    if (sensorList_.size() == 0) {
-        return;
+    std::vector<std::shared_ptr<SensorController>> snapshot;
+    {
+        std::lock_guard<std::mutex> l(sensorMtx_);
+        if (sensorList_.size() == 0) {
+            return;
+        }
+        snapshot = sensorList_;
     }
-    for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
+    for (auto iter = snapshot.cbegin(); iter != snapshot.cend(); iter++) {
         (*iter)->Configure(meta);
     }
 }
 
 RetCode SensorManager::PowerUp(std::string hardwareName)
 {
-    for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
-        if ((*iter)->GetName() == hardwareName) {
-            return (*iter)->PowerUp();
+    std::shared_ptr<SensorController> target;
+    {
+        std::lock_guard<std::mutex> l(sensorMtx_);
+        for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
+            if ((*iter)->GetName() == hardwareName) {
+                target = *iter;
+                break;
+            }
         }
     }
-    return RC_ERROR;
+    if (target == nullptr) {
+        return RC_ERROR;
+    }
+    return target->PowerUp();
 }
 
 RetCode SensorManager::PowerDown(std::string hardwareName)
 {
-    for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
-        if ((*iter)->GetName() == hardwareName) {
-            return (*iter)->PowerDown();
+    std::shared_ptr<SensorController> target;
+    {
+        std::lock_guard<std::mutex> l(sensorMtx_);
+        for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
+            if ((*iter)->GetName() == hardwareName) {
+                target = *iter;
+                break;
+            }
         }
     }
-    return RC_ERROR;
+    if (target == nullptr) {
+        return RC_ERROR;
+    }
+    return target->PowerDown();
 }
 
 RetCode SensorManager::Start(std::string hardwareName, int buffCont, DeviceFormat& format)
 {
-    for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
-        if ((*iter)->GetName() == hardwareName) {
-            return (*iter)->Start(buffCont, format);
+    std::shared_ptr<SensorController> target;
+    {
+        std::lock_guard<std::mutex> l(sensorMtx_);
+        for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
+            if ((*iter)->GetName() == hardwareName) {
+                target = *iter;
+                break;
+            }
         }
     }
-    return RC_ERROR;
+    if (target == nullptr) {
+        return RC_ERROR;
+    }
+    return target->Start(buffCont, format);
 }
 
 RetCode SensorManager::Stop(std::string hardwareName)
 {
-    for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
-        if ((*iter)->GetName() == hardwareName) {
-            return (*iter)->Stop();
+    std::shared_ptr<SensorController> target;
+    {
+        std::lock_guard<std::mutex> l(sensorMtx_);
+        for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
+            if ((*iter)->GetName() == hardwareName) {
+                target = *iter;
+                break;
+            }
         }
     }
-    return RC_ERROR;
+    if (target == nullptr) {
+        return RC_ERROR;
+    }
+    return target->Stop();
 }
 
 RetCode SensorManager::SendFrameBuffer(std::shared_ptr<FrameSpec> buffer, std::string hardwareName)
 {
-    for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
-        if ((*iter)->GetName() == hardwareName) {
-            return (*iter)->SendFrameBuffer(buffer);
+    std::shared_ptr<SensorController> target;
+    {
+        std::lock_guard<std::mutex> l(sensorMtx_);
+        for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
+            if ((*iter)->GetName() == hardwareName) {
+                target = *iter;
+                break;
+            }
         }
     }
-    return RC_ERROR;
+    if (target == nullptr) {
+        return RC_ERROR;
+    }
+    return target->SendFrameBuffer(buffer);
 }
 
 void SensorManager::SetAbilityMetaDataTag(std::vector<int32_t> abilityMetaDataTag, std::string hardwareName)
 {
-    for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
-        if ((*iter)->GetName() == hardwareName) {
-            (*iter)->SetAbilityMetaDataTag(abilityMetaDataTag);
+    std::shared_ptr<SensorController> target;
+    {
+        std::lock_guard<std::mutex> l(sensorMtx_);
+        for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
+            if ((*iter)->GetName() == hardwareName) {
+                target = *iter;
+                break;
+            }
         }
+    }
+    if (target != nullptr) {
+        target->SetAbilityMetaDataTag(abilityMetaDataTag);
     }
 }
 
@@ -145,10 +206,18 @@ bool SensorManager::CheckCameraIdList(std::string hardwareName)
 
 void SensorManager::SetNodeCallBack(const NodeBufferCb cb, std::string hardwareName)
 {
-    for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
-        if ((*iter)->GetName() == hardwareName) {
-            (*iter)->SetNodeCallBack(cb);
+    std::shared_ptr<SensorController> target;
+    {
+        std::lock_guard<std::mutex> l(sensorMtx_);
+        for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
+            if ((*iter)->GetName() == hardwareName) {
+                target = *iter;
+                break;
+            }
         }
+    }
+    if (target != nullptr) {
+        target->SetNodeCallBack(cb);
     }
 }
 
@@ -161,6 +230,7 @@ void SensorManager::SetMetaDataCallBack(const MetaDataCb cb, std::string hardwar
 RetCode SensorManager::DestroyController(ControllerId controllerId, std::string hardwareName)
 {
     if (controllerId == DM_C_SENSOR) {
+        std::lock_guard<std::mutex> l(sensorMtx_);
         for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
             if ((*iter)->GetName() == hardwareName) {
                 sensorList_.erase(iter);
@@ -173,10 +243,15 @@ RetCode SensorManager::DestroyController(ControllerId controllerId, std::string 
 
 void SensorManager::SetMemoryType(uint8_t &memType)
 {
-    if (sensorList_.size() == 0) {
-        return;
+    std::vector<std::shared_ptr<SensorController>> snapshot;
+    {
+        std::lock_guard<std::mutex> l(sensorMtx_);
+        if (sensorList_.size() == 0) {
+            return;
+        }
+        snapshot = sensorList_;
     }
-    for (auto iter = sensorList_.cbegin(); iter != sensorList_.cend(); iter++) {
+    for (auto iter = snapshot.cbegin(); iter != snapshot.cend(); iter++) {
         (*iter)->SetMemoryType(memType);
     }
     return;
