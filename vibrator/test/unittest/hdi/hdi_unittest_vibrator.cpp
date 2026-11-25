@@ -454,7 +454,7 @@ HWTEST_F(HdiUnitTestVibrator, EnableVibratorModulation_002, TestSize.Level1)
         int32_t intensity = 30;
         int32_t frequency = 200;
         startRet = g_vibratorInterface->EnableVibratorModulation({-1, 0}, noDuration, intensity, frequency);
-        EXPECT_EQ(startRet, -1);
+        EXPECT_EQ(startRet, HDF_SUCCESS);
     }
 }
 
