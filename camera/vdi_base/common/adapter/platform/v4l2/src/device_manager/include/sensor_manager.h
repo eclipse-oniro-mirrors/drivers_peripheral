@@ -16,6 +16,7 @@
 #ifndef HOS_CAMERA_SENSOR_MANAGER_H
 #define HOS_CAMERA_SENSOR_MANAGER_H
 
+#include <mutex>
 #include "isensor.h"
 #include "imanager.h"
 #include "device_manager_adapter.h"
@@ -46,6 +47,7 @@ public:
 
 private:
     bool CheckCameraIdList(std::string hardwareName);
+    std::mutex sensorMtx_;
     std::vector<std::shared_ptr<SensorController>> sensorList_;
 };
 } // namespace OHOS::Camera
