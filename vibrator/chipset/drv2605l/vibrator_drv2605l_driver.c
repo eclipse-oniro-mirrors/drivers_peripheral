@@ -23,6 +23,12 @@
 
 struct Drv2605lDriverData *g_drv2605lDrvData = NULL;
 
+/* Guards "read g_drv2605lDrvData + take i2cMutex" in the ops callbacks against
+ * ReleaseDrv2605lDriver's "NULL-out + free": a callback either sees the old
+ * (valid) drvData and drains via i2cMutex before Release frees it, or sees NULL.
+ * Acquire order: g_drv2605lRegMutex -> drvData->i2cMutex (never reversed). */
+static struct OsalMutex g_drv2605lRegMutex;
+
 static struct Drv2605lDriverData *GetDrv2605lDrvData(void)
 {
     return g_drv2605lDrvData;
@@ -185,11 +191,18 @@ static int32_t SetModulationParameter(uint16_t intensity, int16_t frequency)
 {
     uint8_t value[DRV2605L_VALUE_BUTT];
     struct Drv2605lDriverData *drvData = NULL;
+
+    /* Take the reg mutex while reading the pointer and acquiring i2cMutex so
+     * a concurrent ReleaseDrv2605lDriver cannot free drvData in between. */
+    (void)OsalMutexLock(&g_drv2605lRegMutex);
     drvData = GetDrv2605lDrvData();
-
-    CHECK_VIBRATOR_NULL_PTR_RETURN_VALUE(drvData, HDF_FAILURE);
-
+    if (drvData == NULL) {
+        (void)OsalMutexUnlock(&g_drv2605lRegMutex);
+        return HDF_FAILURE;
+    }
     (void)OsalMutexLock(&drvData->i2cMutex);
+    (void)OsalMutexUnlock(&g_drv2605lRegMutex);
+
     if (intensity != 0) {
         value[DRV2605L_ADDR_INDEX] = (uint8_t)DRV2605_REG_RTPIN;
         value[DRV2605L_VALUE_INDEX] = (uint8_t)INTENSITY_MAPPING_VALUE(intensity);
@@ -224,11 +237,18 @@ static int32_t StartModulationParameter(void)
 {
     uint8_t value[DRV2605L_VALUE_BUTT];
     struct Drv2605lDriverData *drvData = NULL;
+
+    /* Take the reg mutex while reading the pointer and acquiring i2cMutex so
+     * a concurrent ReleaseDrv2605lDriver cannot free drvData in between. */
+    (void)OsalMutexLock(&g_drv2605lRegMutex);
     drvData = GetDrv2605lDrvData();
-
-    CHECK_VIBRATOR_NULL_PTR_RETURN_VALUE(drvData, HDF_FAILURE);
-
+    if (drvData == NULL) {
+        (void)OsalMutexUnlock(&g_drv2605lRegMutex);
+        return HDF_FAILURE;
+    }
     (void)OsalMutexLock(&drvData->i2cMutex);
+    (void)OsalMutexUnlock(&g_drv2605lRegMutex);
+
     value[DRV2605L_ADDR_INDEX] = (uint8_t)DRV2605_REG_MODE;
     value[DRV2605L_VALUE_INDEX] = (uint8_t)DRV2605_MODE_REALTIME;
     if (WriteDrv2605l(&drvData->drv2605lCfgData->vibratorBus.i2cCfg, value, sizeof(value)) != HDF_SUCCESS) {
@@ -245,12 +265,22 @@ static int32_t StopModulationParameter(void)
 {
     uint8_t value[DRV2605L_VALUE_BUTT];
     struct Drv2605lDriverData *drvData = NULL;
+
+    /* Take the reg mutex while reading the pointer and acquiring i2cMutex so
+     * a concurrent ReleaseDrv2605lDriver cannot free drvData in between. */
+    (void)OsalMutexLock(&g_drv2605lRegMutex);
     drvData = GetDrv2605lDrvData();
-
-    CHECK_VIBRATOR_NULL_PTR_RETURN_VALUE(drvData, HDF_FAILURE);
-    CHECK_VIBRATOR_NULL_PTR_RETURN_VALUE(drvData->drv2605lCfgData, HDF_FAILURE);
-
+    if (drvData == NULL) {
+        (void)OsalMutexUnlock(&g_drv2605lRegMutex);
+        return HDF_FAILURE;
+    }
+    if (drvData->drv2605lCfgData == NULL) {
+        (void)OsalMutexUnlock(&g_drv2605lRegMutex);
+        return HDF_FAILURE;
+    }
     (void)OsalMutexLock(&drvData->i2cMutex);
+    (void)OsalMutexUnlock(&g_drv2605lRegMutex);
+
     value[DRV2605L_ADDR_INDEX] = (uint8_t)DRV2605_REG_MODE;
     value[DRV2605L_VALUE_INDEX] = (uint8_t)DRV2605_MODE_STANDBY;
     if (WriteDrv2605l(&drvData->drv2605lCfgData->vibratorBus.i2cCfg, value, sizeof(value)) != HDF_SUCCESS) {
@@ -301,6 +331,7 @@ static int32_t BindDrv2605lDriver(struct HdfDeviceObject *device)
     drvData->ioService.Dispatch = DispatchDrv2605l;
     drvData->device = device;
     device->service = &drvData->ioService;
+    (void)OsalMutexInit(&g_drv2605lRegMutex);
     g_drv2605lDrvData = drvData;
     return HDF_SUCCESS;
 }
@@ -370,15 +401,20 @@ static void ReleaseDrv2605lDriver(struct HdfDeviceObject *device)
         return;
     }
     device->service = NULL;
+    /* Hold the reg mutex across NULL-out, i2cMutex drain and the frees:
+     * in-flight callbacks took i2cMutex inside their reg critical section, so
+     * taking i2cMutex here waits for them to finish; new callbacks see NULL. */
+    (void)OsalMutexLock(&g_drv2605lRegMutex);
     g_drv2605lDrvData = NULL;
+    (void)OsalMutexLock(&drvData->i2cMutex);
     if (drvData->drv2605lCfgData != NULL) {
-        (void)OsalMutexLock(&drvData->i2cMutex);
         ReleaseDrv2605lBusHandle(&drvData->drv2605lCfgData->vibratorBus.i2cCfg);
-        (void)OsalMutexUnlock(&drvData->i2cMutex);
         OsalMemFree(drvData->drv2605lCfgData);
     }
+    (void)OsalMutexUnlock(&drvData->i2cMutex);
     (void)OsalMutexDestroy(&drvData->i2cMutex);
     OsalMemFree(drvData);
+    (void)OsalMutexUnlock(&g_drv2605lRegMutex);
 }
 
 struct HdfDriverEntry g_drv2605lDriverEntry = {

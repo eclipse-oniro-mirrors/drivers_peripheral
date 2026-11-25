@@ -26,6 +26,10 @@
 #define SENSOR_GAIN_INCREASE      0
 
 static struct Bh1745DrvData *g_bh1745DrvData = NULL;
+/* Guards "read g_bh1745DrvData + take dataMutex" against Release's
+ * "read + NULL-out" so the read side can never lock a freed drvData's mutex.
+ * Acquire order: g_bh1745DrvRegMutex -> drvData->dataMutex (never reversed). */
+static struct OsalMutex g_bh1745DrvRegMutex;
 static uint32_t g_timeChangeStatus = SENSOR_TIME_DECREASE;
 
 static struct TimeRegAddrValueMap g_timeMap[EXTENDED_ALS_TIME_GROUP_INDEX_MAX] = {
@@ -246,11 +250,19 @@ static int32_t ReadBh1745Data(struct SensorCfgData *data, struct SensorReportEve
     struct AlsData rawData = { 0, 0, 0, 0 };
     uint32_t tmp[ALS_LIGHT_NUM];
     static struct AlsReportData reportData;
-    struct Bh1745DrvData *drvData = g_bh1745DrvData;
+    struct Bh1745DrvData *drvData;
 
-    CHECK_NULL_PTR_RETURN_VALUE(drvData, HDF_ERR_INVALID_PARAM);
-
+    /* The reg mutex makes "read the global pointer + lock dataMutex" atomic
+     * w.r.t. Bh1745ReleaseDriver's "read + NULL-out" of the same pointer. */
+    (void)OsalMutexLock(&g_bh1745DrvRegMutex);
+    drvData = g_bh1745DrvData;
+    if (drvData == NULL) {
+        (void)OsalMutexUnlock(&g_bh1745DrvRegMutex);
+        return HDF_ERR_INVALID_PARAM;
+    }
     (void)OsalMutexLock(&drvData->dataMutex);
+    (void)OsalMutexUnlock(&g_bh1745DrvRegMutex);
+
     ret = ReadBh1745RawData(data, &rawData, &event->timestamp);
     if (ret != HDF_SUCCESS) {
         HDF_LOGE("%s: BH1745 read raw data failed", __func__);
@@ -353,6 +365,11 @@ static int32_t Bh1745InitDriver(struct HdfDeviceObject *device)
         return HDF_FAILURE;
     }
 
+    if (OsalMutexInit(&g_bh1745DrvRegMutex) != HDF_SUCCESS) {
+        HDF_LOGE("%s: init drv reg mutex failed", __func__);
+        return HDF_FAILURE;
+    }
+
     if (OsalMutexInit(&drvData->dataMutex) != HDF_SUCCESS) {
         HDF_LOGE("%s: init data mutex failed", __func__);
         return HDF_FAILURE;
@@ -388,11 +405,24 @@ static void Bh1745ReleaseDriver(struct HdfDeviceObject *device)
     struct Bh1745DrvData *drvData = (struct Bh1745DrvData *)device->service;
     CHECK_NULL_PTR_RETURN(drvData);
 
+    /* Take the reg mutex, read and NULL-out the global pointer, then drain:
+     * a concurrent ReadBh1745Data either saw the old (still valid) pointer and
+     * holds dataMutex (we wait on it below), or sees NULL and bails out. */
+    (void)OsalMutexLock(&g_bh1745DrvRegMutex);
+    g_bh1745DrvData = NULL;
+    (void)OsalMutexUnlock(&g_bh1745DrvRegMutex);
+
+    /* Hold dataMutex while releasing the cfg so an in-flight ReadBh1745Data
+     * (which holds the same mutex around its cfg accesses) completes first. */
+    (void)OsalMutexLock(&drvData->dataMutex);
     if (drvData->sensorCfg != NULL) {
         AlsReleaseCfgData(drvData->sensorCfg);
         drvData->sensorCfg = NULL;
     }
+    (void)OsalMutexUnlock(&drvData->dataMutex);
     (void)OsalMutexDestroy(&drvData->dataMutex);
+    /* g_bh1745DrvRegMutex is intentionally NOT destroyed: it is module-lifetime
+     * state and destroying it could race with a late reader acquiring it. */
     OsalMemFree(drvData);
 }
 
