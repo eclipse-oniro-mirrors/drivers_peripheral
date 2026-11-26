@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import("//build/ohos.gni")
+import("//drivers/peripheral/bluetooth/bluetooth.gni")
 
 declare_args() {
   drivers_peripheral_bluetooth_mac_update = false
@@ -61,12 +62,17 @@ ohos_shared_library("libhci_interface_service_1.0") {
       "hitrace:hitrace_meter" ]
   }
 
+  defines = []
   if (drivers_peripheral_bluetooth_mac_update) {
-    defines = [ 
+    defines += [
       "BT_MAC_UPDATE",
       "BLUETOOTH_PLUGGABLE_SUPPORTED"
     ]
     external_deps += [ "init:libbegetutil" ]
+  }
+
+  if (drivers_peripheral_bluetooth_secondary_mac) {
+    defines += [ "BT_SECONDARY_MAC" ]
   }
 
   install_images = [ chipset_base_dir ]

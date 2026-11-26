@@ -15,8 +15,10 @@
 
 #include "vendor_interface.h"
 
+#ifdef BT_SECONDARY_MAC
 #include <algorithm>
 #include <iterator>
+#endif
 #include <thread>
 
 #include <dlfcn.h>
@@ -52,6 +54,7 @@ BtVendorCallbacksT VendorInterface::vendorCallbacks_ = {
     .xmitCb = VendorInterface::OnCmdXmitCallback,
 };
 
+#ifdef BT_SECONDARY_MAC
 void VendorInterface::SetBtSecondaryMac(const HC_BT_HDR *btHdr)
 {
     constexpr uint16_t setBdAddrCmdMinLen = 9;
@@ -77,6 +80,7 @@ void VendorInterface::SetBtSecondaryMac(const HC_BT_HDR *btHdr)
         HDF_LOGE("send secondary bdaddr command failed, ret: %{public}zu", sendLen);
     }
 }
+#endif
 
 VendorInterface::VendorInterface()
 {}
@@ -139,6 +143,7 @@ void VendorInterface::LoadBtAddresses(std::vector<uint8_t> &address)
         bluetoothAddress->ReadAddress(address);
     }
 
+#ifdef BT_SECONDARY_MAC
     hasSecondaryBda_ = false;
     auto secondaryAddress = BluetoothAddress::GetSecondaryBtAddress();
     if (secondaryAddress == nullptr) {
@@ -151,6 +156,7 @@ void VendorInterface::LoadBtAddresses(std::vector<uint8_t> &address)
         hasSecondaryBda_ = true;
         HDF_LOGI("secondary bt address ready");
     }
+#endif
 }
 
 bool VendorInterface::Initialize(
@@ -243,8 +249,10 @@ void VendorInterface::CleanUp()
     lpmTimer_ = 0;
     wakeupLock_ = false;
     activity_ = false;
+#ifdef BT_SECONDARY_MAC
     hasSecondaryBda_ = false;
     std::fill(std::begin(secondaryBda_), std::end(secondaryBda_), 0);
+#endif
 }
 
 size_t VendorInterface::SendPacket(Hci::HciPacketType type, const std::vector<uint8_t> &packet)
@@ -321,9 +329,11 @@ size_t VendorInterface::OnCmdXmitCallback(uint16_t opcode, void *buf)
     size_t sendLen = VendorInterface::GetInstance()->SendPacket(
         Hci::HCI_PACKET_TYPE_COMMAND, std::vector<uint8_t>(hdr->data, hdr->data + hdr->len));
 
+#ifdef BT_SECONDARY_MAC
     if (opcode == Hci::HCI_VSC_OPCODE_SET_BD_ADDR) {
         VendorInterface::GetInstance()->SetBtSecondaryMac(hdr);
     }
+#endif
 
     return sendLen;
 }

@@ -93,7 +93,9 @@ void H4Protocol::ReadData(int fd)
             HDF_LOGE("read fd[%d] readLen = %zd.", fd, readLen);
             return;
         }
+#ifdef BT_SECONDARY_MAC
         packetType_ &= HCI_DATA_TYPE_SECOND_MASK;
+#endif
         if (packetType_ > HCI_PACKET_TYPE_UNKNOWN && packetType_ < HCI_PACKET_TYPE_MAX) {
             hciPacket_.resize(header_[packetType_].headerSize);
         }
