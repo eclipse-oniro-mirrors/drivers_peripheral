@@ -14,4 +14,5 @@
 declare_args() {
     drivers_peripheral_bluetooth_a2dp_hdi = false
     drivers_peripheral_bluetooth_multi_a2dp_enabled = false
+    drivers_peripheral_bluetooth_secondary_mac = false
 }

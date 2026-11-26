@@ -117,6 +117,7 @@ bool BluetoothAddress::GetConstantAddress(unsigned int macType, char *address, i
     return (ret == 0);
 }
 
+#ifdef BT_SECONDARY_MAC
 std::shared_ptr<BluetoothAddress> BluetoothAddress::GetSecondaryBtAddressFromFile()
 {
     const uint8_t invalidBdaddr[ADDRESS_SIZE] = {0};
@@ -179,6 +180,7 @@ std::shared_ptr<BluetoothAddress> BluetoothAddress::LoadSecondaryBtAddressFromNV
     HDF_LOGI("loaded secondary bt address from nv: %{public}s", GetEncryptAddr(std::string(addressStr)).c_str());
     return ptr;
 }
+#endif
 
 bool BluetoothAddress::CheckAddress(char *address, int len)
 {
