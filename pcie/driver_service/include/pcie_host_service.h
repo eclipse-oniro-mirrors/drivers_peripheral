@@ -35,9 +35,9 @@ struct PcieDriverHostDeps {
     // Loads the EDM SA and returns the result.
     std::function<bool()> loadEdmSaAndWait;
     // Replaces driver path resolution, file opening, and file information validation.
-    std::function<int32_t(const std::string&, std::string&, int&, struct stat&, int&)> resolveDriverPath;
+    std::function<int32_t(const std::string&, std::string&, int32_t&, struct stat&, int32_t&)> resolveDriverPath;
     // Replaces kernel module insertion so tests do not actually load drivers.
-    std::function<int(int, const std::string&)> finitModule;
+    std::function<int32_t(int32_t, const std::string&)> finitModule;
 };
 
 class PcieDriverHostService {

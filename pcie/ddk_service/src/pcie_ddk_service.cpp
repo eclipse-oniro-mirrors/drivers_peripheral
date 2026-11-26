@@ -96,13 +96,13 @@ int32_t PcieDdkService::LoadPcieDrivers(
     if (loadRequests.size() > MAX_PCIE_LOAD_REQUESTS) {
         HDF_LOGE("PCIe load request count exceeds limit: %{public}zu", loadRequests.size());
         loadResults.clear();
-        return HDF_ERR_INVALID_PARAM;
+        return HDF_FAILURE;
     }
     for (const auto &loadRequest : loadRequests) {
         if (loadRequest.options.size() > MAX_PCIE_LOAD_OPTIONS_LENGTH) {
             HDF_LOGE("PCIe load options length exceeds limit: %{public}zu", loadRequest.options.size());
             loadResults.clear();
-            return HDF_ERR_INVALID_PARAM;
+            return HDF_FAILURE;
         }
     }
     HDF_LOGI("PCIE_LOAD_TRACE DDK_LOAD_ENTER requests=%{public}zu", loadRequests.size());
@@ -110,18 +110,6 @@ int32_t PcieDdkService::LoadPcieDrivers(
     auto executionResult = driverLoadInjectedDeps_.executeDriverLoads(loadRequests);
     HDF_LOGI("PCIE_LOAD_TRACE DDK_LOAD_EXECUTE results=%{public}zu", executionResult.loadResults.size());
     loadResults = std::move(executionResult.loadResults);
-    bool hasFailure = false;
-    for (const auto &loadResult : loadResults) {
-        if (loadResult.statusCode == HDF_SUCCESS) {
-            continue;
-        }
-        hasFailure = true;
-    }
-    if (hasFailure) {
-        HDF_LOGE(
-            "PCIE_LOAD_TRACE DDK_LOAD_REPLY status=%{public}d results=%{public}zu", HDF_FAILURE, loadResults.size());
-        return HDF_FAILURE;
-    }
     HDF_LOGI("PCIE_LOAD_TRACE DDK_LOAD_REPLY status=%{public}d results=%{public}zu", HDF_SUCCESS, loadResults.size());
     return HDF_SUCCESS;
 }
