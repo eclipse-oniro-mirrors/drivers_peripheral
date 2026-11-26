@@ -1267,7 +1267,7 @@ int32_t SensorIfService::EnableWithCallbackId(const OHOS::HDI::Sensor::V3_0::Dev
         return HDF_FAILURE;
     }
 
-    return EnableSensorInternal(sensorHandle, serviceId);
+    return EnableSensorInternal(sensorHandle, callbackId);
 }
 
 int32_t SensorIfService::DisableWithCallbackId(const OHOS::HDI::Sensor::V3_0::DeviceSensorInfo& deviceSensorInfo,
