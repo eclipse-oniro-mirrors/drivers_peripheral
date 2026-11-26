@@ -84,6 +84,9 @@ int32_t CodecImageService::DoJpegDecode(const CodecImageBuffer& inBuffer, const 
     if (inBuffer.fenceFd >= 0) {
         close(inBuffer.fenceFd);
     }
+    if (outBuffer.fenceFd >= 0) {
+        close(outBuffer.fenceFd);
+    }
     CHECK_AND_RETURN_RET_LOG(jpegImpl_ != nullptr, HDF_FAILURE, "jpegImpl_ is null");
     return jpegImpl_->DoJpegDecode(inBuffer, outBuffer, decInfo);
 }
