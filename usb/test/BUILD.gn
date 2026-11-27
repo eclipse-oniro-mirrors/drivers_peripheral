@@ -71,6 +71,9 @@ if (defined(ohos_lite)) {
       "unittest/mock_libusb:test_libusb_adapter_mock",
       "unittest/mock_libusb:test_libusb_adapter_transfer_mock",
       "unittest/mock_libusb:test_libusb_adapter_transfer_edge_mock",
+      "unittest/mock_libusb:test_libusb_adapter_async_mock",
+      "unittest/mock_libusb:test_libusb_adapter_lifetime_mock",
+      "unittest/mock_libusb:test_libusb_adapter_bulk_v2_mock",
       "unittest/mock_libusb_ddk:test_usb_ddk_service_mock",
     ]
   }
