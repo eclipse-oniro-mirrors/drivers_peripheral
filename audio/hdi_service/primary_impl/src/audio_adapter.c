@@ -218,6 +218,10 @@ static int32_t AudioCheckDescPortId(
     }
     bool checkFlag = false;
     for (int index = 0; index < adapterNum; index++) {
+        if (descs[index].adapterName == NULL) {
+            AUDIO_FUNC_LOGE("descs[%{public}d].adapterName is NULL", index);
+            return HDF_FAILURE;
+        }
         if (strcmp(descs[index].adapterName, adapterDescriptor->adapterName) == 0) {
             if (descs[index].ports[0].portId == portId) {
                 checkFlag = true;
@@ -233,6 +237,10 @@ static int32_t AudioCheckDescPortId(
         return HDF_FAILURE;
     }
     for (int index = 0; index < adapterNum; index++) {
+        if (descs[index].adapterName == NULL) {
+            AUDIO_FUNC_LOGE("descs[%{public}d].adapterName is NULL", index);
+            return HDF_FAILURE;
+        }
         if (strncmp(descs[index].adapterName, PRIMARY, strlen(PRIMARY)) == 0) {
             if (descs[index].ports[0].portId <= AUDIO_PRIMARY_ID_MAX &&
                 descs[index].ports[0].portId >= AUDIO_PRIMARY_ID_MIN) {
@@ -258,6 +266,10 @@ static int32_t AudioMakeCardServiceName(
     int32_t ret = AudioCheckDescPortId(adapterDescriptor, portId, &priPortId);
     if (ret != HDF_SUCCESS) {
         AUDIO_FUNC_LOGE("The Audio Port ID is illegal, please check!");
+        return HDF_FAILURE;
+    }
+    if (adapterDescriptor->adapterName == NULL) {
+        AUDIO_FUNC_LOGE("adapterDescriptor->adapterName is NULL");
         return HDF_FAILURE;
     }
     if (strncmp(adapterDescriptor->adapterName, PRIMARY, strlen(PRIMARY)) == 0) {
